@@ -1,9 +1,19 @@
+// Função para "limpar" o nome da sala, removendo acentos e espaços, para id e comunicação
+function limparNomeSala(nome) {
+  return nome.toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove acentos
+    .replace(/\s+/g, '-'); // espaços para hífen
+}
+
 const params = new URLSearchParams(window.location.search);
-const sala = params.get('sala');
+let sala = params.get('sala') || '';
 const nickname = params.get('nick');
 const idade = params.get('idade');
 
 console.log('Parâmetros da URL:', { sala, nickname, idade });
+
+// Aplica a limpeza no nome da sala para enviar ao servidor
+const salaLimpa = limparNomeSala(sala);
 
 const socket = io();
 
@@ -14,8 +24,23 @@ backBtn.addEventListener('click', () => {
   window.location.href = '/';
 });
 
-socket.emit('joinRoom', { sala, nickname, idade });
-console.log('Evento joinRoom emitido', { sala, nickname, idade });
+// Emite com o nome da sala limpo
+socket.emit('joinRoom', { sala: salaLimpa, nickname, idade });
+console.log('Evento joinRoom emitido', { sala: salaLimpa, nickname, idade });
+
+// Coloca o listener dentro do load para garantir que o DOM está pronto
+socket.on('roomCounts', (counts) => {
+  console.log('Contagem de usuários por sala recebida:', counts);
+  Object.entries(counts).forEach(([room, count]) => {
+    const roomLimpa = limparNomeSala(room);
+    const el = document.getElementById(`count-${roomLimpa}`);
+    console.log(`Atualizando #count-${roomLimpa} para ${count}`, el);
+    if (el) {
+      el.textContent = count;
+      console.log(`Elemento atualizado:`, el.textContent);
+    }
+  });
+});
 
 socket.on('roomFull', () => {
   console.log('Sala cheia recebida do servidor');
