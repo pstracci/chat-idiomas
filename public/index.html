@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<title>WorldChat</title>
+<style>
+  /* Reset básico */
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+      Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    background: #e6f0ff; /* azul clarinho suave */
+    color: #1c1c1e; /* cinza escuro */
+    margin: 0;
+    padding: 0 15px 30px 15px;
+    min-height: 100vh;
+  }
+  header {
+    text-align: center;
+    padding: 25px 0 15px;
+    font-size: 2.4em;
+    font-weight: 600;
+    color: #0a47a1; /* azul iOS */
+    position: relative;
+  }
+
+  /* Idioma dentro do modal (fonte menor) */
+  #languageSelectModal {
+    font-size: 0.9em;
+    padding: 6px 10px;
+    border-radius: 14px;
+    border: 1.5px solid #cbd2d9;
+    outline-offset: 2px;
+    outline-color: #0a84ff;
+    cursor: pointer;
+    background: white;
+    margin-top: 10px;
+    display: block;
+    width: 100%;
+  }
+
+  /* Idioma fixo discreto no canto superior direito após aceitar */
+  #languageSelectFixed {
+    position: fixed;
+    top: 10px;
+    right: 15px;
+    font-size: 0.8em;
+    padding: 4px 8px;
+    border-radius: 14px;
+    border: 1.2px solid #cbd2d9;
+    background: white;
+    cursor: pointer;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.1);
+    display: none;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+  }
+  #languageSelectFixed span {
+    font-size: 1.15em;
+  }
+
+  /* Modal do aviso */
+  .modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0; top: 0; width: 100%; height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .modal-content {
+    background: white;
+    max-width: 450px;
+    padding: 25px 30px 30px;
+    border-radius: 20px;
+    box-shadow: 0 8px 24px rgba(10,10,10,0.15);
+    text-align: center;
+    font-size: 1.05em;
+    line-height: 1.5em;
+    color: #1c1c1e;
+  }
+  .modal-content h2 {
+    margin-top: 0;
+    font-weight: 700;
+    color: #c0392b;
+  }
+  .modal-content ul {
+    text-align: left;
+    margin-left: 25px;
+    margin-bottom: 20px;
+  }
+  .modal-content ul li {
+    margin-bottom: 8px;
+  }
+  #btnAceitar {
+    background-color: #0a84ff;
+    color: white;
+    border: none;
+    padding: 14px 25px;
+    border-radius: 14px;
+    font-size: 1.1em;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(10,132,255,0.4);
+    transition: background-color 0.3s ease;
+    margin-top: 15px;
+  }
+  #btnAceitar:hover {
+    background-color: #0063d1;
+  }
+
+  /* Main */
+  #main {
+    max-width: 480px;
+    margin: 20px auto 0;
+    background: white;
+    border-radius: 22px;
+    padding: 25px 30px 30px;
+    box-shadow: 0 6px 18px rgba(10,10,10,0.1);
+  }
+
+  h2 {
+    font-weight: 700;
+    margin-bottom: 15px;
+    color: #0a47a1;
+  }
+
+  input, select {
+    width: 100%;
+    font-size: 1.1em;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1.8px solid #cbd2d9;
+    margin-bottom: 18px;
+    outline-offset: 2px;
+    outline-color: #0a84ff;
+    font-family: inherit;
+  }
+  input:focus, select:focus {
+    border-color: #0a84ff;
+  }
+
+  #errorNickname {
+    color: #e74c3c;
+    font-size: 0.9em;
+    margin-top: -14px;
+    margin-bottom: 18px;
+  }
+
+  /* Lista de salas */
+  .room-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+  }
+  .room {
+    background: white;
+    border-radius: 16px;
+    width: calc(50% - 12px);
+    min-width: 140px;
+    box-shadow: 0 4px 12px rgba(10,10,10,0.07);
+    cursor: pointer;
+    padding: 14px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: box-shadow 0.3s ease;
+  }
+  .room:hover {
+    box-shadow: 0 6px 20px rgba(10,132,255,0.3);
+  }
+  .room img {
+    width: 40px;
+    height: 28px;
+    border-radius: 5px;
+    object-fit: cover;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  .room > div {
+    font-weight: 600;
+    font-size: 1.1em;
+    color: #0a47a1;
+    flex-grow: 1;
+  }
+  .count {
+    background: #0a84ff;
+    color: white;
+    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: 14px;
+    font-size: 0.95em;
+    user-select: none;
+  }
+
+  @media (max-width: 480px) {
+    .room {
+      width: 100%;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  WorldChat
+</header>
+
+<!-- Modal do aviso -->
+<div id="modalAviso" class="modal">
+  <div class="modal-content">
+    <h2 id="avisoTitle">⚠️ Aviso Importante — Uso Restrito a Maiores de 18 Anos ⚠️</h2>
+    <p id="avisoText1">Este site é destinado exclusivamente a pessoas com 18 anos ou mais. Ao acessar, você declara que possui idade mínima exigida e que está ciente de que:</p>
+    <ul id="avisoList">
+      <li>Não nos responsabilizamos pelo conteúdo das mensagens.</li>
+      <li>É proibido conteúdo ofensivo, pornográfico, discriminatório ou ilegal.</li>
+      <li>O não cumprimento resultará em banimento imediato.</li>
+    </ul>
+
+    <label for="languageSelectModal" style="font-weight:600; display:block; margin-bottom:6px;">Escolha o idioma / Choose Language / Выберите язык / भाषा चुनें / اختر اللغة</label>
+    <select id="languageSelectModal" aria-label="Selecione o idioma do site">
+      <option value="pt">Português (BR)</option>
+      <option value="en">English</option>
+      <option value="ru">Русский</option>
+      <option value="hi">हिन्दी</option>
+      <option value="ar">العربية</option>
+    </select>
+
+    <button id="btnAceitar">EU ACEITO</button>
+  </div>
+</div>
+
+<div id="main" style="display:none;">
+    <h2 id="tituloNickname">Escolha seu Nickname e Idade</h2>
+    <input id="nickname" placeholder="Nickname" />
+    <div id="errorNickname"></div>
+	
+<input 
+  type="number" 
+  id="idade" 
+  name="idade" 
+  min="18" 
+  max="120"
+  placeholder="18" 
+  autocomplete="off" 
+  inputmode="numeric"
+/>
+
+<script>
+(function () {
+  const idadeInput = document.getElementById('idade');
+
+  // estado para distinguir typing vs spinner
+  let prevValue = idadeInput.value; // inicialmente ""
+  let lastKeydownTs = 0;
+
+  // registra keydowns (typing). Usado para não confundir digitação com spinner/mouse.
+  idadeInput.addEventListener('keydown', (e) => {
+    lastKeydownTs = Date.now();
+
+    // se usuário pressionar seta pra cima quando estiver vazio, iniciamos em 18
+    if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && idadeInput.value === '') {
+      e.preventDefault(); // evita comportamento padrão inconsistente
+      idadeInput.value = '18';
+      prevValue = idadeInput.value;
+    }
+  });
+
+  // input: permite apagar; detecta mudança quando prevValue == '' (possível spinner / paste)
+  idadeInput.addEventListener('input', (e) => {
+    const valStr = idadeInput.value;
+
+    // se ficou vazio, apenas atualiza estado e sai (permite apagar)
+    if (valStr === '') {
+      prevValue = '';
+      return;
+    }
+
+    // Se antes estava vazio e agora não: pode ser spinner (mouse) ou usuário digitando '1' rapidamente.
+    // Para não atrapalhar a digitação, só tratamos como "spinner" se NÃO houve keydown recente.
+    const sinceKey = Date.now() - lastKeydownTs;
+
+    // threshold em ms — se não houve keydown nos últimos 180ms, assumimos ação via spinner / clique.
+    if (!prevValue && valStr !== '' && sinceKey > 180) {
+      // Iniciar em 18 conforme solicitado
+      idadeInput.value = '18';
+      prevValue = idadeInput.value;
+      return;
+    }
+
+    // caso contrário, o usuário está digitando com teclado: apenas atualizamos prevValue
+    prevValue = valStr;
+  });
+
+  // Ao sair do campo, valida o número (se houver)
+  idadeInput.addEventListener('blur', () => {
+    const v = String(idadeInput.value).trim();
+    if (v === '') {
+      // campo vazio fica vazio
+      prevValue = '';
+      return;
+    }
+
+    const n = parseInt(v, 10);
+    if (isNaN(n) || n < 18 || n > 120) {
+      idadeInput.value = '18';
+      prevValue = '18';
+    } else {
+      // normaliza (remove zeros à esquerda, etc)
+      idadeInput.value = String(n);
+      prevValue = String(n);
+    }
+  });
+
+  // Também valide no evento "change" (alguns navegadores disparam change ao usar spinner)
+  idadeInput.addEventListener('change', () => {
+    const v = String(idadeInput.value).trim();
+    if (v === '') {
+      prevValue = '';
+      return;
+    }
+    const n = parseInt(v, 10);
+    if (isNaN(n) || n < 18 || n > 120) {
+      idadeInput.value = '18';
+      prevValue = '18';
+    } else {
+      idadeInput.value = String(n);
+      prevValue = String(n);
+    }
+  });
+})();
+</script>
+
+
+
+
+    <h2 id="tituloSala">Escolha uma sala</h2>
+    <div class="room-list" id="roomList">
+      <div class="room" onclick="entrarSala('Inglês')">
+        <img src="https://flagcdn.com/us.svg" alt="Inglês" />
+        <div id="labelIngles">Inglês (EUA)</div>
+        <div class="count" id="count-Inglês">0</div>
+      </div>
+      <div class="room" onclick="entrarSala('Mandarim')">
+        <img src="https://flagcdn.com/cn.svg" alt="Mandarim" />
+        <div id="labelMandarim">Mandarim (China)</div>
+        <div class="count" id="count-Mandarim">0</div>
+      </div>
+      <div class="room" onclick="entrarSala('Espanhol')">
+        <img src="https://flagcdn.com/es.svg" alt="Espanhol" />
+        <div id="labelEspanhol">Espanhol (Espanha)</div>
+        <div class="count" id="count-Espanhol">0</div>
+      </div>
+      <div class="room" onclick="entrarSala('Hindi')">
+        <img src="https://flagcdn.com/in.svg" alt="Hindi" />
+        <div id="labelHindi">Hindi (Índia)</div>
+        <div class="count" id="count-Hindi">0</div>
+      </div>
+      <div class="room" onclick="entrarSala('Árabe')">
+        <img src="https://flagcdn.com/sa.svg" alt="Árabe" />
+        <div id="labelArabe">Árabe (Arábia Saudita)</div>
+        <div class="count" id="count-Árabe">0</div>
+      </div>
+      <div class="room" onclick="entrarSala('Francês')">
+        <img src="https://flagcdn.com/fr.svg" alt="Francês" />
+        <div id="labelFrances">Francês (França)</div>
+        <div class="count" id="count-Francês">0</div>
+      </div>
+      <div class="room" onclick="entrarSala('Russo')">
+        <img src="https://flagcdn.com/ru.svg" alt="Russo" />
+        <div id="labelRusso">Russo (Rússia)</div>
+        <div class="count" id="count-Russo">0</div>
+      </div>
+      <div class="room" onclick="entrarSala('Português')">
+        <img src="https://flagcdn.com/br.svg" alt="Português" />
+        <div id="labelPortugues">Português (Brasil)</div>
+        <div class="count" id="count-Português">0</div>
+      </div>
+      <div class="room" onclick="entrarSala('Bengali')">
+        <img src="https://flagcdn.com/bd.svg" alt="Bengali" />
+        <div id="labelBengali">Bengali (Bangladesh)</div>
+        <div class="count" id="count-Bengali">0</div>
+      </div>
+      <div class="room" onclick="entrarSala('Japonês')">
+        <img src="https://flagcdn.com/jp.svg" alt="Japonês" />
+        <div id="labelJapones">Japonês (Japão)</div>
+        <div class="count" id="count-Japonês">0</div>
+      </div>
+      <div class="room" onclick="entrarSala('Lahnda')">
+        <img src="https://flagcdn.com/pk.svg" alt="Lahnda" />
+        <div id="labelLahnda">Lahnda (Paquistão)</div>
+        <div class="count" id="count-Lahnda">0</div>
+      </div>
+      <div class="room" onclick="entrarSala('Javanês')">
+        <img src="https://flagcdn.com/id.svg" alt="Javanês" />
+        <div id="labelJavanes">Javanês (Indonésia)</div>
+        <div class="count" id="count-Javanês">0</div>
+      </div>
+	    <div class="room" onclick="entrarSala('Italiano')">
+        <img src="https://flagcdn.com/it.svg" alt="Javanês" />
+        <div id="labelItaliano">Italiano (Itália)</div>
+        <div class="count" id="count-Javanês">0</div>
+      </div>
+      <div class="room" onclick="entrarSala('Turco')">
+        <img src="https://flagcdn.com/tr.svg" alt="Turco" />
+        <div id="labelTurco">Turco (Turquia)</div>
+        <div class="count" id="count-Turco">0</div>
+      </div>
+    </div>
+</div>
+
+<!-- Idioma fixo discreto após aceitar -->
+<div id="languageSelectFixed">
+  <span>🌐</span>
+  <select id="languageSelectFixedSelect" aria-label="Alterar idioma do site">
+    <option value="pt">Português (BR)</option>
+    <option value="en">English</option>
+    <option value="ru">Русский</option>
+    <option value="hi">हिन्दी</option>
+    <option value="ar">العربية</option>
+  </select>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const modal = document.getElementById('modalAviso');
+  const btnAceitar = document.getElementById('btnAceitar');
+  const mainDiv = document.getElementById('main');
+
+  const languageSelectModal = document.getElementById('languageSelectModal');
+  const languageSelectFixed = document.getElementById('languageSelectFixed');
+  const languageSelectFixedSelect = document.getElementById('languageSelectFixedSelect');
+  
+  // -- AJUSTE INICIAL PARA EVITAR FLASH --
+  modal.style.display = 'flex';
+  mainDiv.style.display = 'none';
+  languageSelectFixed.style.display = 'none';
+
+  const nicknameInput = document.getElementById('nickname');
+  const errorNickname = document.getElementById('errorNickname');
+
+  // Textos para os idiomas (mesmo do exemplo anterior, omitidos aqui para economizar espaço)
+  const texts = {
+    pt: {
+      header: 'WorldChat',
+      avisoTitle: '⚠️ Aviso Importante — Uso Restrito a Maiores de 18 Anos ⚠️',
+      avisoText1: 'Este site é destinado exclusivamente a pessoas com 18 anos ou mais. Ao acessar, você declara que possui idade mínima exigida e que está ciente de que:',
+      avisoList: [
+        'Não nos responsabilizamos pelo conteúdo das mensagens.',
+        'É proibido conteúdo ofensivo, pornográfico, discriminatório ou ilegal.',
+        'O não cumprimento resultará em banimento imediato.'
+      ],
+      btnAceitar: 'EU ACEITO',
+      tituloNickname: 'Escolha seu Nickname e Idade',
+      placeholderNickname: 'Nickname',
+      placeholderIdade: 'Idade',
+      tituloSala: 'Escolha uma sala',
+      salas: {
+        Inglês: 'Inglês (EUA)',
+        Mandarim: 'Mandarim (China)',
+        Espanhol: 'Espanhol (Espanha)',
+        Hindi: 'Hindi (Índia)',
+        Árabe: 'Árabe (Arábia Saudita)',
+        Francês: 'Francês (França)',
+        Russo: 'Russo (Rússia)',
+        Português: 'Português (Brasil)',
+        Bengali: 'Bengali (Bangladesh)',
+        Japonês: 'Japonês (Japão)',
+        Lahnda: 'Lahnda (Paquistão)',
+        Javanês: 'Javanês (Indonésia)',
+        Turco: 'Turco (Turquia)'
+      },
+      erroNicknameObrigatorio: 'O nickname é obrigatório.',
+      erroNicknameTamanho: 'O nickname deve ter no máximo 20 caracteres.',
+      erroNicknameEspaco: 'O nickname não pode conter espaços.',
+      erroNicknameEspecial: 'O nickname não pode conter caracteres especiais.',
+      erroIdadeObrigatoria: 'Preencha a idade.'
+    },
+    en: {
+      header: 'WorldChat',
+      avisoTitle: '⚠️ Important Notice — 18+ Only ⚠️',
+      avisoText1: 'This site is for people aged 18 and over only. By accessing, you declare you meet the minimum age requirement and understand that:',
+      avisoList: [
+        'We are not responsible for the content of messages.',
+        'Offensive, pornographic, discriminatory or illegal content is prohibited.',
+        'Failure to comply will result in immediate ban.'
+      ],
+      btnAceitar: 'I ACCEPT',
+      tituloNickname: 'Choose your Nickname and Age',
+      placeholderNickname: 'Nickname',
+      placeholderIdade: 'Age',
+      tituloSala: 'Choose a room',
+      salas: {
+        Inglês: 'English (USA)',
+        Mandarim: 'Mandarin (China)',
+        Espanhol: 'Spanish (Spain)',
+        Hindi: 'Hindi (India)',
+        Árabe: 'Arabic (Saudi Arabia)',
+        Francês: 'French (France)',
+        Russo: 'Russian (Russia)',
+        Português: 'Portuguese (Brazil)',
+        Bengali: 'Bengali (Bangladesh)',
+        Japonês: 'Japanese (Japan)',
+        Lahnda: 'Lahnda (Pakistan)',
+        Javanês: 'Javanese (Indonesia)',
+        Turco: 'Turkish (Turkey)'
+      },
+      erroNicknameObrigatorio: 'Nickname is required.',
+      erroNicknameTamanho: 'Nickname must be 20 characters or less.',
+      erroNicknameEspaco: 'Nickname cannot contain spaces.',
+      erroNicknameEspecial: 'Nickname cannot contain special characters.',
+      erroIdadeObrigatoria: 'Please enter your age.'
+    },
+   ru: {
+    header: 'WorldChat',
+    avisoTitle: '⚠️ Важное уведомление — только для лиц старше 18 лет ⚠️',
+    avisoText1: 'Этот сайт предназначен только для лиц от 18 лет и старше. Получая доступ, вы подтверждаете, что соответствуете минимальному возрасту и понимаете, что:',
+    avisoList: [
+      'Мы не несем ответственности за содержание сообщений.',
+      'Запрещен оскорбительный, порнографический, дискриминационный или незаконный контент.',
+      'Несоблюдение приведет к немедленному бану.'
+    ],
+    btnAceitar: 'ПРИНЯТЬ',
+    tituloNickname: 'Выберите свой никнейм и возраст',
+    placeholderNickname: 'Никнейм',
+    placeholderIdade: 'Возраст',
+    tituloSala: 'Выберите комнату',
+    salas: {
+      Inglês: 'Английский (США)',
+      Mandarim: 'Мандаринский (Китай)',
+      Espanhol: 'Испанский (Испания)',
+      Hindi: 'Хинди (Индия)',
+      Árabe: 'Арабский (Саудовская Аравия)',
+      Francês: 'Французский (Франция)',
+      Russo: 'Русский (Россия)',
+      Português: 'Португальский (Бразилия)',
+      Bengali: 'Бенгальский (Бангладеш)',
+      Japonês: 'Японский (Япония)',
+      Lahnda: 'Лахнда (Пакистан)',
+      Javanês: 'Яванский (Индонезия)',
+      Turco: 'Турецкий (Турция)'
+    },
+    erroNicknameObrigatorio: 'Требуется никнейм.',
+    erroNicknameTamanho: 'Никнейм должен содержать не более 20 символов.',
+    erroNicknameEspaco: 'Никнейм не может содержать пробелы.',
+    erroNicknameEspecial: 'Никнейм не может содержать специальные символы.',
+    erroIdadeObrigatoria: 'Пожалуйста, введите ваш возраст.'
+  },
+  hi: {
+    header: 'WorldChat',
+    avisoTitle: '⚠️ महत्वपूर्ण सूचना — केवल 18+ के लिए ⚠️',
+    avisoText1: 'यह साइट केवल 18 वर्ष और उससे अधिक उम्र के लोगों के लिए है। प्रवेश करके, आप पुष्टि करते हैं कि आपकी न्यूनतम आयु आवश्यकताओं को पूरा करते हैं और समझते हैं कि:',
+    avisoList: [
+      'हम संदेशों की सामग्री के लिए जिम्मेदार नहीं हैं।',
+      'अपमानजनक, अश्लील, भेदभावपूर्ण या अवैध सामग्री निषिद्ध है।',
+      'पालन न करने पर तत्काल प्रतिबंध लग जाएगा।'
+    ],
+    btnAceitar: 'मैं सहमत हूँ',
+    tituloNickname: 'अपना उपनाम और उम्र चुनें',
+    placeholderNickname: 'उपनाम',
+    placeholderIdade: 'उम्र',
+    tituloSala: 'एक कक्ष चुनें',
+    salas: {
+      Inglês: 'अंग्रेज़ी (यूएसए)',
+      Mandarim: 'मंदारिन (चीन)',
+      Espanhol: 'स्पेनिश (स्पेन)',
+      Hindi: 'हिंदी (भारत)',
+      Árabe: 'अरबी (सऊदी अरब)',
+      Francês: 'फ्रेंच (फ्रांस)',
+      Russo: 'रूसी (रूस)',
+      Português: 'पुर्तगाली (ब्राजील)',
+      Bengali: 'बंगाली (बांग्लादेश)',
+      Japonês: 'जापानी (जापान)',
+      Lahnda: 'लहंदा (पाकिस्तान)',
+      Javanês: 'जावानीज (इंडोनेशिया)',
+      Turco: 'तुर्की (तुर्की)'
+    },
+    erroNicknameObrigatorio: 'उपनाम आवश्यक है।',
+    erroNicknameTamanho: 'उपनाम 20 अक्षरों से अधिक नहीं होना चाहिए।',
+    erroNicknameEspaco: 'उपनाम में स्थान नहीं हो सकता।',
+    erroNicknameEspecial: 'उपनाम में विशेष वर्ण नहीं हो सकते।',
+    erroIdadeObrigatoria: 'कृपया अपनी उम्र दर्ज करें।'
+  },
+  ar: {
+    header: 'عالم الدردشة',
+    avisoTitle: '⚠️ إشعار مهم - للأعمار 18+ فقط ⚠️',
+    avisoText1: 'هذا الموقع مخصص للأشخاص الذين تبلغ أعمارهم 18 سنة أو أكثر فقط. بالدخول، أنت تقر بأنك تستوفي الحد الأدنى للعمر وتفهم أن:',
+    avisoList: [
+      'نحن غير مسؤولين عن محتوى الرسائل.',
+      'يُحظر المحتوى المسيء أو الإباحي أو التمييزي أو غير القانوني.',
+      'سيؤدي عدم الامتثال إلى الحظر الفوري.'
+    ],
+    btnAceitar: 'أوافق',
+    tituloNickname: 'اختر اسم المستخدم والعمر',
+    placeholderNickname: 'اسم المستخدم',
+    placeholderIdade: 'العمر',
+    tituloSala: 'اختر غرفة',
+    salas: {
+      Inglês: 'الإنجليزية (الولايات المتحدة)',
+      Mandarim: 'الماندرين (الصين)',
+      Espanhol: 'الإسبانية (إسبانيا)',
+      Hindi: 'الهندية (الهند)',
+      Árabe: 'العربية (السعودية)',
+      Francês: 'الفرنسية (فرنسا)',
+      Russo: 'الروسية (روسيا)',
+      Português: 'البرتغالية (البرازيل)',
+      Bengali: 'البنغالية (بنغلاديش)',
+      Japonês: 'اليابانية (اليابان)',
+      Lahnda: 'لاهندا (باكستان)',
+      Javanês: 'الجاوية (إندونيسيا)',
+      Turco: 'التركية (تركيا)'
+    },
+    erroNicknameObrigatorio: 'اسم المستخدم مطلوب.',
+    erroNicknameTamanho: 'يجب ألا يزيد اسم المستخدم عن 20 حرفًا.',
+    erroNicknameEspaco: 'لا يمكن أن يحتوي اسم المستخدم على مسافات.',
+    erroNicknameEspecial: 'لا يمكن أن يحتوي اسم المستخدم على أحرف خاصة.',
+    erroIdadeObrigatoria: 'يرجى إدخال العمر.'
+  } 
+  };
+
+  // Mensagens de erro dinâmicas
+  let errorMessages = {};
+
+  // Aplica traduções na página
+  function aplicarIdioma(idioma) {
+    document.documentElement.lang = idioma === 'pt' ? 'pt-BR' : idioma;
+    const t = texts[idioma] || texts.pt;
+
+    document.querySelector('header').textContent = t.header;
+    document.getElementById('avisoTitle').textContent = t.avisoTitle;
+    document.getElementById('avisoText1').textContent = t.avisoText1;
+
+    const avisoList = document.getElementById('avisoList');
+    avisoList.innerHTML = '';
+    t.avisoList.forEach(item => {
+      const li = document.createElement('li');
+      li.textContent = item;
+      avisoList.appendChild(li);
+    });
+
+    btnAceitar.textContent = t.btnAceitar;
+
+    document.getElementById('tituloNickname').textContent = t.tituloNickname;
+    nicknameInput.placeholder = t.placeholderNickname;
+    document.getElementById('idade').placeholder = t.placeholderIdade;
+    document.getElementById('tituloSala').textContent = t.tituloSala;
+
+    Object.entries(t.salas).forEach(([key, val]) => {
+      const el = document.getElementById('label' + key.replace(/[^a-zA-Z]/g, ''));
+      if (el) el.textContent = val;
+    });
+
+    errorMessages = {
+      obrigatorio: t.erroNicknameObrigatorio,
+      tamanho: t.erroNicknameTamanho,
+      espaco: t.erroNicknameEspaco,
+      especial: t.erroNicknameEspecial,
+      idadeObrigatoria: t.erroIdadeObrigatoria
+    };
+  }
+
+  // Validação do nickname
+  function validarNickname(nick) {
+    if (!nick) {
+      return errorMessages.obrigatorio;
+    }
+    if (nick.length > 20) {
+      return errorMessages.tamanho;
+    }
+    if (/\s/.test(nick)) {
+      return errorMessages.espaco;
+    }
+    if (/[^a-zA-Z0-9]/.test(nick)) {
+      return errorMessages.especial;
+    }
+    return '';
+  }
+
+  // Atualiza mensagem de erro conforme usuário digita
+  nicknameInput.addEventListener('input', () => {
+    const erro = validarNickname(nicknameInput.value.trim());
+    errorNickname.textContent = erro;
+  });
+
+  // Ao clicar em aceitar
+  btnAceitar.onclick = () => {
+    localStorage.setItem('aceitou18', 'true');
+    modal.style.display = 'none';
+    mainDiv.style.display = 'block';
+    // Mostrar seletor fixo e sincronizar idioma
+    languageSelectFixed.style.display = 'flex';
+  };
+
+  // Ao mudar idioma no modal
+  languageSelectModal.addEventListener('change', () => {
+    const idioma = languageSelectModal.value;
+    localStorage.setItem('lang', idioma);
+    aplicarIdioma(idioma);
+    // Sincronizar select fixo
+    languageSelectFixedSelect.value = idioma;
+  });
+
+  // Ao mudar idioma no seletor fixo
+  languageSelectFixedSelect.addEventListener('change', () => {
+    const idioma = languageSelectFixedSelect.value;
+    localStorage.setItem('lang', idioma);
+    aplicarIdioma(idioma);
+    // Sincronizar select modal, só se modal existir e estiver visível
+    if (modal.style.display !== 'none') {
+      languageSelectModal.value = idioma;
+    }
+  });
+
+  // Entrar na sala
+  function entrarSala(sala) {
+    const nick = nicknameInput.value.trim();
+    const idade = document.getElementById('idade').value.trim();
+
+    const erro = validarNickname(nick);
+    if (erro) {
+      errorNickname.textContent = erro;
+      return;
+    } else {
+      errorNickname.textContent = '';
+    }
+
+    if (!idade) {
+      alert(errorMessages.idadeObrigatoria);
+      return;
+    }
+
+    const idioma = localStorage.getItem('lang') || 'pt';
+
+    window.location.href = `chat.html?sala=${encodeURIComponent(sala)}&nick=${encodeURIComponent(nick)}&idade=${idade}&lang=${idioma}`;
+  }
+
+  // Atualiza contagem nas salas
+  const socket = io();
+  socket.on('roomCounts', (counts) => {
+    Object.entries(counts).forEach(([room, count]) => {
+      const el = document.getElementById(`count-${room}`);
+      if (el) el.textContent = count;
+    });
+  });
+
+window.onload = () => {
+  console.log('window.onload disparado');
+  const aceitou = localStorage.getItem('aceitou18');
+  console.log('Valor aceitou18:', aceitou);
+
+  const idiomaSalvo = localStorage.getItem('lang') || 'pt';
+  console.log('Idioma salvo:', idiomaSalvo);
+
+  languageSelectModal.value = idiomaSalvo;
+  languageSelectFixedSelect.value = idiomaSalvo;
+  aplicarIdioma(idiomaSalvo);
+
+  if (aceitou === 'true') {
+    console.log('Usuário já aceitou, escondendo modal e mostrando main');
+    modal.style.display = 'none';
+    mainDiv.style.display = 'block';
+    languageSelectFixed.style.display = 'flex';
+  } else {
+    console.log('Usuário não aceitou ainda, mostrando modal');
+    modal.style.display = 'flex';
+    mainDiv.style.display = 'none';
+    languageSelectFixed.style.display = 'none';
+  }
+};
+
+</script>
+
+</body>
+</html>
