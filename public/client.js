@@ -1,18 +1,16 @@
 function limparNomeSala(nome) {
-  return nome.toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, '-');
+  return nome.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-');
 }
 
 const params = new URLSearchParams(window.location.search);
 let sala = params.get('sala') || '';
 const nickname = params.get('nick');
 const idade = params.get('idade');
+const color = decodeURIComponent(params.get('color')) || '#000000';
 
 const salaLimpa = limparNomeSala(sala);
 const socket = io();
 
-// Elementos do DOM
 const backBtn = document.getElementById('backBtn');
 const messagesDiv = document.getElementById('messages');
 const msgInput = document.getElementById('msgInput');
@@ -35,12 +33,9 @@ let usersOnline = [];
 let mentionMode = false;
 let mentionQuery = '';
 
-// --- Conexão e Lógica da Sala ---
-backBtn.addEventListener('click', () => {
-  window.location.href = '/';
-});
+backBtn.addEventListener('click', () => { window.location.href = '/'; });
 
-socket.emit('joinRoom', { sala: salaLimpa, nickname, idade });
+socket.emit('joinRoom', { sala: salaLimpa, nickname, idade, color });
 
 socket.on('roomFull', () => {
   alert('A sala está cheia. Por favor, tente outra.');
@@ -52,20 +47,23 @@ socket.on('nicknameTaken', (data) => {
   window.location.href = '/';
 });
 
-// --- NOVO: Listener para desconexão por inatividade ---
+socket.on('invalidData', (data) => {
+    alert(`Erro: ${data.message}`);
+    window.location.href = '/';
+});
+
 socket.on('idleKick', () => {
     alert('Você foi desconectado por inatividade de 30 minutos.');
     window.location.href = '/';
 });
 
 socket.on('chatHistory', (history) => {
-  // Limpa o histórico antigo antes de adicionar o novo, importante para reconexões
   messagesDiv.innerHTML = '';
-  history.forEach(msg => addMessage(msg.nickname, msg.text, msg.mentions));
+  history.forEach(msg => addMessage(msg.nickname, msg.text, msg.mentions, msg.color));
 });
 
 socket.on('message', (msg) => {
-  addMessage(msg.nickname, msg.text, msg.mentions);
+  addMessage(msg.nickname, msg.text, msg.mentions, msg.color);
 });
 
 socket.on('userList', (users) => {
@@ -73,21 +71,27 @@ socket.on('userList', (users) => {
   updateUserList(users);
 });
 
+// --- NOVO: Função para inserir menção no input ---
+function mentionUser(username) {
+    if (msgInput.value.length > 0 && msgInput.value.slice(-1) !== ' ') {
+        msgInput.value += ' ';
+    }
+    msgInput.value += `@${username} `;
+    msgInput.focus();
+}
 
-// --- Funções do Chat ---
-function addMessage(user, text, mentions = []) {
+function addMessage(user, text, mentions = [], userColor = '#000000') {
   const p = document.createElement('p');
   
   if (mentions.includes(nickname)) {
     p.classList.add('mention-highlight');
-    
     const meuStatusAtual = statusSelect.value;
     if (meuStatusAtual !== 'ocupado' && mentionSound && isAudioUnlocked) {
       mentionSound.play().catch(e => console.error("Erro ao tocar áudio de notificação:", e));
     }
   }
 
-  p.innerHTML = `<strong>${user}:</strong> ${text}`;
+  p.innerHTML = `<strong style="color: ${userColor};">${user}:</strong> ${text}`;
   messagesDiv.appendChild(p);
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
@@ -99,17 +103,14 @@ function sendMsg() {
       mentionSound.play().then(() => {
         mentionSound.pause();
         isAudioUnlocked = true;
-        console.log("Áudio desbloqueado com sucesso!");
       }).catch(error => {
         console.warn("Tentativa de desbloquear áudio falhou:", error);
         isAudioUnlocked = true; 
       });
     }
-
     const mentions = usersOnline.filter(u => text.includes('@' + u));
     socket.emit('message', { text, mentions });
     msgInput.value = '';
-    
     mentionList.style.display = 'none';
     mentionMode = false;
   }
@@ -119,7 +120,6 @@ function updateUserList(users) {
   const statusContainer = document.getElementById('statusContainer');
   usersDiv.innerHTML = '';
   usersDiv.appendChild(statusContainer);
-
   const title = document.createElement('h3');
   title.textContent = 'Participantes';
   usersDiv.appendChild(title);
@@ -127,28 +127,29 @@ function updateUserList(users) {
   const selfUser = users.find(u => u.nickname === nickname);
   const otherUsers = users.filter(u => u.nickname !== nickname);
 
-  const createUserElement = (user) => {
+  // ALTERADO: A função agora adiciona o evento de clique
+  const createUserElement = (user, isSelf) => {
     let colorClass = 'status-online-dot';
     let statusText = 'Online';
     switch (user.status) {
-      case 'voltoja': 
-        colorClass = 'status-voltoja-dot';
-        statusText = 'Volto Já';
-        break;
-      case 'ocupado': 
-        colorClass = 'status-ocupado-dot'; 
-        statusText = 'Ocupado';
-        break;
+      case 'voltoja': colorClass = 'status-voltoja-dot'; statusText = 'Volto Já'; break;
+      case 'ocupado': colorClass = 'status-ocupado-dot'; statusText = 'Ocupado'; break;
     }
     const userDiv = document.createElement('div');
     userDiv.className = 'user-item';
-    userDiv.innerHTML = `<span><span class="status-dot ${colorClass}"></span>${user.nickname} (${user.idade})</span> <span class="status-text">(${statusText})</span>`;
+    userDiv.innerHTML = `<span><span class="status-dot ${colorClass}"></span><strong style="color: ${user.color || '#000000'};">${user.nickname}</strong> (${user.idade})</span> <span class="status-text">(${statusText})</span>`;
+    
+    if (!isSelf) {
+        userDiv.style.cursor = 'pointer';
+        userDiv.title = `Mencionar @${user.nickname}`;
+        userDiv.onclick = () => mentionUser(user.nickname);
+    }
+
     return userDiv;
   };
 
   if (selfUser) {
-    const selfElement = createUserElement(selfUser);
-    selfElement.style.fontWeight = 'bold';
+    const selfElement = createUserElement(selfUser, true);
     usersDiv.appendChild(selfElement);
   }
 
@@ -157,14 +158,12 @@ function updateUserList(users) {
     divider.className = 'user-list-divider';
     usersDiv.appendChild(divider);
   }
-
   otherUsers.forEach(user => {
-    const userElement = createUserElement(user);
+    const userElement = createUserElement(user, false);
     usersDiv.appendChild(userElement);
   });
 }
 
-// --- Status do Usuário ---
 statusSelect.addEventListener('change', () => {
   const newStatus = statusSelect.value;
   socket.emit('updateStatus', newStatus);
@@ -182,8 +181,8 @@ function updateMyStatusDot(status) {
   }
 }
 
-// --- Sistema de Emojis ---
-const emojis = ["😀", "😂", "😊", "😍", "🤔", "👍", "👎", "❤️", "🔥", "🎉"];
+// ALTERADO: Lista de emojis expandida
+const emojis = ["😀", "😂", "😊", "😍", "🤔", "👍", "👎", "❤️", "🔥", "🎉", "😎", "😭", "🙏", "🚀", "💡", "💯", "👀", "👋", "🥳", "🤯"];
 emojis.forEach(e => {
   const span = document.createElement('span');
   span.textContent = e;
@@ -200,22 +199,18 @@ emojiBtn.addEventListener('click', (e) => {
   emojiPicker.style.display = emojiPicker.style.display === 'block' ? 'none' : 'block';
 });
 
-// --- AUTOCOMPLETE DE MENÇÃO ---
 msgInput.addEventListener('input', () => {
   const value = msgInput.value;
   const cursorPos = msgInput.selectionStart;
   const textBeforeCursor = value.slice(0, cursorPos);
   const atIndex = textBeforeCursor.lastIndexOf('@');
-
   if (atIndex !== -1 && (atIndex === 0 || /\s/.test(value[atIndex - 1]))) {
     mentionQuery = textBeforeCursor.slice(atIndex + 1).toLowerCase();
-    
     if (/\s/.test(mentionQuery)) {
       mentionMode = false;
       mentionList.style.display = 'none';
       return;
     }
-    
     mentionMode = true;
     showMentionList();
   } else {
@@ -228,12 +223,10 @@ function showMentionList() {
   const filteredUsers = usersOnline.filter(user => 
     user.toLowerCase().startsWith(mentionQuery) && user !== nickname
   );
-
   if (filteredUsers.length === 0 || !mentionMode) {
     mentionList.style.display = 'none';
     return;
   }
-
   mentionList.innerHTML = '';
   filteredUsers.forEach(user => {
     const div = document.createElement('div');
@@ -241,7 +234,6 @@ function showMentionList() {
     div.onclick = () => insertMention(user);
     mentionList.appendChild(div);
   });
-
   mentionList.style.display = 'block';
 }
 
@@ -251,19 +243,14 @@ function insertMention(username) {
   const textBeforeCursor = value.slice(0, cursorPos);
   const textAfterCursor = value.slice(cursorPos);
   const atIndex = textBeforeCursor.lastIndexOf('@');
-
   msgInput.value = textBeforeCursor.slice(0, atIndex) + `@${username} ` + textAfterCursor;
-
   mentionList.style.display = 'none';
   mentionMode = false;
-
   msgInput.focus();
   const newCursorPos = atIndex + username.length + 2;
   msgInput.setSelectionRange(newCursorPos, newCursorPos);
 }
 
-
-// --- Listeners Globais ---
 sendBtn.onclick = sendMsg;
 msgInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !mentionMode) {

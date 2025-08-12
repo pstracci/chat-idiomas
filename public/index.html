@@ -3,236 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verboso - Comunidade Global de Idiomas</title>
+    <title>Verbi - Comunidade Global de Idiomas</title>
     <style>
-        /* --- Estilos Gerais --- */
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            margin: 0;
-            background-color: #f4f7f6;
-            color: #333;
-            line-height: 1.6;
-        }
-
-        /* --- Cabeçalho --- */
-        header {
-            background: linear-gradient(to right, #007bff, #0056b3);
-            color: white;
-            padding: 30px 20px;
-            text-align: center;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-        header h1 {
-            margin: 0;
-            font-size: 2.5em;
-        }
-        header p {
-            margin-top: 5px;
-            font-size: 1.2em;
-            opacity: 0.9;
-        }
-
-        /* --- Seção Principal (Hero) --- */
-        .hero {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 50px 20px;
-            gap: 40px;
-        }
-
-        .hero-content {
-            flex-basis: 50%;
-            max-width: 500px;
-        }
+        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0;background-color:#f4f7f6;color:#333;line-height:1.6}header{background:linear-gradient(to right,#007bff,#0056b3);color:white;padding:30px 20px;text-align:center;box-shadow:0 4px 8px rgba(0,0,0,.1)}header h1{margin:0;font-size:2.5em}header p{margin-top:5px;font-size:1.2em;opacity:.9}.hero{display:flex;align-items:center;justify-content:center;padding:50px 20px;gap:40px}.hero-content{flex-basis:50%;max-width:500px}.hero-image-container{flex-basis:40%;max-width:400px;text-align:center;position:relative;display:flex;align-items:center;justify-content:center}.hero-image{max-width:100%;height:auto;border-radius:50%;box-shadow:0 8px 25px rgba(0,86,179,.2);object-fit:cover}.speech-bubble{position:absolute;background-color:#28a745;color:white;padding:8px 15px;border-radius:20px;font-size:.9em;font-weight:700;box-shadow:0 4px 6px rgba(0,0,0,.1);opacity:0;animation-fill-mode:forwards;animation-duration:1.5s;animation-timing-function:ease-out}.bubble-en{top:15%;left:10%;animation-name:floatBubble;animation-delay:.2s}.bubble-es{top:30%;right:0;background-color:#ffc107;color:#333;animation-name:floatBubble;animation-delay:.5s}.bubble-fr{bottom:25%;left:5%;background-color:#dc3545;animation-name:floatBubble;animation-delay:.8s}.bubble-pt{bottom:10%;right:10%;background-color:#17a2b8;animation-name:floatBubble;animation-delay:1.1s}@keyframes floatBubble{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}.form-container{background-color:#fff;padding:30px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,.1)}.form-group{margin-bottom:20px}.form-group label{display:block;margin-bottom:8px;color:#555;font-weight:700}.form-group input,.form-group select{width:100%;padding:12px;border:1px solid #ccc;border-radius:5px;box-sizing:border-box;font-size:1em}button[type=submit]{width:100%;background-color:#28a745;color:white;padding:15px;border:none;border-radius:5px;cursor:pointer;font-size:1.1em;font-weight:700;transition:background-color .3s ease}button[type=submit]:hover{background-color:#218838}main{padding:20px;max-width:960px;margin:20px auto}section{background-color:#fff;padding:30px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,.08);margin-bottom:30px}section h2{text-align:center;margin-top:0;margin-bottom:25px;color:#0056b3}.room-item{background-color:#f8f9fa;padding:15px;margin-bottom:10px;border:1px solid #e9ecef;border-radius:5px;display:flex;justify-content:space-between;align-items:center;transition:transform .2s ease,box-shadow .2s ease}.room-item:hover{transform:translateY(-2px);box-shadow:0 4px 8px rgba(0,0,0,.05)}.room-name{font-weight:700;color:#495057;flex-grow:1}.room-count{color:#6c757d;font-size:.9em;white-space:nowrap}footer{text-align:center;padding:20px;margin-top:20px;color:#777;background-color:#e9ecef}footer a{color:#007bff;text-decoration:none}footer a:hover{text-decoration:underline}@media (max-width:768px){.hero{flex-direction:column;text-align:center}header h1{font-size:2em}.hero-image-container{margin-top:30px;min-height:250px}}
         
-        .hero-image-container {
-            flex-basis: 40%;
-            max-width: 400px;
-            text-align: center;
-            position: relative; /* Essencial para posicionar os balões */
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        /* --- CORREÇÃO: Estilos para o seletor de cores --- */
+        .color-picker-container {
+            position: relative; /* Define este container como o ponto de referência para o seletor */
         }
-
-        .hero-image {
-            max-width: 100%;
-            height: auto;
-            border-radius: 50%; 
-            box-shadow: 0 8px 25px rgba(0, 86, 179, 0.2); 
-            object-fit: cover; 
-        }
-
-        /* --- Estilos dos Balões de Diálogo --- */
-        .speech-bubble {
-            position: absolute;
-            background-color: #28a745;
-            color: white;
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 0.9em;
-            font-weight: bold;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            opacity: 0;
-            animation-fill-mode: forwards;
-            animation-duration: 1.5s;
-            animation-timing-function: ease-out;
-        }
-
-        .bubble-en { top: 15%; left: 10%; animation-name: floatBubble; animation-delay: 0.2s; }
-        .bubble-es { top: 30%; right: 0%; background-color: #ffc107; color: #333; animation-name: floatBubble; animation-delay: 0.5s; }
-        .bubble-fr { bottom: 25%; left: 5%; background-color: #dc3545; animation-name: floatBubble; animation-delay: 0.8s; }
-        .bubble-pt { bottom: 10%; right: 10%; background-color: #17a2b8; animation-name: floatBubble; animation-delay: 1.1s; }
-
-        @keyframes floatBubble {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* --- Formulário --- */
-        .form-container {
-            background-color: #ffffff;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: #555;
-            font-weight: bold;
-        }
-
-        .form-group input,
-        .form-group select {
+        .color-picker-wrapper { display: flex; align-items: center; gap: 10px; }
+        #selectedColorPreview { width: 30px; height: 30px; border-radius: 5px; border: 1px solid #ccc; }
+        #colorPickerBtn { padding: 8px 12px; font-size: 0.9em; background-color: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;}
+        #colorPickerBtn:hover { background-color: #5a6268; }
+        #colorSelector {
+            display: none; /* Começa escondido */
+            position: absolute; /* Tira o elemento do fluxo normal da página */
+            top: 100%; /* Posiciona logo abaixo do container do botão */
+            left: 0;
             width: 100%;
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
             box-sizing: border-box;
-            font-size: 1em;
-        }
-
-        button[type="submit"] {
-            width: 100%;
-            background-color: #28a745;
-            color: white;
-            padding: 15px;
-            border: none;
+            z-index: 10; /* Garante que fique por cima de outros elementos */
+            grid-template-columns: repeat(8, 1fr);
+            gap: 5px;
+            margin-top: 5px;
+            padding: 10px;
+            background: #fff;
+            border: 1px solid #dee2e6;
             border-radius: 5px;
-            cursor: pointer;
-            font-size: 1.1em;
-            font-weight: bold;
-            transition: background-color 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
-
-        button[type="submit"]:hover {
-            background-color: #218838;
-        }
-
-        /* --- Conteúdo Principal e Seções --- */
-        main {
-            padding: 20px;
-            max-width: 960px;
-            margin: 20px auto;
-        }
-        
-        section {
-            background-color: #ffffff;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-            margin-bottom: 30px;
-        }
-        
-        section h2 {
-            text-align: center;
-            margin-top: 0;
-            margin-bottom: 25px;
-            color: #0056b3;
-        }
-
-        /* --- Lista de Salas --- */
-        .room-item {
-            background-color: #f8f9fa;
-            padding: 15px;
-            margin-bottom: 10px;
-            border: 1px solid #e9ecef;
-            border-radius: 5px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .room-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
-        }
-
-        .room-name {
-            font-weight: bold;
-            color: #495057;
-            flex-grow: 1;
-        }
-
-        .room-count {
-            color: #6c757d;
-            font-size: 0.9em;
-            white-space: nowrap;
-        }
-        
-        /* --- Rodapé --- */
-        footer {
-            text-align: center;
-            padding: 20px;
-            margin-top: 20px;
-            color: #777;
-            background-color: #e9ecef;
-        }
-
-        footer a {
-            color: #007bff;
-            text-decoration: none;
-        }
-
-        footer a:hover {
-            text-decoration: underline;
-        }
-
-        /* --- Responsividade --- */
-        @media (max-width: 768px) {
-            .hero {
-                flex-direction: column;
-                text-align: center;
-            }
-            header h1 {
-                font-size: 2em;
-            }
-            .hero-image-container {
-                margin-top: 30px;
-                min-height: 250px; 
-            }
-        }
-
+        .color-swatch { width: 100%; padding-bottom: 100%; border-radius: 5px; cursor: pointer; border: 2px solid transparent; box-sizing: border-box; transition: transform 0.2s; }
+        .color-swatch:hover { transform: scale(1.1); }
+        .color-swatch.selected { border-color: #007bff; }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>Verboso</h1>
+        <h1>Verbi</h1>
         <p>Conecte-se, pratique e aprenda com falantes de todo o mundo!</p>
     </header>
 
@@ -243,16 +51,28 @@
                 <form id="join-form">
                     <div class="form-group">
                         <label for="nickname">Seu Nickname:</label>
-                        <input type="text" id="nickname" name="nick" required placeholder="Ex: AnaSilva">
+                        <input type="text" id="nickname" name="nick" required placeholder="Máximo 20 caracteres" maxlength="20">
                     </div>
                     <div class="form-group">
                         <label for="age">Sua Idade:</label>
                         <input type="number" id="age" name="idade" required placeholder="Apenas maiores de 18 anos">
                     </div>
+
+                    <div class="form-group color-picker-container">
+                        <label>Cor do Nickname:</label>
+                        <div class="color-picker-wrapper">
+                            <div id="selectedColorPreview"></div>
+                            <button type="button" id="colorPickerBtn">Escolher Cor</button>
+                        </div>
+                        <div class="color-selector" id="colorSelector">
+                            </div>
+                        <input type="hidden" id="nicknameColor" name="color">
+                    </div>
+
                     <div class="form-group">
                         <label for="room">Escolha uma Sala:</label>
                         <select id="room" name="sala">
-                            <option value="ingles">Inglês</option>
+                             <option value="ingles">Inglês</option>
                             <option value="espanhol">Espanhol</option>
                             <option value="frances">Francês</option>
                             <option value="portugues">Português</option>
@@ -261,7 +81,8 @@
                             <option value="italiano">Italiano</option>
                             <option value="japones">Japonês</option>
                             <option value="coreano">Coreano</option>
-                            <option value="arabe">Árabe</option> </select>
+                            <option value="arabe">Árabe</option>
+                        </select>
                     </div>
                     <button type="submit">Entrar na Sala</button>
                 </form>
@@ -321,15 +142,9 @@
                 <span class="room-count">Participantes: <span id="count-arabe">0</span> / 20</span>
             </div>
         </section>
-
-        <section class="about-section">
-            <h2>Sobre o Projeto</h2>
-            <p>O <strong>Verboso</strong> foi desenvolvido com o objetivo de criar um espaço online acolhedor e interativo onde pessoas de diferentes partes do mundo pudessem se conectar para praticar idiomas de forma gratuita e divertida. Acreditamos que a melhor forma de aprender é praticando!</p>
-        </section>
     </main>
-
     <footer>
-        <p>&copy; 2025 Verboso. Todos os direitos reservados.</p>
+        <p>&copy; 2025 Verbi. Todos os direitos reservados.</p>
         <p>Desenvolvido por <a href="mailto:paulo.stracci@gmail.com">Paulo Stracci</a></p>
     </footer>
 
@@ -337,12 +152,47 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const form = document.getElementById('join-form');
-            const MAX_USERS = 20; // Definindo o total de vagas aqui
+            const colorSelector = document.getElementById('colorSelector');
+            const nicknameColorInput = document.getElementById('nicknameColor');
+            const colorPickerBtn = document.getElementById('colorPickerBtn');
+            const selectedColorPreview = document.getElementById('selectedColorPreview');
+
+            const colors = [
+                '#000000', '#E53935', '#D81B60', '#8E24AA', '#5E35B1', '#3949AB', '#1E88E5', '#039BE5',
+                '#00ACC1', '#00897B', '#43A047', '#7CB342', '#FDD835', '#FFB300', '#FB8C00', '#F4511E'
+            ];
+            
+            const defaultColor = '#000000';
+            nicknameColorInput.value = defaultColor;
+            selectedColorPreview.style.backgroundColor = defaultColor;
+
+            colors.forEach(color => {
+                const swatch = document.createElement('div');
+                swatch.className = 'color-swatch';
+                swatch.style.backgroundColor = color;
+                swatch.dataset.color = color;
+                if (color === defaultColor) swatch.classList.add('selected');
+                colorSelector.appendChild(swatch);
+            });
+
+            colorPickerBtn.addEventListener('click', () => {
+                const isHidden = colorSelector.style.display === 'none' || colorSelector.style.display === '';
+                colorSelector.style.display = isHidden ? 'grid' : 'none';
+            });
+
+            colorSelector.addEventListener('click', (e) => {
+                if (e.target.classList.contains('color-swatch')) {
+                    colorSelector.querySelector('.selected')?.classList.remove('selected');
+                    e.target.classList.add('selected');
+                    const newColor = e.target.dataset.color;
+                    nicknameColorInput.value = newColor;
+                    selectedColorPreview.style.backgroundColor = newColor;
+                    colorSelector.style.display = 'none';
+                }
+            });
             
             function limparNomeSala(nome) {
-                return nome.toLowerCase()
-                    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-                    .replace(/\s+/g, '-');
+                return nome.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-');
             }
 
             form.addEventListener('submit', function(event) {
@@ -350,19 +200,14 @@
                 const nick = document.getElementById('nickname').value;
                 const age = parseInt(document.getElementById('age').value);
                 const selectedRoom = document.getElementById('room').value;
-                
-                if (!nick.trim()) {
-                    alert('Por favor, insira um nickname.');
-                    return;
-                }
+                const color = nicknameColorInput.value;
 
-                if (isNaN(age) || age < 18) {
-                    alert('Você precisa ter 18 anos ou mais para entrar no chat.');
-                    return;
-                }
+                if (!nick.trim()) { alert('Por favor, insira um nickname.'); return; }
+                if (nick.length > 20) { alert('O nickname não pode ter mais de 20 caracteres.'); return; }
+                if (isNaN(age) || age < 18) { alert('Você precisa ter 18 anos ou mais para entrar no chat.'); return; }
 
                 const salaLimpa = limparNomeSala(selectedRoom);
-                window.location.href = `chat.html?sala=${salaLimpa}&nick=${nick}&idade=${age}`;
+                window.location.href = `chat.html?sala=${salaLimpa}&nick=${nick}&idade=${age}&color=${encodeURIComponent(color)}`;
             });
 
             const socket = io();
@@ -370,14 +215,10 @@
                 for (const room in counts) {
                     const roomLimpa = limparNomeSala(room);
                     const countElement = document.getElementById(`count-${roomLimpa}`);
-                    if (countElement) {
-                        // Apenas atualiza o número, o "/ 20" já está no HTML
-                        countElement.textContent = counts[room];
-                    }
+                    if (countElement) countElement.textContent = counts[room];
                 }
             });
         });
     </script>
-    
 </body>
 </html>

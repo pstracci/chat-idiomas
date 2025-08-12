@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
-<title>Chat Verboso</title>
+<title>Chat Verbi</title>
 <style>
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -61,6 +61,7 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    background-color: #f8f9fa; /* COR DE FUNDO ALTERADA */
   }
   .users {
     flex: 1;
@@ -106,7 +107,7 @@
     padding: 10px;
     border-top: 1px solid #e9ecef;
     gap: 8px;
-    position: relative; /* ESSENCIAL para posicionar a caixa de menções */
+    position: relative;
   }
   #msgInput {
     flex: 1;
@@ -173,17 +174,16 @@
     border-radius: 4px;
   }
   
-  /* --- CORREÇÃO: Estilo da caixa de sugestão de menção --- */
   #mentionSuggestions {
-    display: none; /* Começa escondida */
-    position: absolute; /* Posição absoluta relativa ao #chatInputWrapper */
-    bottom: 100%;      /* Posiciona a caixa exatamente acima do wrapper */
+    display: none;
+    position: absolute;
+    bottom: 100%;
     left: 0;
     right: 0;
     background: white;
     border: 1px solid #ccc;
     border-bottom: none;
-    border-radius: 8px 8px 0 0; /* Cantos arredondados apenas no topo */
+    border-radius: 8px 8px 0 0;
     box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
     z-index: 1000;
     max-height: 180px;
@@ -220,7 +220,8 @@
       <button id="emojiBtn">😊</button>
       <div id="emojiPicker"></div>
       <input id="msgInput" placeholder="Digite sua mensagem..." autocomplete="off" />
-	  <div id="mentionSuggestions"></div> <button id="sendBtn">Enviar</button>
+	  <div id="mentionSuggestions"></div>
+      <button id="sendBtn">Enviar</button>
     </div>
   </div>
 

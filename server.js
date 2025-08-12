@@ -8,9 +8,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const salas = {};
 const MAX_USERS = 20;
-const HISTORY_LIFETIME = 60 * 60 * 1000; // 1h em ms
-const DISCONNECT_TIMEOUT = 5000; // 5 segundos para F5
-const IDLE_TIMEOUT = 30 * 60 * 1000; // 20 minutos de inatividade
+const HISTORY_LIFETIME = 60 * 60 * 1000;
+const DISCONNECT_TIMEOUT = 5000;
+const IDLE_TIMEOUT = 30 * 60 * 1000;
 
 function atualizarContagemSalas() {
   const counts = {};
@@ -24,14 +24,13 @@ function atualizarContagemSalas() {
   io.emit('roomCounts', counts);
 }
 
-// --- Função para limpar os dados do usuário antes de enviar ao cliente ---
 function sanitizeUsers(usersObject) {
     return Object.values(usersObject).map(u => ({
         id: u.id,
         nickname: u.nickname,
         idade: u.idade,
-        status: u.status
-        // Note que os timers não são incluídos aqui
+        status: u.status,
+        color: u.color
     }));
 }
 
@@ -40,10 +39,7 @@ function resetIdleTimer(socket) {
     if (!sala || !nickname || !salas[sala]?.users[nickname]) return;
 
     const user = salas[sala].users[nickname];
-
-    if (user.idleTimer) {
-        clearTimeout(user.idleTimer);
-    }
+    if (user.idleTimer) clearTimeout(user.idleTimer);
 
     user.idleTimer = setTimeout(() => {
         console.log(`[Inatividade] Expulsando ${nickname} da sala ${sala} por inatividade.`);
@@ -55,52 +51,53 @@ function resetIdleTimer(socket) {
 io.on('connection', (socket) => {
   atualizarContagemSalas();
 
-  socket.on('joinRoom', ({ sala, nickname, idade }) => {
+  socket.on('joinRoom', ({ sala, nickname, idade, color }) => {
+    // VALIDAÇÃO: Tamanho do nickname no servidor
+    if (nickname.length > 20) {
+        socket.emit('invalidData', { message: 'O nickname não pode ter mais de 20 caracteres.' });
+        return;
+    }
+
     if (!salas[sala]) {
       salas[sala] = { users: {}, history: [] };
     }
     const usersNaSala = salas[sala].users;
 
-    if (usersNaSala[nickname]) { // Lógica de reconexão
-      const existingUser = usersNaSala[nickname];
-      
-      if (existingUser.disconnectTimer) {
-        clearTimeout(existingUser.disconnectTimer);
-        existingUser.disconnectTimer = null;
-      }
-      
+    const existingUser = Object.values(usersNaSala).find(u => u.nickname.toLowerCase() === nickname.toLowerCase());
+    const isReconnecting = existingUser && existingUser.disconnectTimer;
+
+    if (existingUser && !isReconnecting) {
+        socket.emit('nicknameTaken', { nickname });
+        return;
+    }
+    
+    if (isReconnecting) {
+      clearTimeout(existingUser.disconnectTimer);
+      existingUser.disconnectTimer = null;
       existingUser.id = socket.id;
-      socket.nickname = nickname;
+      socket.nickname = existingUser.nickname;
       socket.sala = sala;
       socket.join(sala);
       
       socket.emit('chatHistory', salas[sala].history);
-
-      // CORREÇÃO: Envia a lista de usuários "limpa"
       io.to(sala).emit('userList', sanitizeUsers(usersNaSala));
       resetIdleTimer(socket);
 
-    } else { // Lógica de nova conexão
-      if (Object.values(usersNaSala).some(u => u.nickname.toLowerCase() === nickname.toLowerCase())) {
-        socket.emit('nicknameTaken', { nickname });
-        return;
-      }
+    } else {
       if (Object.keys(usersNaSala).length >= MAX_USERS) {
         socket.emit('roomFull');
         return;
       }
-      
       socket.join(sala);
       socket.nickname = nickname;
       socket.sala = sala;
       
-      usersNaSala[nickname] = { id: socket.id, nickname, idade, status: 'online', disconnectTimer: null, idleTimer: null };
+      usersNaSala[nickname] = { id: socket.id, nickname, idade, color, status: 'online', disconnectTimer: null, idleTimer: null };
       
       const now = Date.now();
       salas[sala].history = salas[sala].history.filter(msg => now - msg.timestamp <= HISTORY_LIFETIME);
       socket.emit('chatHistory', salas[sala].history);
       
-      // CORREÇÃO: Envia a lista de usuários "limpa"
       io.to(sala).emit('userList', sanitizeUsers(usersNaSala));
       io.to(sala).emit('message', { nickname: 'System', text: `${nickname} entrou na sala.`, mentions: [] });
       
@@ -113,13 +110,13 @@ io.on('connection', (socket) => {
     const { sala, nickname } = socket;
     if (sala && nickname && salas[sala]?.users[nickname]) {
       resetIdleTimer(socket);
-
       const user = salas[sala].users[nickname];
       const msg = { 
         nickname: user.nickname, 
         text, 
         mentions: mentions || [],
-        timestamp: Date.now() 
+        timestamp: Date.now(),
+        color: user.color
       };
       
       salas[sala].history.push(msg);
@@ -131,8 +128,6 @@ io.on('connection', (socket) => {
     const { sala, nickname } = socket;
     if (sala && nickname && salas[sala]?.users[nickname]) {
       salas[sala].users[nickname].status = newStatus;
-
-      // CORREÇÃO: Envia a lista de usuários "limpa"
       io.to(sala).emit('userList', sanitizeUsers(salas[sala].users));
       resetIdleTimer(socket);
     }
@@ -143,19 +138,13 @@ io.on('connection', (socket) => {
     if (!sala || !nickname || !salas[sala]?.users[nickname]) return;
 
     const user = salas[sala].users[nickname];
-
-    if (user.idleTimer) {
-        clearTimeout(user.idleTimer);
-    }
+    if (user.idleTimer) clearTimeout(user.idleTimer);
     
     const timer = setTimeout(() => {
       if (salas[sala]?.users[nickname]?.disconnectTimer === timer) {
         delete salas[sala].users[nickname];
-      
-        // CORREÇÃO: Envia a lista de usuários "limpa"
         io.to(sala).emit('userList', sanitizeUsers(salas[sala].users));
         io.to(sala).emit('message', { nickname: 'System', text: `${nickname} saiu da sala.`, mentions: [] });
-      
         atualizarContagemSalas();
       }
     }, DISCONNECT_TIMEOUT);
