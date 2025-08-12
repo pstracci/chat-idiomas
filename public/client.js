@@ -23,6 +23,12 @@ const emojiBtn = document.getElementById('emojiBtn');
 const emojiPicker = document.getElementById('emojiPicker');
 const mentionSound = document.getElementById('mentionSound');
 const mentionList = document.getElementById('mentionSuggestions');
+const roomTitleEl = document.getElementById('roomTitle'); 
+
+if (roomTitleEl && sala) {
+    const formattedRoomName = sala.charAt(0).toUpperCase() + sala.slice(1);
+    roomTitleEl.textContent = `Sala de ${formattedRoomName}`;
+}
 
 let isAudioUnlocked = false;
 let usersOnline = [];
@@ -46,7 +52,15 @@ socket.on('nicknameTaken', (data) => {
   window.location.href = '/';
 });
 
+// --- NOVO: Listener para desconexão por inatividade ---
+socket.on('idleKick', () => {
+    alert('Você foi desconectado por inatividade de 30 minutos.');
+    window.location.href = '/';
+});
+
 socket.on('chatHistory', (history) => {
+  // Limpa o histórico antigo antes de adicionar o novo, importante para reconexões
+  messagesDiv.innerHTML = '';
   history.forEach(msg => addMessage(msg.nickname, msg.text, msg.mentions));
 });
 
@@ -61,20 +75,16 @@ socket.on('userList', (users) => {
 
 
 // --- Funções do Chat ---
-
 function addMessage(user, text, mentions = []) {
   const p = document.createElement('p');
   
-  // Verifica se o usuário atual foi mencionado
   if (mentions.includes(nickname)) {
     p.classList.add('mention-highlight');
     
-    // --- NOVO: Apenas toca o som se o status atual NÃO for 'ocupado' ---
     const meuStatusAtual = statusSelect.value;
     if (meuStatusAtual !== 'ocupado' && mentionSound && isAudioUnlocked) {
       mentionSound.play().catch(e => console.error("Erro ao tocar áudio de notificação:", e));
     }
-    // --- FIM DA VERIFICAÇÃO DE STATUS ---
   }
 
   p.innerHTML = `<strong>${user}:</strong> ${text}`;
@@ -111,13 +121,16 @@ function updateUserList(users) {
   usersDiv.appendChild(statusContainer);
 
   const title = document.createElement('h3');
-  title.textContent = 'Usuários na sala';
+  title.textContent = 'Participantes';
   usersDiv.appendChild(title);
 
-  users.forEach(u => {
+  const selfUser = users.find(u => u.nickname === nickname);
+  const otherUsers = users.filter(u => u.nickname !== nickname);
+
+  const createUserElement = (user) => {
     let colorClass = 'status-online-dot';
     let statusText = 'Online';
-    switch (u.status) {
+    switch (user.status) {
       case 'voltoja': 
         colorClass = 'status-voltoja-dot';
         statusText = 'Volto Já';
@@ -129,9 +142,25 @@ function updateUserList(users) {
     }
     const userDiv = document.createElement('div');
     userDiv.className = 'user-item';
-    // Atualizei para mostrar o texto do status também
-    userDiv.innerHTML = `<span><span class="status-dot ${colorClass}"></span>${u.nickname} (${u.idade})</span> <span class="status-text">(${statusText})</span>`;
-    usersDiv.appendChild(userDiv);
+    userDiv.innerHTML = `<span><span class="status-dot ${colorClass}"></span>${user.nickname} (${user.idade})</span> <span class="status-text">(${statusText})</span>`;
+    return userDiv;
+  };
+
+  if (selfUser) {
+    const selfElement = createUserElement(selfUser);
+    selfElement.style.fontWeight = 'bold';
+    usersDiv.appendChild(selfElement);
+  }
+
+  if (otherUsers.length > 0) {
+    const divider = document.createElement('hr');
+    divider.className = 'user-list-divider';
+    usersDiv.appendChild(divider);
+  }
+
+  otherUsers.forEach(user => {
+    const userElement = createUserElement(user);
+    usersDiv.appendChild(userElement);
   });
 }
 
@@ -139,7 +168,6 @@ function updateUserList(users) {
 statusSelect.addEventListener('change', () => {
   const newStatus = statusSelect.value;
   socket.emit('updateStatus', newStatus);
-  updateMyStatusDot(newStatus);
 });
 
 function updateMyStatusDot(status) {

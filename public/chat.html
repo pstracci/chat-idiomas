@@ -2,57 +2,87 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
-<title>Chat</title>
-<link rel="stylesheet" href="style.css" />
+<title>Chat Verboso</title>
 <style>
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     margin: 0;
-    background-color: #e9ecef;
+    background-color: #f4f7f9;
     color: #1d1d1f;
     display: flex;
     flex-direction: column;
     height: 100vh;
   }
+  .top-bar {
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    background-color: #fff;
+    border-bottom: 1px solid #dee2e6;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
   #backBtn {
     background: none;
     border: none;
-    font-size: 16px;
+    font-size: 1.5em;
     color: #007aff;
     cursor: pointer;
-    padding: 12px 16px;
-    text-align: left;
+    padding: 12px 10px 12px 0;
   }
-  #backBtn:hover { text-decoration: underline; }
+  #backBtn:hover { opacity: 0.7; }
+  #roomTitle {
+    flex-grow: 1;
+    text-align: center;
+    margin: 0;
+    font-size: 1.2em;
+    font-weight: 600;
+    color: #495057;
+  }
   .chat-container {
     display: flex;
     flex: 1;
-    padding: 10px;
-    gap: 12px;
+    padding: 15px;
+    gap: 15px;
+    overflow: hidden;
+  }
+  .messages-area {
+    flex: 3;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
   }
   .messages {
-    flex: 3;
-    background-color: #fdfdfd;
-    border-radius: 16px;
-    padding: 12px;
+    flex: 1;
+    padding: 15px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    gap: 10px;
   }
   .users {
     flex: 1;
-    background-color: #fdfdfd;
-    border-radius: 16px;
-    padding: 12px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    max-width: 300px;
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    overflow-y: auto;
   }
   #statusContainer {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     font-size: 14px;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+  }
+  .user-list-divider {
+    border: 0;
+    border-top: 1px solid #e9ecef;
+    margin: 10px 0;
   }
   #statusSelect {
     padding: 4px 8px;
@@ -67,20 +97,20 @@
     border-radius: 50%;
     display: inline-block;
   }
-  .status-online-dot { background-color: #34c759; }
-  .status-busy-dot { background-color: #ff3b30; }
+  .status-online-dot { background-color: #28a745; }
+  .status-voltoja-dot { background-color: #ffc107; }
+  .status-ocupado-dot { background-color: #dc3545; }
+
   #chatInputWrapper {
     display: flex;
     padding: 10px;
-    background-color: #fdfdfd;
-    border-top: 1px solid #ddd;
-    border-radius: 0 0 16px 16px;
+    border-top: 1px solid #e9ecef;
     gap: 8px;
-    position: relative;
+    position: relative; /* ESSENCIAL para posicionar a caixa de menções */
   }
   #msgInput {
     flex: 1;
-    padding: 10px;
+    padding: 10px 15px;
     border-radius: 20px;
     border: 1px solid #ccc;
     font-size: 14px;
@@ -88,33 +118,36 @@
     outline: none;
   }
   #msgInput:focus { border-color: #007aff; }
+
   #sendBtn {
     background-color: #007aff;
     color: white;
     border: none;
     border-radius: 20px;
-    padding: 0 16px;
+    padding: 0 20px;
     cursor: pointer;
     font-size: 14px;
-    transition: background 0.2s;
+    font-weight: 600;
+    transition: background-color 0.2s;
   }
   #sendBtn:hover { background-color: #005bb5; }
-  .messages-area {
-    flex: 3;
-    display: flex;
-    flex-direction: column;
-  }
-  /* Botão de emoji */
+  
   #emojiBtn {
-    background: none;
+    background-color: transparent;
+    color: #6c757d;
     border: none;
-    font-size: 20px;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
     cursor: pointer;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
-  /* Painel de emojis */
   #emojiPicker {
     position: absolute;
-    bottom: 50px;
+    bottom: 60px;
     left: 10px;
     background: white;
     border: 1px solid #ccc;
@@ -122,26 +155,63 @@
     padding: 5px;
     display: none;
     flex-wrap: wrap;
-    max-width: 200px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    width: 240px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     z-index: 100;
   }
   #emojiPicker span {
     cursor: pointer;
-    padding: 4px;
-    font-size: 18px;
+    padding: 5px;
+    font-size: 22px;
   }
   #emojiPicker span:hover { background: #f0f0f0; border-radius: 6px; }
+  
   .mention-highlight {
-    background-color: #f0f0f0;
+    background-color: #fffbe6;
     border-left: 4px solid #007aff;
     padding-left: 8px;
+    border-radius: 4px;
   }
+  
+  /* --- CORREÇÃO: Estilo da caixa de sugestão de menção --- */
+  #mentionSuggestions {
+    display: none; /* Começa escondida */
+    position: absolute; /* Posição absoluta relativa ao #chatInputWrapper */
+    bottom: 100%;      /* Posiciona a caixa exatamente acima do wrapper */
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ccc;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0; /* Cantos arredondados apenas no topo */
+    box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
+    z-index: 1000;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+
+  #mentionSuggestions div {
+    padding: 10px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  #mentionSuggestions div:last-child {
+    border-bottom: none;
+  }
+
+  #mentionSuggestions div:hover {
+    background-color: #f0f8ff;
+  }
+
 </style>
 </head>
 <body>
 
-<button id="backBtn">← Voltar</button>
+<div class="top-bar">
+    <button id="backBtn">←</button>
+    <h2 id="roomTitle"></h2>
+</div>
 
 <div class="chat-container">
   <div class="messages-area">
@@ -150,8 +220,7 @@
       <button id="emojiBtn">😊</button>
       <div id="emojiPicker"></div>
       <input id="msgInput" placeholder="Digite sua mensagem..." autocomplete="off" />
-	  <div id="mentionSuggestions" class="mention-suggestions"></div>
-      <button id="sendBtn">Enviar</button>
+	  <div id="mentionSuggestions"></div> <button id="sendBtn">Enviar</button>
     </div>
   </div>
 
@@ -165,45 +234,13 @@
         <option value="ocupado">Ocupado</option>
       </select>
     </div>
-  </div>
+    </div>
 </div>
 
 <audio id="mentionSound" src="/sounds/alert.wav" preload="auto"></audio>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="client.js"></script>
-
-<script>
-  function getQueryParam(param) {
-    const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get(param);
-  }
-
-  const texts = {
-    pt: { backBtn: '← Voltar', statusLabel: 'Seu Status:', statusOptions: { online: 'Online', voltoja: 'Volto Já', ocupado: 'Ocupado' }, msgInputPlaceholder: 'Digite sua mensagem...', sendBtn: 'Enviar' },
-    en: { backBtn: '← Back', statusLabel: 'Your Status:', statusOptions: { online: 'Online', voltoja: 'Be Right Back', ocupado: 'Busy' }, msgInputPlaceholder: 'Type your message...', sendBtn: 'Send' },
-    ar: { backBtn: '← رجوع', statusLabel: 'حالتك:', statusOptions: { online: 'متصل', voltoja: 'سأعود حالًا', ocupado: 'مشغول' }, msgInputPlaceholder: 'اكتب رسالتك...', sendBtn: 'إرسال' },
-    ru: { backBtn: '← Назад', statusLabel: 'Ваш статус:', statusOptions: { online: 'Онлайн', voltoja: 'Скоро вернусь', ocupado: 'Занят' }, msgInputPlaceholder: 'Введите сообщение...', sendBtn: 'Отправить' }
-  };
-
-  function aplicarIdiomaChat(lang) {
-    const t = texts[lang] || texts.pt;
-    document.getElementById('backBtn').textContent = t.backBtn;
-    document.getElementById('statusLabel').textContent = t.statusLabel;
-    const statusSelect = document.getElementById('statusSelect');
-    for (const option of statusSelect.options) {
-      const val = option.value;
-      if (t.statusOptions[val]) option.textContent = t.statusOptions[val];
-    }
-    document.getElementById('msgInput').placeholder = t.msgInputPlaceholder;
-    document.getElementById('sendBtn').textContent = t.sendBtn;
-  }
-
-  window.addEventListener('DOMContentLoaded', () => {
-    const lang = getQueryParam('lang') || 'pt';
-    aplicarIdiomaChat(lang);
-  });
-</script>
 
 </body>
 </html>
