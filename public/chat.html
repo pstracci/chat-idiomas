@@ -8,13 +8,12 @@
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     margin: 0;
-    background-color: #e9ecef; /* tom neutro mais suave */
+    background-color: #e9ecef;
     color: #1d1d1f;
     display: flex;
     flex-direction: column;
     height: 100vh;
   }
-
   #backBtn {
     background: none;
     border: none;
@@ -24,17 +23,13 @@
     padding: 12px 16px;
     text-align: left;
   }
-  #backBtn:hover {
-    text-decoration: underline;
-  }
-
+  #backBtn:hover { text-decoration: underline; }
   .chat-container {
     display: flex;
     flex: 1;
     padding: 10px;
     gap: 12px;
   }
-
   .messages {
     flex: 3;
     background-color: #fdfdfd;
@@ -46,7 +41,6 @@
     gap: 8px;
     box-shadow: 0 0 10px rgba(0,0,0,0.05);
   }
-
   .users {
     flex: 1;
     background-color: #fdfdfd;
@@ -54,14 +48,12 @@
     padding: 12px;
     box-shadow: 0 0 10px rgba(0,0,0,0.05);
   }
-
   #statusContainer {
     display: flex;
     align-items: center;
     gap: 6px;
     font-size: 14px;
   }
-
   #statusSelect {
     padding: 4px 8px;
     border-radius: 8px;
@@ -69,7 +61,6 @@
     font-size: 14px;
     background-color: #f5f5f7;
   }
-
   .status-dot {
     width: 10px;
     height: 10px;
@@ -78,8 +69,6 @@
   }
   .status-online-dot { background-color: #34c759; }
   .status-busy-dot { background-color: #ff3b30; }
-
-  /* Rodapé do chat alinhado com a área de mensagens */
   #chatInputWrapper {
     display: flex;
     padding: 10px;
@@ -87,8 +76,8 @@
     border-top: 1px solid #ddd;
     border-radius: 0 0 16px 16px;
     gap: 8px;
+    position: relative;
   }
-
   #msgInput {
     flex: 1;
     padding: 10px;
@@ -98,10 +87,7 @@
     background-color: #f5f5f7;
     outline: none;
   }
-  #msgInput:focus {
-    border-color: #007aff;
-  }
-
+  #msgInput:focus { border-color: #007aff; }
   #sendBtn {
     background-color: #007aff;
     color: white;
@@ -112,28 +98,59 @@
     font-size: 14px;
     transition: background 0.2s;
   }
-  #sendBtn:hover {
-    background-color: #005bb5;
-  }
-
-  /* Layout geral: mensagens e input em coluna, alinhados */
+  #sendBtn:hover { background-color: #005bb5; }
   .messages-area {
     flex: 3;
     display: flex;
     flex-direction: column;
   }
+  /* Botão de emoji */
+  #emojiBtn {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+  }
+  /* Painel de emojis */
+  #emojiPicker {
+    position: absolute;
+    bottom: 50px;
+    left: 10px;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    padding: 5px;
+    display: none;
+    flex-wrap: wrap;
+    max-width: 200px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    z-index: 100;
+  }
+  #emojiPicker span {
+    cursor: pointer;
+    padding: 4px;
+    font-size: 18px;
+  }
+  #emojiPicker span:hover { background: #f0f0f0; border-radius: 6px; }
+  .mention-highlight {
+    background-color: #f0f0f0;
+    border-left: 4px solid #007aff;
+    padding-left: 8px;
+  }
 </style>
 </head>
 <body>
 
-<!-- Botão Voltar -->
 <button id="backBtn">← Voltar</button>
 
 <div class="chat-container">
   <div class="messages-area">
     <div class="messages" id="messages"></div>
     <div id="chatInputWrapper">
+      <button id="emojiBtn">😊</button>
+      <div id="emojiPicker"></div>
       <input id="msgInput" placeholder="Digite sua mensagem..." autocomplete="off" />
+	  <div id="mentionSuggestions" class="mention-suggestions"></div>
       <button id="sendBtn">Enviar</button>
     </div>
   </div>
@@ -151,6 +168,8 @@
   </div>
 </div>
 
+<audio id="mentionSound" src="/sounds/alert.wav" preload="auto"></audio>
+
 <script src="/socket.io/socket.io.js"></script>
 <script src="client.js"></script>
 
@@ -161,47 +180,21 @@
   }
 
   const texts = {
-    pt: {
-      backBtn: '← Voltar',
-      statusLabel: 'Seu Status:',
-      statusOptions: { online: 'Online', voltoja: 'Volto Já', ocupado: 'Ocupado' },
-      msgInputPlaceholder: 'Digite sua mensagem...',
-      sendBtn: 'Enviar'
-    },
-    en: {
-      backBtn: '← Back',
-      statusLabel: 'Your Status:',
-      statusOptions: { online: 'Online', voltoja: 'Be Right Back', ocupado: 'Busy' },
-      msgInputPlaceholder: 'Type your message...',
-      sendBtn: 'Send'
-    },
-    ar: {
-      backBtn: '← رجوع',
-      statusLabel: 'حالتك:',
-      statusOptions: { online: 'متصل', voltoja: 'سأعود حالًا', ocupado: 'مشغول' },
-      msgInputPlaceholder: 'اكتب رسالتك...',
-      sendBtn: 'إرسال'
-    },
-    ru: {
-      backBtn: '← Назад',
-      statusLabel: 'Ваш статус:',
-      statusOptions: { online: 'Онлайн', voltoja: 'Скоро вернусь', ocupado: 'Занят' },
-      msgInputPlaceholder: 'Введите сообщение...',
-      sendBtn: 'Отправить'
-    }
+    pt: { backBtn: '← Voltar', statusLabel: 'Seu Status:', statusOptions: { online: 'Online', voltoja: 'Volto Já', ocupado: 'Ocupado' }, msgInputPlaceholder: 'Digite sua mensagem...', sendBtn: 'Enviar' },
+    en: { backBtn: '← Back', statusLabel: 'Your Status:', statusOptions: { online: 'Online', voltoja: 'Be Right Back', ocupado: 'Busy' }, msgInputPlaceholder: 'Type your message...', sendBtn: 'Send' },
+    ar: { backBtn: '← رجوع', statusLabel: 'حالتك:', statusOptions: { online: 'متصل', voltoja: 'سأعود حالًا', ocupado: 'مشغول' }, msgInputPlaceholder: 'اكتب رسالتك...', sendBtn: 'إرسال' },
+    ru: { backBtn: '← Назад', statusLabel: 'Ваш статус:', statusOptions: { online: 'Онлайн', voltoja: 'Скоро вернусь', ocupado: 'Занят' }, msgInputPlaceholder: 'Введите сообщение...', sendBtn: 'Отправить' }
   };
 
   function aplicarIdiomaChat(lang) {
     const t = texts[lang] || texts.pt;
     document.getElementById('backBtn').textContent = t.backBtn;
     document.getElementById('statusLabel').textContent = t.statusLabel;
-
     const statusSelect = document.getElementById('statusSelect');
     for (const option of statusSelect.options) {
       const val = option.value;
       if (t.statusOptions[val]) option.textContent = t.statusOptions[val];
     }
-
     document.getElementById('msgInput').placeholder = t.msgInputPlaceholder;
     document.getElementById('sendBtn').textContent = t.sendBtn;
   }

@@ -1,8 +1,7 @@
-// Função para "limpar" o nome da sala, removendo acentos e espaços, para id e comunicação
 function limparNomeSala(nome) {
   return nome.toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove acentos
-    .replace(/\s+/g, '-'); // espaços para hífen
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, '-');
 }
 
 const params = new URLSearchParams(window.location.search);
@@ -10,159 +9,246 @@ let sala = params.get('sala') || '';
 const nickname = params.get('nick');
 const idade = params.get('idade');
 
-console.log('Parâmetros da URL:', { sala, nickname, idade });
-
-// Aplica a limpeza no nome da sala para enviar ao servidor
 const salaLimpa = limparNomeSala(sala);
-
 const socket = io();
 
+// Elementos do DOM
 const backBtn = document.getElementById('backBtn');
+const messagesDiv = document.getElementById('messages');
+const msgInput = document.getElementById('msgInput');
+const sendBtn = document.getElementById('sendBtn');
+const usersDiv = document.getElementById('users');
+const statusSelect = document.getElementById('statusSelect');
+const emojiBtn = document.getElementById('emojiBtn');
+const emojiPicker = document.getElementById('emojiPicker');
+const mentionSound = document.getElementById('mentionSound');
+const mentionList = document.getElementById('mentionSuggestions');
+
+let isAudioUnlocked = false;
+let usersOnline = [];
+let mentionMode = false;
+let mentionQuery = '';
+
+// --- Conexão e Lógica da Sala ---
 backBtn.addEventListener('click', () => {
-  console.log('Botão Voltar clicado: aceitou18 setado e voltando para /');
-  localStorage.setItem('aceitou18', 'true');
   window.location.href = '/';
 });
 
-// Emite com o nome da sala limpo
 socket.emit('joinRoom', { sala: salaLimpa, nickname, idade });
-console.log('Evento joinRoom emitido', { sala: salaLimpa, nickname, idade });
-
-// Coloca o listener dentro do load para garantir que o DOM está pronto
-socket.on('roomCounts', (counts) => {
-  console.log('Contagem de usuários por sala recebida:', counts);
-  Object.entries(counts).forEach(([room, count]) => {
-    const roomLimpa = limparNomeSala(room);
-    const el = document.getElementById(`count-${roomLimpa}`);
-    console.log(`Atualizando #count-${roomLimpa} para ${count}`, el);
-    if (el) {
-      el.textContent = count;
-      console.log(`Elemento atualizado:`, el.textContent);
-    }
-  });
-});
 
 socket.on('roomFull', () => {
-  console.log('Sala cheia recebida do servidor');
-  alert('Sala cheia! Tente outra.');
+  alert('A sala está cheia. Por favor, tente outra.');
+  window.location.href = '/';
+});
+
+socket.on('nicknameTaken', (data) => {
+  alert(`O nickname "${data.nickname}" já está em uso nesta sala. Por favor, escolha outro.`);
   window.location.href = '/';
 });
 
 socket.on('chatHistory', (history) => {
-  console.log('Histórico de chat recebido:', history);
-  history.forEach(msg => addMessage(msg.nickname, msg.text));
+  history.forEach(msg => addMessage(msg.nickname, msg.text, msg.mentions));
 });
 
 socket.on('message', (msg) => {
-  console.log('Mensagem recebida:', msg);
-  addMessage(msg.nickname, msg.text);
+  addMessage(msg.nickname, msg.text, msg.mentions);
 });
 
 socket.on('userList', (users) => {
-  console.log('Lista de usuários recebida:', users);
-  const usersDiv = document.getElementById('users');
-  const statusSelect = document.getElementById('statusSelect');
-  const statusContainer = document.getElementById('statusContainer');
+  usersOnline = users.map(u => u.nickname);
+  updateUserList(users);
+});
 
+
+// --- Funções do Chat ---
+
+function addMessage(user, text, mentions = []) {
+  const p = document.createElement('p');
+  
+  // Verifica se o usuário atual foi mencionado
+  if (mentions.includes(nickname)) {
+    p.classList.add('mention-highlight');
+    
+    // --- NOVO: Apenas toca o som se o status atual NÃO for 'ocupado' ---
+    const meuStatusAtual = statusSelect.value;
+    if (meuStatusAtual !== 'ocupado' && mentionSound && isAudioUnlocked) {
+      mentionSound.play().catch(e => console.error("Erro ao tocar áudio de notificação:", e));
+    }
+    // --- FIM DA VERIFICAÇÃO DE STATUS ---
+  }
+
+  p.innerHTML = `<strong>${user}:</strong> ${text}`;
+  messagesDiv.appendChild(p);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+function sendMsg() {
+  const text = msgInput.value.trim();
+  if (text) {
+    if (!isAudioUnlocked && mentionSound) {
+      mentionSound.play().then(() => {
+        mentionSound.pause();
+        isAudioUnlocked = true;
+        console.log("Áudio desbloqueado com sucesso!");
+      }).catch(error => {
+        console.warn("Tentativa de desbloquear áudio falhou:", error);
+        isAudioUnlocked = true; 
+      });
+    }
+
+    const mentions = usersOnline.filter(u => text.includes('@' + u));
+    socket.emit('message', { text, mentions });
+    msgInput.value = '';
+    
+    mentionList.style.display = 'none';
+    mentionMode = false;
+  }
+}
+
+function updateUserList(users) {
+  const statusContainer = document.getElementById('statusContainer');
   usersDiv.innerHTML = '';
   usersDiv.appendChild(statusContainer);
 
   const title = document.createElement('h3');
-  title.textContent = 'Users';
+  title.textContent = 'Usuários na sala';
   usersDiv.appendChild(title);
 
   users.forEach(u => {
-    let colorClass = '';
-    let statusText = '';
+    let colorClass = 'status-online-dot';
+    let statusText = 'Online';
     switch (u.status) {
-      case 'online':
-        colorClass = 'status-online-dot';
-        statusText = 'Online';
-        break;
-      case 'voltoja':
+      case 'voltoja': 
         colorClass = 'status-voltoja-dot';
         statusText = 'Volto Já';
         break;
-      case 'ocupado':
-        colorClass = 'status-ocupado-dot';
+      case 'ocupado': 
+        colorClass = 'status-ocupado-dot'; 
         statusText = 'Ocupado';
         break;
-      default:
-        colorClass = 'status-online-dot';
-        statusText = 'Online';
     }
-
     const userDiv = document.createElement('div');
-    userDiv.classList.add('user-item');
-    userDiv.innerHTML = `
-      <span><span class="status-dot ${colorClass}"></span>${u.nickname} (${u.idade} anos)</span>
-      <span class="status-text">${statusText}</span>
-    `;
+    userDiv.className = 'user-item';
+    // Atualizei para mostrar o texto do status também
+    userDiv.innerHTML = `<span><span class="status-dot ${colorClass}"></span>${u.nickname} (${u.idade})</span> <span class="status-text">(${statusText})</span>`;
     usersDiv.appendChild(userDiv);
   });
+}
 
-  const meuUsuario = users.find(u => u.nickname === nickname);
-  if (meuUsuario) {
-    console.log('Atualizando status do usuário atual:', meuUsuario);
-    statusSelect.value = meuUsuario.status || 'online';
-    updateMyStatusDot(statusSelect.value);
+// --- Status do Usuário ---
+statusSelect.addEventListener('change', () => {
+  const newStatus = statusSelect.value;
+  socket.emit('updateStatus', newStatus);
+  updateMyStatusDot(newStatus);
+});
+
+function updateMyStatusDot(status) {
+  const statusDot = document.getElementById('statusDot');
+  if (!statusDot) return;
+  statusDot.className = 'status-dot';
+  switch (status) {
+    case 'online': statusDot.classList.add('status-online-dot'); break;
+    case 'voltoja': statusDot.classList.add('status-voltoja-dot'); break;
+    case 'ocupado': statusDot.classList.add('status-ocupado-dot'); break;
+    default: statusDot.classList.add('status-online-dot');
+  }
+}
+
+// --- Sistema de Emojis ---
+const emojis = ["😀", "😂", "😊", "😍", "🤔", "👍", "👎", "❤️", "🔥", "🎉"];
+emojis.forEach(e => {
+  const span = document.createElement('span');
+  span.textContent = e;
+  span.onclick = () => {
+    msgInput.value += e;
+    msgInput.focus();
+    emojiPicker.style.display = 'none';
+  };
+  emojiPicker.appendChild(span);
+});
+
+emojiBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  emojiPicker.style.display = emojiPicker.style.display === 'block' ? 'none' : 'block';
+});
+
+// --- AUTOCOMPLETE DE MENÇÃO ---
+msgInput.addEventListener('input', () => {
+  const value = msgInput.value;
+  const cursorPos = msgInput.selectionStart;
+  const textBeforeCursor = value.slice(0, cursorPos);
+  const atIndex = textBeforeCursor.lastIndexOf('@');
+
+  if (atIndex !== -1 && (atIndex === 0 || /\s/.test(value[atIndex - 1]))) {
+    mentionQuery = textBeforeCursor.slice(atIndex + 1).toLowerCase();
+    
+    if (/\s/.test(mentionQuery)) {
+      mentionMode = false;
+      mentionList.style.display = 'none';
+      return;
+    }
+    
+    mentionMode = true;
+    showMentionList();
+  } else {
+    mentionMode = false;
+    mentionList.style.display = 'none';
   }
 });
 
-const statusSelect = document.getElementById('statusSelect');
-statusSelect.addEventListener('change', () => {
-  const novoStatus = statusSelect.value;
-  console.log('Status alterado para:', novoStatus);
-  socket.emit('updateStatus', novoStatus);
-  updateMyStatusDot(novoStatus);
-});
+function showMentionList() {
+  const filteredUsers = usersOnline.filter(user => 
+    user.toLowerCase().startsWith(mentionQuery) && user !== nickname
+  );
 
-const sendBtn = document.getElementById('sendBtn');
-sendBtn.onclick = () => sendMsg();
+  if (filteredUsers.length === 0 || !mentionMode) {
+    mentionList.style.display = 'none';
+    return;
+  }
 
-document.getElementById('msgInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') {
+  mentionList.innerHTML = '';
+  filteredUsers.forEach(user => {
+    const div = document.createElement('div');
+    div.textContent = user;
+    div.onclick = () => insertMention(user);
+    mentionList.appendChild(div);
+  });
+
+  mentionList.style.display = 'block';
+}
+
+function insertMention(username) {
+  const value = msgInput.value;
+  const cursorPos = msgInput.selectionStart;
+  const textBeforeCursor = value.slice(0, cursorPos);
+  const textAfterCursor = value.slice(cursorPos);
+  const atIndex = textBeforeCursor.lastIndexOf('@');
+
+  msgInput.value = textBeforeCursor.slice(0, atIndex) + `@${username} ` + textAfterCursor;
+
+  mentionList.style.display = 'none';
+  mentionMode = false;
+
+  msgInput.focus();
+  const newCursorPos = atIndex + username.length + 2;
+  msgInput.setSelectionRange(newCursorPos, newCursorPos);
+}
+
+
+// --- Listeners Globais ---
+sendBtn.onclick = sendMsg;
+msgInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !mentionMode) {
+    e.preventDefault();
     sendMsg();
   }
 });
 
-function sendMsg() {
-  const input = document.getElementById('msgInput');
-  const text = input.value.trim();
-  if (text) {
-    console.log('Enviando mensagem:', text);
-    socket.emit('message', text);
-    input.value = '';
+document.addEventListener('click', (e) => {
+  if (!emojiPicker.contains(e.target) && e.target !== emojiBtn) {
+    emojiPicker.style.display = 'none';
   }
-}
-
-function addMessage(user, text) {
-  const msgDiv = document.getElementById('messages');
-  const p = document.createElement('p');
-  p.innerHTML = `<strong>${user}:</strong> ${text}`;
-  msgDiv.appendChild(p);
-  msgDiv.scrollTop = msgDiv.scrollHeight;
-}
-
-function updateMyStatusDot(status) {
-  const statusDot = document.getElementById('statusDot');
-  if (!statusDot) {
-    console.log('Elemento statusDot não encontrado!');
-    return;
+  if (!mentionList.contains(e.target) && e.target !== msgInput) {
+    mentionList.style.display = 'none';
   }
-  statusDot.className = 'status-dot'; // reseta classes
-  switch (status) {
-    case 'online':
-      statusDot.classList.add('status-online-dot');
-      break;
-    case 'voltoja':
-      statusDot.classList.add('status-voltoja-dot');
-      break;
-    case 'ocupado':
-      statusDot.classList.add('status-ocupado-dot');
-      break;
-    default:
-      statusDot.classList.add('status-online-dot');
-  }
-  console.log('Status dot atualizado para:', status);
-}
+});

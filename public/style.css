@@ -18,8 +18,8 @@ header {
     padding: 20px;
     margin: 15px;
     font-size: 14px;
-    position: relative;   /* Para ficar acima de elementos com z-index baixo */
-    z-index: 10;          /* Garante que fique acima do fundo, mas abaixo do modal */
+    position: relative;
+    z-index: 10;
 }
 
 button {
@@ -75,17 +75,17 @@ button:hover {
 /* Modal */
 .modal {
   position: fixed;
-  z-index: 10000;         /* Bem acima de tudo */
+  z-index: 10000;
   left: 0; top: 0;
   width: 100%; height: 100%;
   background-color: rgba(0,0,0,0.5);
-  display: none;          /* Escondido por padrão */
+  display: none;
   justify-content: center;
   align-items: center;
 }
 
 .modal.show {
-  display: flex;          /* Aparece quando tem essa classe */
+  display: flex;
 }
 
 .modal-content {
@@ -207,4 +207,33 @@ button:hover {
 /* Dropdown status */
 #statusSelect {
   margin-bottom: 10px;
+}
+
+/* Lista de sugestões de menção */
+.mention-suggestions {
+  position: absolute;
+  bottom: 50px;
+  left: 50px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  z-index: 200;
+  display: none;
+  max-height: 150px;
+  overflow-y: auto;
+}
+.mention-suggestions div {
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.mention-suggestions div:hover {
+  background: #f0f0f0;
+}
+
+/* Classe de destaque para mensagem mencionada */
+.mention-highlight {
+    background-color: #f0f0f0;
+    border-left: 4px solid #007aff;
+    padding-left: 8px;
 }
