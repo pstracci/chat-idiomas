@@ -112,7 +112,7 @@ io.on('connection', (socket) => {
     if (sala && nickname && salas[sala]?.users[nickname]) {
       resetIdleTimer(socket);
 
-      if (imageData && imageData.length > 1.5 * 1024 * 1024) {
+      if (imageData && imageData.length > 4.5 * 1024 * 1024) {
           console.log(`[Segurança] ${nickname} tentou enviar uma imagem muito grande.`);
           return;
       }

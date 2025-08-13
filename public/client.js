@@ -70,8 +70,8 @@ function handleImageFile(file) {
         alert('Por favor, selecione um arquivo de imagem.');
         return;
     }
-    if (file.size > 1 * 1024 * 1024) { // 1MB
-        alert('A imagem é muito grande. O tamanho máximo é de 1MB.');
+    if (file.size > 5 * 1024 * 1024) { // 1MB
+        alert('A imagem é muito grande. O tamanho máximo é de 5MB.');
         return;
     }
 
