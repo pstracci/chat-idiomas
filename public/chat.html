@@ -61,7 +61,7 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    background-color: #f8f9fa; /* COR DE FUNDO ALTERADA */
+    background-color: #f8f9fa;
   }
   .users {
     flex: 1;
@@ -108,7 +108,15 @@
     border-top: 1px solid #e9ecef;
     gap: 8px;
     position: relative;
+    flex-direction: column;
   }
+
+  .input-controls {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+  }
+
   #msgInput {
     flex: 1;
     padding: 10px 15px;
@@ -119,6 +127,58 @@
     outline: none;
   }
   #msgInput:focus { border-color: #007aff; }
+
+  #imageBtn {
+    background-color: transparent;
+    color: #6c757d;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #imageBtn:hover { background-color: #f0f0f0; }
+
+  #imagePreviewContainer {
+      display: none;
+      padding: 0 10px 10px 10px;
+      position: relative;
+      max-width: 150px;
+  }
+  #imagePreview {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+  }
+  #removeImageBtn {
+      position: absolute;
+      top: -5px;
+      right: 0;
+      background: #333;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      font-weight: bold;
+      line-height: 18px;
+      text-align: center;
+  }
+  
+  .chat-image {
+      max-width: 300px;
+      max-height: 250px;
+      border-radius: 8px;
+      margin-top: 5px;
+      display: block;
+      cursor: pointer;
+  }
 
   #sendBtn {
     background-color: #007aff;
@@ -217,11 +277,19 @@
   <div class="messages-area">
     <div class="messages" id="messages"></div>
     <div id="chatInputWrapper">
-      <button id="emojiBtn">😊</button>
-      <div id="emojiPicker"></div>
-      <input id="msgInput" placeholder="Digite sua mensagem..." autocomplete="off" />
-	  <div id="mentionSuggestions"></div>
-      <button id="sendBtn">Enviar</button>
+        <div id="imagePreviewContainer">
+            <img id="imagePreview" src="" alt="Preview da imagem"/>
+            <button id="removeImageBtn">&times;</button>
+        </div>
+        <div class="input-controls">
+            <button id="emojiBtn">😊</button>
+            <button id="imageBtn">🖼️</button>
+            <input type="file" id="imageInput" accept="image/*" style="display: none;">
+            <input id="msgInput" placeholder="Digite sua mensagem ou cole uma imagem..." autocomplete="off" />
+            <div id="mentionSuggestions"></div>
+            <button id="sendBtn">Enviar</button>
+        </div>
+        <div id="emojiPicker"></div>
     </div>
   </div>
 

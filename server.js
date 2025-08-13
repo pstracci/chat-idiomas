@@ -4,12 +4,7 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const path = require('path');
 
-// --- PASSO 1: HABILITAR A CONFIAÇA NO PROXY ---
-// Esta linha é a correção. Ela diz ao Express para confiar
-// nos cabeçalhos de proxy enviados pela Railway, o que ajuda
-// a identificar corretamente as conexões como seguras (https).
 app.set('trust proxy', 1);
-// --- FIM DA CORREÇÃO ---
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -59,7 +54,6 @@ io.on('connection', (socket) => {
   atualizarContagemSalas();
 
   socket.on('joinRoom', ({ sala, nickname, idade, color }) => {
-    // VALIDAÇÃO: Tamanho do nickname no servidor
     if (nickname.length > 20) {
         socket.emit('invalidData', { message: 'O nickname não pode ter mais de 20 caracteres.' });
         return;
@@ -113,17 +107,24 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('message', ({ text, mentions }) => {
+  socket.on('message', ({ text, mentions, imageData }) => {
     const { sala, nickname } = socket;
     if (sala && nickname && salas[sala]?.users[nickname]) {
       resetIdleTimer(socket);
+
+      if (imageData && imageData.length > 1.5 * 1024 * 1024) {
+          console.log(`[Segurança] ${nickname} tentou enviar uma imagem muito grande.`);
+          return;
+      }
+
       const user = salas[sala].users[nickname];
       const msg = { 
         nickname: user.nickname, 
         text, 
         mentions: mentions || [],
         timestamp: Date.now(),
-        color: user.color
+        color: user.color,
+        imageData: imageData
       };
       
       salas[sala].history.push(msg);

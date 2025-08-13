@@ -21,7 +21,12 @@ const emojiBtn = document.getElementById('emojiBtn');
 const emojiPicker = document.getElementById('emojiPicker');
 const mentionSound = document.getElementById('mentionSound');
 const mentionList = document.getElementById('mentionSuggestions');
-const roomTitleEl = document.getElementById('roomTitle'); 
+const roomTitleEl = document.getElementById('roomTitle');
+const imageBtn = document.getElementById('imageBtn');
+const imageInput = document.getElementById('imageInput');
+const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+const imagePreview = document.getElementById('imagePreview');
+const removeImageBtn = document.getElementById('removeImageBtn');
 
 if (roomTitleEl && sala) {
     const formattedRoomName = sala.charAt(0).toUpperCase() + sala.slice(1);
@@ -32,9 +37,61 @@ let isAudioUnlocked = false;
 let usersOnline = [];
 let mentionMode = false;
 let mentionQuery = '';
+let selectedImageData = null;
 
 backBtn.addEventListener('click', () => { window.location.href = '/'; });
 
+// LÓGICA DE IMAGEM
+imageBtn.addEventListener('click', () => {
+    imageInput.click();
+});
+
+imageInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        handleImageFile(file);
+    }
+});
+
+msgInput.addEventListener('paste', (e) => {
+    const items = e.clipboardData.items;
+    for (const item of items) {
+        if (item.type.indexOf('image') !== -1) {
+            const file = item.getAsFile();
+            handleImageFile(file);
+            e.preventDefault();
+            break; 
+        }
+    }
+});
+
+function handleImageFile(file) {
+    if (!file.type.startsWith('image/')) {
+        alert('Por favor, selecione um arquivo de imagem.');
+        return;
+    }
+    if (file.size > 1 * 1024 * 1024) { // 1MB
+        alert('A imagem é muito grande. O tamanho máximo é de 1MB.');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        selectedImageData = e.target.result;
+        imagePreview.src = selectedImageData;
+        imagePreviewContainer.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+    imageInput.value = '';
+}
+
+removeImageBtn.addEventListener('click', () => {
+    selectedImageData = null;
+    imagePreviewContainer.style.display = 'none';
+    imagePreview.src = '';
+});
+
+// LÓGICA DE SOCKET
 socket.emit('joinRoom', { sala: salaLimpa, nickname, idade, color });
 
 socket.on('roomFull', () => {
@@ -59,11 +116,11 @@ socket.on('idleKick', () => {
 
 socket.on('chatHistory', (history) => {
   messagesDiv.innerHTML = '';
-  history.forEach(msg => addMessage(msg.nickname, msg.text, msg.mentions, msg.color));
+  history.forEach(msg => addMessage(msg));
 });
 
 socket.on('message', (msg) => {
-  addMessage(msg.nickname, msg.text, msg.mentions, msg.color);
+  addMessage(msg);
 });
 
 socket.on('userList', (users) => {
@@ -71,7 +128,7 @@ socket.on('userList', (users) => {
   updateUserList(users);
 });
 
-// --- NOVO: Função para inserir menção no input ---
+
 function mentionUser(username) {
     if (msgInput.value.length > 0 && msgInput.value.slice(-1) !== ' ') {
         msgInput.value += ' ';
@@ -80,10 +137,10 @@ function mentionUser(username) {
     msgInput.focus();
 }
 
-function addMessage(user, text, mentions = [], userColor = '#000000') {
+function addMessage(msg) {
   const p = document.createElement('p');
   
-  if (mentions.includes(nickname)) {
+  if (msg.mentions && msg.mentions.includes(nickname)) {
     p.classList.add('mention-highlight');
     const meuStatusAtual = statusSelect.value;
     if (meuStatusAtual !== 'ocupado' && mentionSound && isAudioUnlocked) {
@@ -91,29 +148,52 @@ function addMessage(user, text, mentions = [], userColor = '#000000') {
     }
   }
 
-  p.innerHTML = `<strong style="color: ${userColor};">${user}:</strong> ${text}`;
+  p.innerHTML = `<strong style="color: ${msg.color || '#000000'};">${msg.nickname}:</strong>`;
+
+  if (msg.imageData) {
+      const img = document.createElement('img');
+      img.src = msg.imageData;
+      img.className = 'chat-image';
+      img.onclick = () => window.open(msg.imageData, '_blank');
+      p.appendChild(img);
+  }
+
+  if (msg.text) {
+      const textNode = document.createTextNode(` ${msg.text}`);
+      p.appendChild(textNode);
+  }
+  
   messagesDiv.appendChild(p);
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
 function sendMsg() {
   const text = msgInput.value.trim();
-  if (text) {
-    if (!isAudioUnlocked && mentionSound) {
-      mentionSound.play().then(() => {
-        mentionSound.pause();
-        isAudioUnlocked = true;
-      }).catch(error => {
-        console.warn("Tentativa de desbloquear áudio falhou:", error);
-        isAudioUnlocked = true; 
-      });
-    }
-    const mentions = usersOnline.filter(u => text.includes('@' + u));
-    socket.emit('message', { text, mentions });
-    msgInput.value = '';
-    mentionList.style.display = 'none';
-    mentionMode = false;
+  if (!text && !selectedImageData) return;
+
+  if (!isAudioUnlocked && mentionSound) {
+    mentionSound.play().then(() => {
+      mentionSound.pause();
+      isAudioUnlocked = true;
+    }).catch(error => {
+      console.warn("Tentativa de desbloquear áudio falhou:", error);
+      isAudioUnlocked = true; 
+    });
   }
+  const mentions = usersOnline.filter(u => text.includes('@' + u));
+
+  const messagePayload = {
+      text: text,
+      mentions: mentions,
+      imageData: selectedImageData
+  };
+
+  socket.emit('message', messagePayload);
+
+  msgInput.value = '';
+  mentionList.style.display = 'none';
+  mentionMode = false;
+  removeImageBtn.click();
 }
 
 function updateUserList(users) {
@@ -127,7 +207,6 @@ function updateUserList(users) {
   const selfUser = users.find(u => u.nickname === nickname);
   const otherUsers = users.filter(u => u.nickname !== nickname);
 
-  // ALTERADO: A função agora adiciona o evento de clique
   const createUserElement = (user, isSelf) => {
     let colorClass = 'status-online-dot';
     let statusText = 'Online';
@@ -144,7 +223,6 @@ function updateUserList(users) {
         userDiv.title = `Mencionar @${user.nickname}`;
         userDiv.onclick = () => mentionUser(user.nickname);
     }
-
     return userDiv;
   };
 
@@ -169,19 +247,6 @@ statusSelect.addEventListener('change', () => {
   socket.emit('updateStatus', newStatus);
 });
 
-function updateMyStatusDot(status) {
-  const statusDot = document.getElementById('statusDot');
-  if (!statusDot) return;
-  statusDot.className = 'status-dot';
-  switch (status) {
-    case 'online': statusDot.classList.add('status-online-dot'); break;
-    case 'voltoja': statusDot.classList.add('status-voltoja-dot'); break;
-    case 'ocupado': statusDot.classList.add('status-ocupado-dot'); break;
-    default: statusDot.classList.add('status-online-dot');
-  }
-}
-
-// ALTERADO: Lista de emojis expandida
 const emojis = ["😀", "😂", "😊", "😍", "🤔", "👍", "👎", "❤️", "🔥", "🎉", "😎", "😭", "🙏", "🚀", "💡", "💯", "👀", "👋", "🥳", "🤯"];
 emojis.forEach(e => {
   const span = document.createElement('span');
