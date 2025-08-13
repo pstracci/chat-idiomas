@@ -15,7 +15,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const salas = {};
 const MAX_USERS = 20;
-const HISTORY_LIFETIME = 60 * 60 * 1000;
+const HISTORY_LIFETIME = 1440 * 60 * 1000;
 const DISCONNECT_TIMEOUT = 5000;
 const IDLE_TIMEOUT = 30 * 60 * 1000;
 
