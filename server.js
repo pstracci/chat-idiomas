@@ -4,6 +4,13 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const path = require('path');
 
+// --- PASSO 1: HABILITAR A CONFIAÇA NO PROXY ---
+// Esta linha é a correção. Ela diz ao Express para confiar
+// nos cabeçalhos de proxy enviados pela Railway, o que ajuda
+// a identificar corretamente as conexões como seguras (https).
+app.set('trust proxy', 1);
+// --- FIM DA CORREÇÃO ---
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 const salas = {};
