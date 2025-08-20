@@ -16,6 +16,10 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const app = express();
 const server = http.createServer(app);
+// CORREÇÃO: Aumenta o limite de tamanho do payload para o Socket.IO
+const io = new Server(server, {
+    maxHttpBufferSize: 5e6 // 5MB
+});
 const io = new Server(server);
 
 // --- MIDDLEWARES DO EXPRESS ---

@@ -8,49 +8,38 @@
   :root {
     --primary-color: #007aff;
     --gray-border: #dee2e6;
-    --background-light: #f4f7f9;
-    --background-white: #ffffff;
   }
-  html, body {
-    height: 100%;
-    margin: 0;
-    overflow: hidden;
+  html {
+    box-sizing: border-box;
+  }
+  *, *:before, *:after {
+    box-sizing: inherit;
   }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background-color: var(--background-light);
+    margin: 0;
+    background-color: #f4f7f9;
     color: #1d1d1f;
     display: flex;
     flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
   }
 
-  /* =============================================== */
-  /* === LAYOUT PRINCIPAL (CORRIGIDO E ROBUSTO) === */
-  /* =============================================== */
   .top-bar {
-    flex-shrink: 0; /* Cabeçalho não encolhe */
     display: flex;
     align-items: center;
     padding: 0 16px;
-    background-color: var(--background-white);
+    background-color: #fff;
     border-bottom: 1px solid var(--gray-border);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    flex-shrink: 0;
   }
   .chat-container {
-    flex-grow: 1; /* Área principal cresce para ocupar o espaço */
     display: flex;
-    overflow: hidden; /* Conteúdo interno que rola, não o container */
+    flex-grow: 1;
+    overflow: hidden;
     position: relative;
   }
-  #chatInputWrapper {
-    flex-shrink: 0; /* Rodapé (input) não encolhe */
-    padding: 10px;
-    border-top: 1px solid var(--gray-border);
-    background-color: var(--background-white);
-    position: relative;
-  }
-
-  /* Área de Mensagens e Usuários */
   .messages-area {
     flex-grow: 1;
     display: flex;
@@ -61,21 +50,16 @@
   .messages {
     flex-grow: 1;
     padding: 15px;
-    overflow-y: auto; /* Apenas esta área deve rolar */
-  }
-  .users {
-    flex-basis: 300px;
-    flex-shrink: 0;
-    background-color: var(--background-white);
-    padding: 15px;
-    border-left: 1px solid var(--gray-border);
     overflow-y: auto;
-    transition: transform 0.3s ease-in-out;
   }
-  
-  /* =============================================== */
-  /* === OUTROS ESTILOS (BOTÕES, TEXTOS, ETC) === */
-  /* =============================================== */
+  #chatInputWrapper {
+    padding: 10px;
+    border-top: 1px solid var(--gray-border);
+    background-color: #fff;
+    flex-shrink: 0;
+    position: relative;
+  }
+
   #backBtn {
     background: none; border: none; font-size: 1.8em; color: var(--primary-color);
     cursor: pointer; padding: 10px 10px 10px 0;
@@ -88,25 +72,52 @@
     cursor: pointer; padding: 10px 0 10px 10px; display: none;
   }
   
+  .users {
+    flex-basis: 300px;
+    flex-shrink: 0;
+    background-color: #fff;
+    padding: 15px;
+    border-left: 1px solid var(--gray-border);
+    overflow-y: auto;
+    transition: transform 0.3s ease-in-out;
+  }
   #statusContainer { display: flex; align-items: center; gap: 8px; font-size: 14px; padding-bottom: 10px; margin-bottom: 10px; }
   .user-list-divider { border: 0; border-top: 1px solid #e9ecef; margin: 10px 0; }
-  .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+  .status-dot {
+    width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px;
+  }
   .status-online-dot { background-color: #28a745; }
   .status-voltoja-dot { background-color: #ffc107; }
   .status-ocupado-dot { background-color: #dc3545; }
   .user-item { cursor: pointer; padding: 4px 0; }
   
-  .input-controls { display: flex; gap: 8px; align-items: center; }
+  /* --- CORREÇÃO DO LAYOUT DO INPUT --- */
+  .input-controls {
+    display: flex;
+    gap: 5px; /* Reduzido o espaçamento */
+    align-items: center;
+  }
   #msgInput {
-    flex: 1; padding: 12px 18px; border-radius: 22px; border: 1px solid #ccc;
-    font-size: 16px; background-color: #f5f5f7; outline: none;
+    flex-grow: 1; /* Permite que o input cresça */
+    flex-shrink: 1; /* Permite que o input encolha se necessário */
+    min-width: 0; /* Essencial para o encolhimento funcionar */
+    padding: 10px 15px;
+    border-radius: 20px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+    background-color: #f5f5f7;
+    outline: none;
   }
   #msgInput:focus { border-color: var(--primary-color); }
   
+  .control-btn, #sendBtn {
+    flex-shrink: 0; /* Impede que os botões encolham */
+  }
+
   .control-btn {
     background-color: transparent; color: #6c757d; border: none; border-radius: 50%;
     width: 44px; height: 44px; cursor: pointer; font-size: 22px;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
   }
   #sendBtn {
     background-color: var(--primary-color); color: white; border: none; border-radius: 22px;
@@ -132,7 +143,6 @@
   #emojiPicker span { cursor: pointer; padding: 5px; font-size: 24px; }
   .mention-highlight { background-color: #fffbe6; border-left: 4px solid var(--primary-color); padding: 0 8px; border-radius: 4px; }
   
-  /* ESTILOS PARA TELAS PEQUENAS (MOBILES) */
   @media (max-width: 768px) {
     #usersBtn { display: block; }
     .users {
