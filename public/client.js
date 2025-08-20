@@ -29,7 +29,8 @@ const imageInput = document.getElementById('imageInput');
 const imagePreviewContainer = document.getElementById('imagePreviewContainer');
 const imagePreview = document.getElementById('imagePreview');
 const removeImageBtn = document.getElementById('removeImageBtn');
-const usersBtn = document.getElementById('usersBtn'); // Botão para mobile
+const usersBtn = document.getElementById('usersBtn');
+const overlay = document.getElementById('overlay');
 
 if (roomTitleEl && sala) {
     const formattedRoomName = sala.charAt(0).toUpperCase() + sala.slice(1);
@@ -44,14 +45,13 @@ let selectedImageData = null;
 
 backBtn.addEventListener('click', () => { window.location.href = '/'; });
 
-// ADICIONADO: Lógica para mostrar/esconder painel de usuários no mobile
-usersBtn.addEventListener('click', () => {
+function toggleUsersPanel() {
     usersDiv.classList.toggle('show');
-});
+    overlay.classList.toggle('show');
+}
 
-messagesDiv.addEventListener('click', () => {
-    usersDiv.classList.remove('show');
-});
+usersBtn.addEventListener('click', toggleUsersPanel);
+overlay.addEventListener('click', toggleUsersPanel);
 
 
 // LÓGICA DE IMAGEM
@@ -147,6 +147,9 @@ function mentionUser(username) {
     }
     msgInput.value += `@${username} `;
     msgInput.focus();
+    if (window.innerWidth <= 768) {
+        toggleUsersPanel();
+    }
 }
 
 function addMessage(msg) {
@@ -225,6 +228,7 @@ function updateUserList(users) {
     }
     const userDiv = document.createElement('div');
     userDiv.className = 'user-item';
+    // CORREÇÃO: Adicionado o <span> com a classe do "status-dot" de volta
     userDiv.innerHTML = `<span><span class="status-dot ${colorClass}"></span><strong style="color: ${user.color || '#000000'};">${user.nickname}</strong> (${user.idade})</span> <span class="status-text">(${statusText})</span>`;
     
     if (!isSelf) {

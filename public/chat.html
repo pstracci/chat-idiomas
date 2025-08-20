@@ -35,51 +35,57 @@
     flex-shrink: 0;
   }
   #backBtn {
-    background: none;
-    border: none;
-    font-size: 1.8em;
-    color: var(--primary-color);
-    cursor: pointer;
-    padding: 10px 10px 10px 0;
+    background: none; border: none; font-size: 1.8em; color: var(--primary-color);
+    cursor: pointer; padding: 10px 10px 10px 0;
   }
-  #backBtn:hover { opacity: 0.7; }
   #roomTitle {
-    flex-grow: 1;
-    text-align: center;
-    margin: 0;
-    font-size: 1.2em;
-    font-weight: 600;
+    flex-grow: 1; text-align: center; margin: 0; font-size: 1.1em; font-weight: 600;
   }
   #usersBtn {
-    background: none;
-    border: none;
-    font-size: 1.8em;
-    color: var(--primary-color);
-    cursor: pointer;
-    padding: 10px 0 10px 10px;
-    display: none; /* Escondido em telas grandes */
+    background: none; border: none; font-size: 1.8em; color: var(--primary-color);
+    cursor: pointer; padding: 10px 0 10px 10px; display: none;
   }
 
   .chat-container {
     display: flex;
-    flex: 1;
+    flex-grow: 1;
     overflow: hidden;
+    position: relative;
   }
   .messages-area {
-    flex: 1;
+    flex-grow: 1;
     display: flex;
     flex-direction: column;
     min-width: 0;
     background-color: #fff;
   }
   .messages {
-    flex: 1;
+    flex-grow: 1;
     padding: 15px;
     overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    background-color: #f8f9fa;
+  }
+  #chatInputWrapper {
+    padding: 10px;
+    border-top: 1px solid var(--gray-border);
+    background-color: #fff;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .input-controls { display: flex; gap: 8px; align-items: center; }
+  #msgInput {
+    flex: 1; padding: 12px 18px; border-radius: 22px; border: 1px solid #ccc;
+    font-size: 16px; background-color: #f5f5f7; outline: none;
+  }
+  #msgInput:focus { border-color: var(--primary-color); }
+  
+  .control-btn {
+    background-color: transparent; color: #6c757d; border: none; border-radius: 50%;
+    width: 44px; height: 44px; cursor: pointer; font-size: 22px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  #sendBtn {
+    background-color: var(--primary-color); color: white; border: none; border-radius: 22px;
+    padding: 0 20px; cursor: pointer; font-size: 16px; font-weight: 600;
   }
   .users {
     flex-basis: 300px;
@@ -90,150 +96,59 @@
     overflow-y: auto;
     transition: transform 0.3s ease-in-out;
   }
+  #statusContainer { display: flex; align-items: center; gap: 8px; font-size: 14px; padding-bottom: 10px; margin-bottom: 10px; }
+  .user-list-divider { border: 0; border-top: 1px solid #e9ecef; margin: 10px 0; }
   
-  #statusContainer {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 14px;
-    padding-bottom: 10px;
-    margin-bottom: 10px;
-  }
-  .user-list-divider {
-    border: 0;
-    border-top: 1px solid #e9ecef;
-    margin: 10px 0;
-  }
-  #statusSelect {
-    padding: 4px 8px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-    font-size: 14px;
-    background-color: #f5f5f7;
-  }
+  /* Estilos do Status Dot */
   .status-dot {
     width: 10px;
     height: 10px;
     border-radius: 50%;
     display: inline-block;
+    margin-right: 8px;
   }
   .status-online-dot { background-color: #28a745; }
   .status-voltoja-dot { background-color: #ffc107; }
   .status-ocupado-dot { background-color: #dc3545; }
-  .user-item { cursor: pointer; }
-
-  #chatInputWrapper {
-    display: flex;
-    padding: 10px;
-    border-top: 1px solid #e9ecef;
-    gap: 8px;
-    position: relative;
-    flex-direction: column;
-    background-color: #fff;
-  }
-  .input-controls {
-      display: flex;
-      gap: 8px;
-      width: 100%;
-  }
-  #msgInput {
-    flex: 1;
-    padding: 10px 15px;
-    border-radius: 20px;
-    border: 1px solid #ccc;
-    font-size: 16px; /* Tamanho melhor para mobile */
-    background-color: #f5f5f7;
-    outline: none;
-  }
-  #msgInput:focus { border-color: var(--primary-color); }
+  .user-item { cursor: pointer; padding: 4px 0; }
   
-  .control-btn {
-    background-color: transparent;
-    color: #6c757d;
-    border: none;
-    border-radius: 50%;
-    width: 44px;
-    height: 44px;
-    cursor: pointer;
-    font-size: 22px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-  .control-btn:hover { background-color: #f0f0f0; }
-
   #imagePreviewContainer {
       display: none;
-      padding: 0 10px 10px 10px;
+      padding-bottom: 10px;
       position: relative;
       max-width: 150px;
   }
   #imagePreview { max-width: 100%; border-radius: 8px; border: 1px solid #ccc; }
   #removeImageBtn {
-      position: absolute; top: -5px; right: 0; background: #333; color: white;
-      border: none; border-radius: 50%; width: 20px; height: 20px;
-      cursor: pointer; font-weight: bold; line-height: 18px; text-align: center;
+      position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,0.6); color: white;
+      border: none; border-radius: 50%; width: 22px; height: 22px;
+      cursor: pointer; font-weight: bold; line-height: 22px; text-align: center;
   }
   
-  .chat-image { max-width: 250px; max-height: 200px; border-radius: 8px; margin-top: 5px; display: block; cursor: pointer; }
-
-  #sendBtn {
-    background-color: var(--primary-color);
-    color: white; border: none; border-radius: 22px; padding: 0 20px; cursor: pointer;
-    font-size: 16px; font-weight: 600; transition: background-color 0.2s;
-  }
-  #sendBtn:hover { background-color: #005bb5; }
+  .chat-image { max-width: 250px; border-radius: 8px; margin-top: 5px; cursor: pointer; }
   
   #emojiPicker {
     position: absolute; bottom: 100%; left: 10px; margin-bottom: 5px; background: white;
-    border: 1px solid #ccc; border-radius: 10px; padding: 5px;
-    display: none; flex-wrap: wrap; width: 280px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 100;
+    border: 1px solid #ccc; border-radius: 10px; padding: 5px; display: none;
+    flex-wrap: wrap; width: 280px; box-shadow: 0 -4px 12px rgba(0,0,0,0.1); z-index: 100;
   }
   #emojiPicker span { cursor: pointer; padding: 5px; font-size: 24px; }
-  #emojiPicker span:hover { background: #f0f0f0; border-radius: 6px; }
+  .mention-highlight { background-color: #fffbe6; border-left: 4px solid var(--primary-color); padding: 0 8px; border-radius: 4px; }
   
-  .mention-highlight { background-color: #fffbe6; border-left: 4px solid var(--primary-color); padding-left: 8px; border-radius: 4px; }
-  
-  #mentionSuggestions {
-    display: none; position: absolute; bottom: 100%; left: 0; right: 0;
-    background: white; border: 1px solid #ccc; border-bottom: none;
-    border-radius: 8px 8px 0 0; box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
-    z-index: 1000; max-height: 180px; overflow-y: auto;
-  }
-  #mentionSuggestions div { padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
-  #mentionSuggestions div:hover { background-color: #f0f8ff; }
-
-  /* =============================================== */
-  /* === ESTILOS PARA TELAS PEQUENAS (MOBILES) === */
-  /* =============================================== */
   @media (max-width: 768px) {
-    #usersBtn {
-        display: block; /* Mostra o botão de usuários */
-    }
-    .chat-container {
-        position: relative;
-    }
+    #usersBtn { display: block; }
     .users {
-        position: absolute;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        width: 80%;
-        max-width: 320px;
-        transform: translateX(100%); /* Começa escondido fora da tela */
-        z-index: 2000;
-        box-shadow: -5px 0 15px rgba(0,0,0,0.2);
+        position: fixed; top: 0; right: 0; bottom: 0; height: 100%;
+        width: 80%; max-width: 300px; transform: translateX(100%);
+        z-index: 2000; box-shadow: -5px 0 15px rgba(0,0,0,0.2); border-left: none;
     }
-    .users.show {
-        transform: translateX(0); /* Mostra o painel */
+    .users.show { transform: translateX(0); }
+    .overlay {
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background-color: rgba(0,0,0,0.5); z-index: 1999;
+        display: none;
     }
-    .messages-area {
-        flex: 1; /* Ocupa toda a largura */
-    }
-    .chat-image {
-        max-width: 200px; /* Imagens um pouco menores no mobile */
-    }
+    .overlay.show { display: block; }
   }
 
 </style>
@@ -247,35 +162,35 @@
 </div>
 
 <div class="chat-container">
-  <div class="messages-area">
-    <div class="messages" id="messages"></div>
-    <div id="chatInputWrapper">
-        <div id="imagePreviewContainer">
-            <img id="imagePreview" src="" alt="Preview da imagem"/>
-            <button id="removeImageBtn">&times;</button>
+    <div class="overlay" id="overlay"></div>
+    <div class="messages-area">
+        <div class="messages" id="messages"></div>
+        <div id="chatInputWrapper">
+            <div id="imagePreviewContainer">
+                <img id="imagePreview" />
+                <button id="removeImageBtn">&times;</button>
+            </div>
+            <div class="input-controls">
+                <button id="emojiBtn" class="control-btn">😊</button>
+                <button id="imageBtn" class="control-btn">🖼️</button>
+                <input type="file" id="imageInput" accept="image/*" style="display: none;">
+                <input id="msgInput" placeholder="Digite sua mensagem..." autocomplete="off" />
+                <div id="mentionSuggestions"></div>
+                <button id="sendBtn">Enviar</button>
+            </div>
+            <div id="emojiPicker"></div>
         </div>
-        <div class="input-controls">
-            <button id="emojiBtn" class="control-btn">😊</button>
-            <button id="imageBtn" class="control-btn">🖼️</button>
-            <input type="file" id="imageInput" accept="image/*" style="display: none;">
-            <input id="msgInput" placeholder="Digite sua mensagem..." autocomplete="off" />
-            <div id="mentionSuggestions"></div>
-            <button id="sendBtn">Enviar</button>
-        </div>
-        <div id="emojiPicker"></div>
     </div>
-  </div>
 
-  <div class="users" id="users">
-    <div id="statusContainer">
-      <label for="statusSelect" id="statusLabel">Seu Status:</label>
-      <span id="statusDot" class="status-dot status-online-dot"></span>
-      <select id="statusSelect">
-        <option value="online">Online</option>
-        <option value="voltoja">Volto Já</option>
-        <option value="ocupado">Ocupado</option>
-      </select>
-    </div>
+    <div class="users" id="users">
+        <div id="statusContainer">
+            <label for="statusSelect" id="statusLabel">Seu Status:</label>
+            <select id="statusSelect">
+                <option value="online">Online</option>
+                <option value="voltoja">Volto Já</option>
+                <option value="ocupado">Ocupado</option>
+            </select>
+        </div>
     </div>
 </div>
 
