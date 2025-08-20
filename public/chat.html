@@ -8,6 +8,8 @@
   :root {
     --primary-color: #007aff;
     --gray-border: #dee2e6;
+    --background-light: #f4f7f9;
+    --background-white: #ffffff;
   }
   html {
     box-sizing: border-box;
@@ -18,22 +20,53 @@
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     margin: 0;
-    background-color: #f4f7f9;
+    background-color: var(--background-light);
     color: #1d1d1f;
     display: flex;
     flex-direction: column;
     height: 100vh;
     overflow: hidden;
   }
+
+  /* =============================================== */
+  /* === LAYOUT PRINCIPAL (CORRIGIDO) === */
+  /* =============================================== */
   .top-bar {
     display: flex;
     align-items: center;
     padding: 0 16px;
-    background-color: #fff;
+    background-color: var(--background-white);
     border-bottom: 1px solid var(--gray-border);
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    flex-shrink: 0;
+    flex-shrink: 0; /* Não encolhe */
   }
+  .chat-container {
+    display: flex;
+    flex-grow: 1; /* Ocupa todo o espaço restante */
+    overflow: hidden;
+    position: relative;
+  }
+  .messages-area {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0; /* Previne que o flex item cresça demais */
+    background-color: var(--background-white);
+  }
+  .messages {
+    flex-grow: 1; /* Faz a área de mensagens ocupar o espaço, empurrando o input para baixo */
+    padding: 15px;
+    overflow-y: auto; /* Apenas esta área rola */
+  }
+  #chatInputWrapper {
+    padding: 10px;
+    border-top: 1px solid var(--gray-border);
+    background-color: var(--background-white);
+    flex-shrink: 0; /* Não encolhe */
+    position: relative;
+  }
+
+  /* CABEÇALHO SUPERIOR */
   #backBtn {
     background: none; border: none; font-size: 1.8em; color: var(--primary-color);
     cursor: pointer; padding: 10px 10px 10px 0;
@@ -43,34 +76,30 @@
   }
   #usersBtn {
     background: none; border: none; font-size: 1.8em; color: var(--primary-color);
-    cursor: pointer; padding: 10px 0 10px 10px; display: none;
+    cursor: pointer; padding: 10px 0 10px 10px; display: none; /* Escondido por padrão */
   }
-
-  .chat-container {
-    display: flex;
-    flex-grow: 1;
-    overflow: hidden;
-    position: relative;
-  }
-  .messages-area {
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    background-color: #fff;
-  }
-  .messages {
-    flex-grow: 1;
-    padding: 15px;
-    overflow-y: auto;
-  }
-  #chatInputWrapper {
-    padding: 10px;
-    border-top: 1px solid var(--gray-border);
-    background-color: #fff;
+  
+  /* PAINEL LATERAL DE USUÁRIOS */
+  .users {
+    flex-basis: 300px;
     flex-shrink: 0;
-    position: relative;
+    background-color: var(--background-white);
+    padding: 15px;
+    border-left: 1px solid var(--gray-border);
+    overflow-y: auto;
+    transition: transform 0.3s ease-in-out;
   }
+  #statusContainer { display: flex; align-items: center; gap: 8px; font-size: 14px; padding-bottom: 10px; margin-bottom: 10px; }
+  .user-list-divider { border: 0; border-top: 1px solid #e9ecef; margin: 10px 0; }
+  .status-dot {
+    width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px;
+  }
+  .status-online-dot { background-color: #28a745; }
+  .status-voltoja-dot { background-color: #ffc107; }
+  .status-ocupado-dot { background-color: #dc3545; }
+  .user-item { cursor: pointer; padding: 4px 0; }
+  
+  /* CONTROLES DE INPUT */
   .input-controls { display: flex; gap: 8px; align-items: center; }
   #msgInput {
     flex: 1; padding: 12px 18px; border-radius: 22px; border: 1px solid #ccc;
@@ -87,36 +116,10 @@
     background-color: var(--primary-color); color: white; border: none; border-radius: 22px;
     padding: 0 20px; cursor: pointer; font-size: 16px; font-weight: 600;
   }
-  .users {
-    flex-basis: 300px;
-    flex-shrink: 0;
-    background-color: #fff;
-    padding: 15px;
-    border-left: 1px solid var(--gray-border);
-    overflow-y: auto;
-    transition: transform 0.3s ease-in-out;
-  }
-  #statusContainer { display: flex; align-items: center; gap: 8px; font-size: 14px; padding-bottom: 10px; margin-bottom: 10px; }
-  .user-list-divider { border: 0; border-top: 1px solid #e9ecef; margin: 10px 0; }
-  
-  /* Estilos do Status Dot */
-  .status-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    display: inline-block;
-    margin-right: 8px;
-  }
-  .status-online-dot { background-color: #28a745; }
-  .status-voltoja-dot { background-color: #ffc107; }
-  .status-ocupado-dot { background-color: #dc3545; }
-  .user-item { cursor: pointer; padding: 4px 0; }
-  
+
+  /* PREVIEW DE IMAGEM E EMOJIS */
   #imagePreviewContainer {
-      display: none;
-      padding-bottom: 10px;
-      position: relative;
-      max-width: 150px;
+      display: none; padding-bottom: 10px; position: relative; max-width: 150px;
   }
   #imagePreview { max-width: 100%; border-radius: 8px; border: 1px solid #ccc; }
   #removeImageBtn {
@@ -124,9 +127,7 @@
       border: none; border-radius: 50%; width: 22px; height: 22px;
       cursor: pointer; font-weight: bold; line-height: 22px; text-align: center;
   }
-  
   .chat-image { max-width: 250px; border-radius: 8px; margin-top: 5px; cursor: pointer; }
-  
   #emojiPicker {
     position: absolute; bottom: 100%; left: 10px; margin-bottom: 5px; background: white;
     border: 1px solid #ccc; border-radius: 10px; padding: 5px; display: none;
@@ -135,6 +136,7 @@
   #emojiPicker span { cursor: pointer; padding: 5px; font-size: 24px; }
   .mention-highlight { background-color: #fffbe6; border-left: 4px solid var(--primary-color); padding: 0 8px; border-radius: 4px; }
   
+  /* ESTILOS PARA TELAS PEQUENAS (MOBILES) */
   @media (max-width: 768px) {
     #usersBtn { display: block; }
     .users {
