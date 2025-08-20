@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentRoundSpan = document.getElementById('current-round');
     const timerSpan = document.getElementById('timer');
     const startGameBtn = document.getElementById('start-game-btn');
-	const readyBtn = document.getElementById('ready-btn');
+    const readyBtn = document.getElementById('ready-btn');
     const stopBtn = document.getElementById('stop-btn');
     const newGameBtn = document.getElementById('new-game-btn');
     const gameChatMessages = document.getElementById('game-chat-messages');
@@ -23,21 +23,38 @@ document.addEventListener('DOMContentLoaded', () => {
     const gameEmojiPicker = document.getElementById('game-emoji-picker');
     const gameChatSendBtn = document.getElementById('game-chat-send-btn');
     const backToLobbyBtn = document.getElementById('back-to-lobby');
-    
+    const mentionSuggestions = document.getElementById('mentionSuggestions');
+    const mentionSound = document.getElementById('mentionSound');
+
+    // Variáveis de estado do jogo e do chat
     let isOwner = false;
-	let isPlayerReady = false;
+    let isPlayerReady = false;
     let currentRoomInfo = null;
     let roomCategories = [];
     let currentRound = 0;
     let isFinalRound = false;
     let roundTimerInterval;
+    let currentUserNickname = '';
+    let playerNicknames = [];
+    let mentionMode = false;
+    let mentionQuery = '';
+    let isAudioUnlocked = false;
 
     if (!roomId) {
         alert('ID da sala não encontrado.');
         window.location.href = '/stop-lobby.html';
         return;
     }
-    
+
+    // Busca o nickname do usuário logado assim que a página carrega
+    fetch('/api/user/status')
+        .then(res => res.json())
+        .then(data => {
+            if (data.loggedIn) {
+                currentUserNickname = data.nickname;
+            }
+        });
+
     backToLobbyBtn.addEventListener('click', (e) => {
         e.preventDefault();
         window.location.href = '/stop-lobby.html';
@@ -61,11 +78,11 @@ document.addEventListener('DOMContentLoaded', () => {
             readyBtn.style.display = 'inline-block';
         }
     }
-    
+
     function displayRoomInfo(room, isSpectating = false) {
         currentRoomInfo = room;
         gameGridEl.innerHTML = ''; // Limpa qualquer tela anterior (jogo, resultados, etc)
-        
+
         if (isSpectating) {
             gameGridEl.innerHTML = `<div class="room-settings-panel" style="text-align: center; justify-content: center; align-items: center; height: 100%;">
                 <div>
@@ -75,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>`;
             return;
         }
-        
+
         let settingsHTML;
         const maxPlayerOptions = [2, 3, 4, 5, 6, 8, 10].map(num => `<option value="${num}" ${room.maxParticipants == num ? 'selected' : ''}>${num} jogadores</option>`).join('');
         const totalRoundsOptions = [3, 5, 7, 10].map(num => `<option value="${num}" ${room.totalRounds == num ? 'selected' : ''}>${num} rodadas</option>`).join('');
@@ -179,20 +196,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.getElementById('add-category-btn').addEventListener('click', addCategory);
         document.getElementById('add-category-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') { e.preventDefault(); addCategory(); }
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addCategory();
+            }
         });
 
         document.getElementById('save-settings-btn').addEventListener('click', () => {
             const newIsPrivate = document.getElementById('edit-room-private').value === 'true';
             const newPassword = document.getElementById('edit-room-password').value;
-            
+
             if (newIsPrivate && !newPassword && !currentRoomInfo.password) {
                 return alert('Salas privadas precisam de uma senha!');
             }
 
             const newSettings = {
-                name: document.getElementById('edit-room-name').value, isPrivate: newIsPrivate,
-                password: newPassword, categories: roomCategories,
+                name: document.getElementById('edit-room-name').value,
+                isPrivate: newIsPrivate,
+                password: newPassword,
+                categories: roomCategories,
                 maxParticipants: parseInt(document.getElementById('edit-max-participants').value),
                 totalRounds: parseInt(document.getElementById('edit-total-rounds').value)
             };
@@ -208,7 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const tag = document.createElement('span');
             tag.className = 'category-tag';
             tag.textContent = category;
-            
+
             const removeBtn = document.createElement('button');
             removeBtn.className = 'remove-tag-btn';
             removeBtn.innerHTML = '&times;';
@@ -216,7 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 roomCategories.splice(index, 1);
                 renderCategoryTags();
             };
-            
+
             tag.appendChild(removeBtn);
             container.appendChild(tag);
         });
@@ -226,12 +248,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (roomCategories.length >= 15) return alert('Máximo de 15 categorias atingido.');
         const input = document.getElementById('add-category-input');
         const categoryValue = input.value.trim();
-		
-	    if (categoryValue.length > 15) {
+
+        if (categoryValue.length > 15) {
             alert('O nome da categoria não pode ter mais de 15 caracteres.');
             return;
         }
-	
+
         if (categoryValue && !roomCategories.find(c => c.toLowerCase() === categoryValue.toLowerCase())) {
             roomCategories.push(categoryValue);
             input.value = '';
@@ -242,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function launchConfetti() {
         const container = document.getElementById('confetti-container');
-        if(!container) return;
+        if (!container) return;
         container.innerHTML = '';
         const colors = ['#6f42c1', '#28a745', '#007bff', '#ffc107', '#dc3545'];
         for (let i = 0; i < 100; i++) {
@@ -260,25 +282,89 @@ document.addEventListener('DOMContentLoaded', () => {
         const text = gameChatInput.value.trim();
         if (!text) return;
 
-        // A checagem de currentRoomInfo previne erros se o chat for usado antes da sala ser carregada
-        const participants = currentRoomInfo ? currentRoomInfo.participants || [] : [];
-        const mentions = participants.filter(p => text.includes(`@${p.nickname}`)).map(p => p.nickname);
-        socket.emit('stopMessage', { text, mentions });
+        // Desbloqueia o áudio na primeira interação do usuário
+        if (!isAudioUnlocked && mentionSound) {
+            mentionSound.play().then(() => {
+                mentionSound.pause();
+                mentionSound.currentTime = 0;
+                isAudioUnlocked = true;
+            }).catch(() => {
+                isAudioUnlocked = true;
+            });
+        }
+
+        // Encontra todos os jogadores mencionados na mensagem
+        const mentions = playerNicknames.filter(u => text.includes(`@${u}`));
+        socket.emit('stopMessage', {
+            text,
+            mentions
+        });
+
         gameChatInput.value = '';
+        mentionSuggestions.style.display = 'none';
+        mentionMode = false;
     }
 
     function addStopMessage(msg) {
         const p = document.createElement('p');
+
+        // Verifica se o usuário atual foi mencionado na mensagem
+        if (msg.mentions && msg.mentions.includes(currentUserNickname)) {
+            p.classList.add('mention-highlight');
+            if (mentionSound && isAudioUnlocked) {
+                mentionSound.play().catch(e => console.error("Erro ao tocar som de menção:", e));
+            }
+        }
+
         if (msg.isSystemMessage) {
             p.className = 'system-message';
             p.innerHTML = `<strong>${msg.nickname}:</strong> ${msg.text}`;
         } else {
-            p.innerHTML = `<strong>${msg.nickname}:</strong> ${msg.text}`;
+            p.innerHTML = `<strong style="color: ${msg.color || '#000000'};">${msg.nickname}:</strong> ${msg.text}`;
         }
+
         gameChatMessages.appendChild(p);
         gameChatMessages.scrollTop = gameChatMessages.scrollHeight;
     }
-    
+
+    // --- Lógica de Menções ---
+    function showMentionList() {
+        const filteredUsers = playerNicknames.filter(user =>
+            user.toLowerCase().startsWith(mentionQuery) && user !== currentUserNickname
+        );
+
+        if (filteredUsers.length === 0 || !mentionMode) {
+            mentionSuggestions.style.display = 'none';
+            return;
+        }
+
+        mentionSuggestions.innerHTML = '';
+        filteredUsers.forEach(user => {
+            const div = document.createElement('div');
+            div.textContent = user;
+            div.onclick = () => insertMention(user);
+            mentionSuggestions.appendChild(div);
+        });
+        mentionSuggestions.style.display = 'block';
+    }
+
+    function insertMention(username) {
+        const value = gameChatInput.value;
+        const cursorPos = gameChatInput.selectionStart;
+        const textBeforeCursor = value.slice(0, cursorPos);
+        const textAfterCursor = value.slice(cursorPos);
+        const atIndex = textBeforeCursor.lastIndexOf('@');
+
+        gameChatInput.value = textBeforeCursor.slice(0, atIndex) + `@${username} ` + textAfterCursor;
+        mentionSuggestions.style.display = 'none';
+        mentionMode = false;
+        gameChatInput.focus();
+
+        const newCursorPos = atIndex + username.length + 2;
+        gameChatInput.setSelectionRange(newCursorPos, newCursorPos);
+    }
+
+    // Anexa a função à janela para ser acessível pelo onclick no HTML
     window.mentionPlayer = (nickname) => {
         if (gameChatInput.value.slice(-1) !== ' ' && gameChatInput.value.length > 0) {
             gameChatInput.value += ' ';
@@ -287,6 +373,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gameChatInput.focus();
     };
 
+    // --- Lógica de Emojis ---
     const emojis = ["😀", "😂", "😊", "😍", "🤔", "👍", "👎", "❤️", "🔥", "🎉", "😎", "😭", "🙏", "🚀", "💡", "💯"];
     emojis.forEach(e => {
         const span = document.createElement('span');
@@ -299,6 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gameEmojiPicker.appendChild(span);
     });
 
+    // --- Listeners de Eventos de UI do Chat ---
     gameChatEmojiBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         gameEmojiPicker.style.display = gameEmojiPicker.style.display === 'flex' ? 'none' : 'flex';
@@ -308,32 +396,61 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!gameEmojiPicker.contains(e.target) && e.target !== gameChatEmojiBtn) {
             gameEmojiPicker.style.display = 'none';
         }
+        if (!mentionSuggestions.contains(e.target) && e.target !== gameChatInput) {
+            mentionSuggestions.style.display = 'none';
+        }
     });
 
     gameChatInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
+        if (e.key === 'Enter' && !mentionMode) { // Não envia se a lista de menções estiver ativa
             e.preventDefault();
             sendStopMessage();
         }
     });
+    
+    gameChatInput.addEventListener('input', () => {
+        const value = gameChatInput.value;
+        const cursorPos = gameChatInput.selectionStart;
+        const textBeforeCursor = value.slice(0, cursorPos);
+        const atIndex = textBeforeCursor.lastIndexOf('@');
+
+        if (atIndex !== -1 && (atIndex === 0 || /\s/.test(value[atIndex - 1]))) {
+            mentionQuery = textBeforeCursor.slice(atIndex + 1).toLowerCase();
+            if (/\s/.test(mentionQuery)) { // Se houver espaço, cancela o modo menção
+                mentionMode = false;
+                mentionSuggestions.style.display = 'none';
+                return;
+            }
+            mentionMode = true;
+            showMentionList();
+        } else {
+            mentionMode = false;
+            mentionSuggestions.style.display = 'none';
+        }
+    });
+
 
     gameChatSendBtn.addEventListener('click', sendStopMessage);
 
 
     // --- Listeners de Eventos do Socket ---
     socket.on('connect', () => {
-        socket.emit('playerReady', { roomId });
+        socket.emit('playerReady', {
+            roomId
+        });
     });
-    socket.on('settingsError', (message) => { alert(`Erro ao salvar: ${message}`); });
-	
-	socket.on('ownerCanStart', (canStart) => {
+    socket.on('settingsError', (message) => {
+        alert(`Erro ao salvar: ${message}`);
+    });
+
+    socket.on('ownerCanStart', (canStart) => {
         if (!isOwner) return;
-        
+
         let buttonText = "Iniciar Jogo";
         if (currentRound > 0) {
             buttonText = isFinalRound ? "Ver Resultados" : "Próxima Rodada";
         }
-        
+
         startGameBtn.disabled = !canStart;
         if (canStart) {
             startGameBtn.textContent = buttonText;
@@ -344,22 +461,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-	socket.on('updatePlayerList', (players) => {
-		playerListDiv.innerHTML = '';
+    socket.on('updatePlayerList', (players) => {
+        playerListDiv.innerHTML = '';
         playerStatusListDiv.innerHTML = '';
+        playerNicknames = players.map(p => p.nickname); // Atualiza a lista de nicks para as menções
 
-		players.sort((a, b) => b.score - a.score).forEach(player => {
-			const playerDiv = document.createElement('div');
-            playerDiv.setAttribute('onclick', `mentionPlayer('${player.nickname}')`);
-            playerDiv.title = `Mencionar @${player.nickname}`;
-			const icon = player.isOwner ? '⭐' : '👤';
-			let trophyHTML = '';
-			if (player.wins > 0) {
-				const winCount = player.wins > 1 ? `(${player.wins})` : '';
-				trophyHTML = ` 🏆${winCount}`;
-			}
-			playerDiv.innerHTML = `<span>${icon} ${player.nickname}${trophyHTML}</span> <span>${player.score} pts</span>`;
-			playerListDiv.appendChild(playerDiv);
+        players.sort((a, b) => b.score - a.score).forEach(player => {
+            const playerDiv = document.createElement('div');
+            // Adiciona a funcionalidade de menção ao clicar, exceto para si mesmo
+            if (player.nickname !== currentUserNickname) {
+                playerDiv.setAttribute('onclick', `mentionPlayer('${player.nickname}')`);
+                playerDiv.title = `Mencionar @${player.nickname}`;
+            }
+
+            const icon = player.isOwner ? '⭐' : '👤';
+            let trophyHTML = '';
+            if (player.wins > 0) {
+                const winCount = player.wins > 1 ? `(${player.wins})` : '';
+                trophyHTML = ` 🏆${winCount}`;
+            }
+            playerDiv.innerHTML = `<span>${icon} ${player.nickname}${trophyHTML}</span> <span>${player.score} pts</span>`;
+            playerListDiv.appendChild(playerDiv);
 
             if (!player.isOwner) {
                 const statusCard = document.createElement('div');
@@ -369,8 +491,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusCard.innerHTML = `<span class="player-name">${player.nickname}</span><strong class="player-status">${statusText}</strong>`;
                 playerStatusListDiv.appendChild(statusCard);
             }
-		});
-	});
+        });
+    });
 
     socket.on('roomInfo', (room) => {
         currentRoomInfo = room;
@@ -378,9 +500,9 @@ document.addEventListener('DOMContentLoaded', () => {
         isFinalRound = false;
         if (room && room.name) roomTitleEl.textContent = room.name;
         isOwner = room.isOwner;
-        
+
         newGameBtn.style.display = 'none';
-        
+
         if (room.isSpectating) {
             displayRoomInfo(room, true);
             startGameBtn.style.display = 'none';
@@ -403,9 +525,9 @@ document.addEventListener('DOMContentLoaded', () => {
             item.innerHTML = `<label>${cat}</label><input type="text" data-category="${cat}" autocomplete="off">`;
             gameGridEl.appendChild(item);
         });
-        
+
         document.querySelector('.category-item input')?.focus();
-        
+
         const inputs = gameGridEl.querySelectorAll('input');
         stopBtn.disabled = true;
         inputs.forEach(input => {
@@ -418,7 +540,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentLetterSpan.textContent = data.letter;
         currentRoundSpan.textContent = `${data.round}/${currentRoomInfo.totalRounds}`;
         startGameBtn.style.display = 'none';
-		readyBtn.style.display = 'none';
+        readyBtn.style.display = 'none';
         stopBtn.style.display = 'inline-block';
 
         clearInterval(roundTimerInterval);
@@ -438,27 +560,32 @@ document.addEventListener('DOMContentLoaded', () => {
         roundTimerInterval = setInterval(updateTimer, 1000);
     });
 
-	socket.on('roundEnd', (data) => {
+    socket.on('roundEnd', (data) => {
         clearInterval(roundTimerInterval);
         document.querySelectorAll('.category-item input').forEach(input => input.disabled = true);
         stopBtn.style.display = 'none';
-	
+
         const answers = {};
         document.querySelectorAll('.category-item input').forEach(input => {
             answers[input.dataset.category] = input.value.trim();
         });
         socket.emit('submitAnswers', answers);
-	
-		gameGridEl.innerHTML = `<div style="display:flex; justify-content: center; align-items: center; height: 100%; font-size: 1.2em; font-weight: 500;"><p>STOP! por ${data.initiator}. Validando respostas...</p></div>`;
-		gameStatusBar.style.display = 'none';
-	});
-    
+
+        gameGridEl.innerHTML = `<div style="display:flex; justify-content: center; align-items: center; height: 100%; font-size: 1.2em; font-weight: 500;"><p>STOP! por ${data.initiator}. Validando respostas...</p></div>`;
+        gameStatusBar.style.display = 'none';
+    });
+
     socket.on('roundResults', (results) => {
-        const { round, roundScores, allAnswers, participants } = results;
+        const {
+            round,
+            roundScores,
+            allAnswers,
+            participants
+        } = results;
         currentRound = round;
         isFinalRound = results.isFinalRound;
-        
-        const players = participants?.sort((a,b) => a.nickname.localeCompare(b.nickname));
+
+        const players = participants?.sort((a, b) => a.nickname.localeCompare(b.nickname));
         if (!players || players.length === 0 || !roundScores || Object.keys(roundScores).length === 0) {
             console.error("Dados de resultados inválidos ou vazios recebidos", results);
             gameGridEl.innerHTML = '<p style="text-align:center; padding-top: 20px;">Não há resultados para exibir ou ocorreu um erro.</p>';
@@ -472,14 +599,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const firstPlayerWithScore = players.find(p => roundScores[p.id]);
         if (!firstPlayerWithScore) {
-             gameGridEl.innerHTML = '<p style="text-align:center; padding-top: 20px;">Não há resultados para exibir.</p>';
-             showGameControls();
-             return;
+            gameGridEl.innerHTML = '<p style="text-align:center; padding-top: 20px;">Não há resultados para exibir.</p>';
+            showGameControls();
+            return;
         }
         const categories = Object.keys(roundScores[firstPlayerWithScore.id].scores);
-        
+
         let tableHTML = `<h2>Resultados da Rodada ${round}</h2><table id="results-table"><thead><tr><th>Participante</th>`;
-        categories.forEach(cat => { tableHTML += `<th>${cat}</th>`; });
+        categories.forEach(cat => {
+            tableHTML += `<th>${cat}</th>`;
+        });
         tableHTML += `<th>Total</th></tr></thead><tbody>`;
 
         players.forEach(p => {
@@ -496,21 +625,26 @@ document.addEventListener('DOMContentLoaded', () => {
             tableHTML += `<td><strong>+${roundScores[p.id]?.total || 0}</strong></td>`;
             tableHTML += '</tr>';
         });
-        
+
         tableHTML += '</tbody></table>';
-        
+
         gameGridEl.innerHTML = tableHTML;
         showGameControls();
     });
-    
+
     window.invalidateAnswer = (playerId, category) => {
         if (!isOwner) return;
-        if(confirm(`Tem certeza que deseja zerar a resposta da categoria "${category}" deste jogador?`)){
-            socket.emit('ownerInvalidateAnswer', { playerId, category });
+        if (confirm(`Tem certeza que deseja zerar a resposta da categoria "${category}" deste jogador?`)) {
+            socket.emit('ownerInvalidateAnswer', {
+                playerId,
+                category
+            });
         }
     };
-    
-    socket.on('gameOver', ({ winner }) => {
+
+    socket.on('gameOver', ({
+        winner
+    }) => {
         currentRound = 0;
         isFinalRound = false;
 
@@ -524,7 +658,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
         launchConfetti();
-        
+
         startGameBtn.style.display = 'none';
         readyBtn.style.display = 'none';
         stopBtn.style.display = 'none';
@@ -534,7 +668,7 @@ document.addEventListener('DOMContentLoaded', () => {
     newGameBtn.addEventListener('click', () => {
         socket.emit('requestNewGame');
     });
-    
+
     socket.on('ownerDestroyedRoom', () => {
         alert('O líder foi desconectado e a sala foi encerrada.');
         window.location.href = '/stop-lobby.html';
@@ -548,8 +682,8 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('newStopMessage', (message) => {
         addStopMessage(message);
     });
-    
-    // --- Listeners de Eventos dos Botões ---
+
+    // --- Listeners de Eventos dos Botões do Jogo ---
     readyBtn.addEventListener('click', () => {
         isPlayerReady = !isPlayerReady;
         socket.emit('toggleReady');

@@ -7,6 +7,27 @@
         :root { --primary-color: #6f42c1; --dark-purple: #4a148c; --light-gray: #f8f9fa; --gray-border: #dee2e6; --blue-accent: #007bff; --green-ready: #28a745; --gray-waiting: #6c757d;}
         html, body { height: 100%; margin: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f9; color: #1d1d1f; display: flex; flex-direction: column; overflow: hidden; }
+		
+
+		.mention-highlight { background-color: #fffbe6; border-left: 4px solid var(--primary-color); padding: 4px 8px; border-radius: 4px; }
+		
+		#mentionSuggestions {
+			display: none;
+			position: absolute;
+			bottom: 58px; /* Ajuste conforme a altura do seu input bar */
+			left: 15px;
+			right: 15px;
+			background: white;
+			border: 1px solid #ccc;
+			border-bottom: none;
+			border-radius: 8px 8px 0 0;
+			box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
+			z-index: 1000;
+			max-height: 150px;
+			overflow-y: auto;
+		}
+		#mentionSuggestions div { padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
+		#mentionSuggestions div:hover { background-color: #f0f8ff; }
         
         /* Layout Geral */
         .top-bar { flex-shrink: 0; display: flex; align-items: center; padding: 0 20px; background-color: #fff; border-bottom: 1px solid var(--gray-border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
@@ -130,6 +151,8 @@
         </div>
         <div class="bottom-chat-bar">
             <div class="game-chat-messages" id="game-chat-messages"></div>
+			<div id="mentionSuggestions"></div> <div class="game-chat-input-area">
+    </div>
             <div class="game-chat-input-area">
                 <div class="emoji-container">
                     <button id="game-chat-emoji-btn">😊</button>
@@ -143,5 +166,6 @@
     
     <script src="/socket.io/socket.io.js"></script>
     <script src="stop-game.js"></script> 
+	<audio id="mentionSound" src="/sounds/alert.wav" preload="auto"></audio>
 </body>
 </html>

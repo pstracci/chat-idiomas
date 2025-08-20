@@ -77,6 +77,7 @@ const chatRooms = {};
 const stopRooms = {};
 const ALPHABET = "ABCDEFGHIJKLMNOPRSTUVZ";
 const ROUND_DURATION = 300;
+const CHAT_COLORS = ['#E53935', '#D81B60', '#8E24AA', '#5E35B1', '#3949AB', '#1E88E5', '#039BE5', '#00ACC1', '#00897B', '#43A047', '#7CB342', '#FDD835', '#FFB300', '#FB8C00', '#F4511E', '#000000'];
 
 
 // --- FUNÇÕES GLOBAIS ---
@@ -187,17 +188,33 @@ stopGameNamespace.on('connection', (socket) => {
     broadcastStopPlayerCount();
     socket.emit('updateRoomList', getSanitizedRoomList());
 
-    socket.on('createRoom', (details) => {
-        const roomId = uuidv4();
-        stopRooms[roomId] = {
-            id: roomId, name: details.name, ownerId: loggedInUser.id, participants: {},
-            maxParticipants: details.maxParticipants, isPrivate: details.isPrivate, password: details.password,
-            categories: details.categories, gameState: 'Aguardando', status: 'Aguardando', currentRound: 0,
-            totalRounds: 5, chatHistory: []
-        };
-        stopGameNamespace.emit('updateRoomList', getSanitizedRoomList());
-        socket.emit('joinSuccess', roomId);
-    });
+   socket.on('createRoom', (details) => {
+    const roomId = uuidv4();
+    const { id, nickname } = loggedInUser;
+
+    stopRooms[roomId] = {
+        id: roomId,
+        name: details.name,
+        ownerId: id,
+        participants: {}, // Começa vazio, mas vamos adicionar o dono a seguir
+        maxParticipants: details.maxParticipants,
+        isPrivate: details.isPrivate,
+        password: details.password,
+        categories: details.categories,
+        gameState: 'Aguardando',
+        status: 'Aguardando',
+        currentRound: 0,
+        totalRounds: 5, // Você pode ajustar este valor padrão se quiser
+        chatHistory: []
+    };
+
+    // Adiciona o criador como o primeiro participante (ESTA É A CORREÇÃO PRINCIPAL)
+    const randomColor = CHAT_COLORS[Math.floor(Math.random() * CHAT_COLORS.length)];
+    stopRooms[roomId].participants[id] = { id, nickname, score: 0, socketId: socket.id, isReady: false, wins: 0, color: randomColor };
+
+    stopGameNamespace.emit('updateRoomList', getSanitizedRoomList());
+    socket.emit('joinSuccess', roomId);
+});
 
     socket.on('playerPressedStop', () => {
         const roomId = socket.stopRoomId;
@@ -235,6 +252,8 @@ stopGameNamespace.on('connection', (socket) => {
             clearTimeout(room.participants[id].disconnectTimer);
             room.participants[id].socketId = socket.id;
         } else {
+			
+			const randomColor = CHAT_COLORS[Math.floor(Math.random() * CHAT_COLORS.length)];
             room.participants[id] = { id, nickname, score: 0, socketId: socket.id, isReady: false, wins: 0 };
         }
 		
@@ -343,7 +362,7 @@ stopGameNamespace.on('connection', (socket) => {
         Object.values(room.participants).forEach(p => {
             p.score = 0;
             p.isReady = false;
-            p.lastRoundScore = 0;
+           // p.lastRoundScore = 0; // <-- Esta linha pode ser removida
             p.wasSpectating = false;
         });
 
@@ -410,9 +429,15 @@ stopGameNamespace.on('connection', (socket) => {
         const roomId = socket.stopRoomId;
         const room = stopRooms[roomId];
         if (!room) return;
+		
+		// Pega a cor do participante que enviou a mensagem
+		const senderColor = room.participants[loggedInUser.id]?.color || '#000000';
+
 
         const message = {
             nickname: loggedInUser.nickname, text: data.text,
+			color: senderColor, // <-- Adicionado
+            mentions: data.mentions, // <-- Já vamos preparar para o próximo passo
             mentions: data.mentions, timestamp: new Date()
         };
         room.chatHistory.push(message);
@@ -571,13 +596,13 @@ function calculateScores(roomId) {
         });
     }
 
-    participantIds.forEach(userId => {
-        if (participants[userId] && roundScores[userId]) {
-            participants[userId].score -= (participants[userId].lastRoundScore || 0);
-            participants[userId].lastRoundScore = roundScores[userId].total;
-            participants[userId].score += roundScores[userId].total;
-        }
-    });
+	// Trecho corrigido
+	playersWhoPlayed.forEach(userId => {
+		if (participants[userId] && roundScores[userId]) {
+			// Apenas adiciona a pontuação da rodada ao total do jogador.
+			participants[userId].score += roundScores[userId].total;
+		}
+	});
 
     const resultsPayload = {
         round: room.currentRound,
