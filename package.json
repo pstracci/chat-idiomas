@@ -4,7 +4,9 @@
   "description": "Site de chat internacional com salas por país e restrição 18+",
   "main": "server.js",
   "scripts": {
-    "start": "npx prisma generate && npx prisma migrate deploy && node server.js"
+    "prisma:generate": "npx prisma generate",
+    "prisma:migrate": "npx prisma migrate deploy",
+    "start": "node server.js"
   },
   "dependencies": {
     "@prisma/client": "^5.14.0",
