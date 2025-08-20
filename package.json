@@ -1,7 +1,7 @@
 {
   "name": "chat-internacional",
   "version": "1.0.0",
-  "description": "Verbi",
+  "description": "Site de chat internacional com salas por país e restrição 18+",
   "main": "server.js",
   "scripts": {
     "start": "npx prisma migrate deploy && node server.js",
