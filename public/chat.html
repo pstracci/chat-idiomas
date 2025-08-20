@@ -9,57 +9,69 @@
     --primary-color: #007aff;
     --gray-border: #dee2e6;
   }
-  html {
-    box-sizing: border-box;
-  }
-  *, *:before, *:after {
-    box-sizing: inherit;
+  html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden; /* Previne qualquer rolagem no nível da página */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    margin: 0;
-    background-color: #f4f7f9;
-    color: #1d1d1f;
     display: flex;
     flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
+    background-color: #f4f7f9;
   }
 
+  /* =============================================== */
+  /* === LAYOUT PRINCIPAL (SIMPLIFICADO E ROBUSTO) === */
+  /* =============================================== */
   .top-bar {
+    flex-shrink: 0; /* Cabeçalho não encolhe */
     display: flex;
     align-items: center;
     padding: 0 16px;
     background-color: #fff;
     border-bottom: 1px solid var(--gray-border);
-    flex-shrink: 0;
   }
-  .chat-container {
+  .chat-wrapper {
+    flex-grow: 1; /* Área principal cresce para ocupar o espaço */
     display: flex;
-    flex-grow: 1;
-    overflow: hidden;
+    overflow: hidden; /* Conteúdo interno que rola, não o container */
     position: relative;
   }
+  #chatInputWrapper {
+    flex-shrink: 0; /* Rodapé (input) não encolhe */
+    padding: 10px;
+    border-top: 1px solid var(--gray-border);
+    background-color: #fff;
+    position: relative;
+  }
+
+  /* Área de Mensagens e Usuários */
   .messages-area {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
-    min-width: 0;
+    min-width: 0; /* Previne que o flex item cresça demais */
     background-color: #f8f9fa;
   }
   .messages {
-    flex-grow: 1;
+    flex-grow: 1; /* Faz a área de mensagens ocupar o espaço */
     padding: 15px;
-    overflow-y: auto;
+    overflow-y: auto; /* Apenas esta área deve rolar */
   }
-  #chatInputWrapper {
-    padding: 10px;
-    border-top: 1px solid var(--gray-border);
-    background-color: #fff;
+  .users {
+    flex-basis: 300px;
     flex-shrink: 0;
-    position: relative;
+    background-color: #fff;
+    padding: 15px;
+    border-left: 1px solid var(--gray-border);
+    overflow-y: auto;
+    transition: transform 0.3s ease-in-out;
   }
 
+  /* =============================================== */
+  /* === OUTROS ESTILOS (BOTÕES, TEXTOS, ETC) === */
+  /* =============================================== */
   #backBtn {
     background: none; border: none; font-size: 1.8em; color: var(--primary-color);
     cursor: pointer; padding: 10px 10px 10px 0;
@@ -72,48 +84,23 @@
     cursor: pointer; padding: 10px 0 10px 10px; display: none;
   }
   
-  .users {
-    flex-basis: 300px;
-    flex-shrink: 0;
-    background-color: #fff;
-    padding: 15px;
-    border-left: 1px solid var(--gray-border);
-    overflow-y: auto;
-    transition: transform 0.3s ease-in-out;
-  }
   #statusContainer { display: flex; align-items: center; gap: 8px; font-size: 14px; padding-bottom: 10px; margin-bottom: 10px; }
   .user-list-divider { border: 0; border-top: 1px solid #e9ecef; margin: 10px 0; }
-  .status-dot {
-    width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px;
-  }
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; }
   .status-online-dot { background-color: #28a745; }
   .status-voltoja-dot { background-color: #ffc107; }
   .status-ocupado-dot { background-color: #dc3545; }
   .user-item { cursor: pointer; padding: 4px 0; }
   
-  /* --- CORREÇÃO DO LAYOUT DO INPUT --- */
-  .input-controls {
-    display: flex;
-    gap: 5px; /* Reduzido o espaçamento */
-    align-items: center;
-  }
+  .input-controls { display: flex; gap: 5px; align-items: center; }
   #msgInput {
-    flex-grow: 1; /* Permite que o input cresça */
-    flex-shrink: 1; /* Permite que o input encolha se necessário */
-    min-width: 0; /* Essencial para o encolhimento funcionar */
-    padding: 10px 15px;
-    border-radius: 20px;
-    border: 1px solid #ccc;
-    font-size: 16px;
-    background-color: #f5f5f7;
-    outline: none;
+    flex-grow: 1; flex-shrink: 1; min-width: 0;
+    padding: 10px 15px; border-radius: 20px; border: 1px solid #ccc;
+    font-size: 16px; background-color: #f5f5f7; outline: none;
   }
   #msgInput:focus { border-color: var(--primary-color); }
   
-  .control-btn, #sendBtn {
-    flex-shrink: 0; /* Impede que os botões encolham */
-  }
-
+  .control-btn, #sendBtn { flex-shrink: 0; }
   .control-btn {
     background-color: transparent; color: #6c757d; border: none; border-radius: 50%;
     width: 44px; height: 44px; cursor: pointer; font-size: 22px;
@@ -169,10 +156,25 @@
     <button id="usersBtn">👥</button>
 </div>
 
-<div class="chat-container">
+<div class="chat-wrapper">
     <div class="overlay" id="overlay"></div>
     <div class="messages-area">
         <div class="messages" id="messages"></div>
+        <div id="chatInputWrapper">
+            <div id="imagePreviewContainer">
+                <img id="imagePreview" />
+                <button id="removeImageBtn">&times;</button>
+            </div>
+            <div class="input-controls">
+                <button id="emojiBtn" class="control-btn">😊</button>
+                <button id="imageBtn" class="control-btn">🖼️</button>
+                <input type="file" id="imageInput" accept="image/*" style="display: none;">
+                <input id="msgInput" placeholder="Digite sua mensagem..." autocomplete="off" />
+                <div id="mentionSuggestions"></div>
+                <button id="sendBtn">Enviar</button>
+            </div>
+            <div id="emojiPicker"></div>
+        </div>
     </div>
     <div class="users" id="users">
         <div id="statusContainer">
@@ -184,22 +186,6 @@
             </select>
         </div>
     </div>
-</div>
-
-<div id="chatInputWrapper">
-    <div id="imagePreviewContainer">
-        <img id="imagePreview" />
-        <button id="removeImageBtn">&times;</button>
-    </div>
-    <div class="input-controls">
-        <button id="emojiBtn" class="control-btn">😊</button>
-        <button id="imageBtn" class="control-btn">🖼️</button>
-        <input type="file" id="imageInput" accept="image/*" style="display: none;">
-        <input id="msgInput" placeholder="Digite sua mensagem..." autocomplete="off" />
-        <div id="mentionSuggestions"></div>
-        <button id="sendBtn">Enviar</button>
-    </div>
-    <div id="emojiPicker"></div>
 </div>
 
 <audio id="mentionSound" src="/sounds/alert.wav" preload="auto"></audio>
