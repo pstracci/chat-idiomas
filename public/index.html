@@ -4,51 +4,75 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<meta name="description" content="Encontre parceiros para praticar inglês, espanhol, francês e mais! Salas de chat gratuitas para conversação e aprendizado de idiomas com pessoas do mundo todo. Entre no Verbi e acelere sua fluência!">
-    <title>Verbi - Pratique Idiomas com Falantes Nativos | Chat Gratuito</title>
+    <title>Verbi - Pratique Idiomas e Jogue STOP!</title>
     <style>
-        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0;background-color:#f4f7f6;color:#333;line-height:1.6}header{background:linear-gradient(to right,#007bff,#0056b3);color:white;padding:30px 20px;text-align:center;box-shadow:0 4px 8px rgba(0,0,0,.1)}header h1{margin:0;font-size:2.5em}header p{margin-top:5px;font-size:1.2em;opacity:.9}.hero{display:flex;align-items:center;justify-content:center;padding:50px 20px;gap:40px}.hero-content{flex-basis:50%;max-width:500px}.hero-image-container{flex-basis:40%;max-width:400px;text-align:center;position:relative;display:flex;align-items:center;justify-content:center}.hero-image{max-width:100%;height:auto;border-radius:50%;box-shadow:0 8px 25px rgba(0,86,179,.2);object-fit:cover}.speech-bubble{position:absolute;background-color:#28a745;color:white;padding:8px 15px;border-radius:20px;font-size:.9em;font-weight:700;box-shadow:0 4px 6px rgba(0,0,0,.1);opacity:0;animation-fill-mode:forwards;animation-duration:1.5s;animation-timing-function:ease-out}.bubble-en{top:15%;left:10%;animation-name:floatBubble;animation-delay:.2s}.bubble-es{top:30%;right:0;background-color:#ffc107;color:#333;animation-name:floatBubble;animation-delay:.5s}.bubble-fr{bottom:25%;left:5%;background-color:#dc3545;animation-name:floatBubble;animation-delay:.8s}.bubble-pt{bottom:10%;right:10%;background-color:#17a2b8;animation-name:floatBubble;animation-delay:1.1s}@keyframes floatBubble{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}.form-container{background-color:#fff;padding:30px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,.1)}.form-group{margin-bottom:20px}.form-group label{display:block;margin-bottom:8px;color:#555;font-weight:700}.form-group input,.form-group select{width:100%;padding:12px;border:1px solid #ccc;border-radius:5px;box-sizing:border-box;font-size:1em}button[type=submit]{width:100%;background-color:#28a745;color:white;padding:15px;border:none;border-radius:5px;cursor:pointer;font-size:1.1em;font-weight:700;transition:background-color .3s ease}button[type=submit]:hover{background-color:#218838}main{padding:20px;max-width:960px;margin:20px auto}section{background-color:#fff;padding:30px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,.08);margin-bottom:30px}section h2{text-align:center;margin-top:0;margin-bottom:25px;color:#0056b3}.room-item{background-color:#f8f9fa;padding:15px;margin-bottom:10px;border:1px solid #e9ecef;border-radius:5px;display:flex;justify-content:space-between;align-items:center;transition:transform .2s ease,box-shadow .2s ease}.room-item:hover{transform:translateY(-2px);box-shadow:0 4px 8px rgba(0,0,0,.05)}.room-name{font-weight:700;color:#495057;flex-grow:1}.room-count{color:#6c757d;font-size:.9em;white-space:nowrap}footer{text-align:center;padding:20px;margin-top:20px;color:#777;background-color:#e9ecef}footer a{color:#007bff;text-decoration:none}footer a:hover{text-decoration:underline}@media (max-width:768px){.hero{flex-direction:column;text-align:center}header h1{font-size:2em}.hero-image-container{margin-top:30px;min-height:250px}}
-        
-        /* --- CORREÇÃO: Estilos para o seletor de cores --- */
-        .color-picker-container {
-            position: relative; /* Define este container como o ponto de referência para o seletor */
-        }
-        .color-picker-wrapper { display: flex; align-items: center; gap: 10px; }
-        #selectedColorPreview { width: 30px; height: 30px; border-radius: 5px; border: 1px solid #ccc; }
-        #colorPickerBtn { padding: 8px 12px; font-size: 0.9em; background-color: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;}
-        #colorPickerBtn:hover { background-color: #5a6268; }
-        #colorSelector {
-            display: none; /* Começa escondido */
-            position: absolute; /* Tira o elemento do fluxo normal da página */
-            top: 100%; /* Posiciona logo abaixo do container do botão */
-            left: 0;
-            width: 100%;
-            box-sizing: border-box;
-            z-index: 10; /* Garante que fique por cima de outros elementos */
-            grid-template-columns: repeat(8, 1fr);
-            gap: 5px;
-            margin-top: 5px;
-            padding: 10px;
-            background: #fff;
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        .color-swatch { width: 100%; padding-bottom: 100%; border-radius: 5px; cursor: pointer; border: 2px solid transparent; box-sizing: border-box; transition: transform 0.2s; }
-        .color-swatch:hover { transform: scale(1.1); }
-        .color-swatch.selected { border-color: #007bff; }
+        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0;background-color:#f4f7f6;color:#333;line-height:1.6}
+        .top-nav{background-color:#343a40;color:white;padding:8px 40px;display:flex;justify-content:flex-end;align-items:center;font-size:.9em}.top-nav a{color:white;text-decoration:none;margin-left:20px;font-weight:500}.top-nav a:hover{text-decoration:underline}#logged-in-view span{margin-right:20px}
+        header{background:linear-gradient(to right,#007bff,#0056b3);color:white;padding:30px 20px;text-align:center;box-shadow:0 4px 8px rgba(0,0,0,.1)}
+        header h1{margin:0;font-size:2.5em}
+        header p{margin-top:5px;font-size:1.2em;opacity:.9}
+        .hero{display:flex;align-items:center;justify-content:center;padding:50px 20px;gap:40px}
+        .hero-content{flex-basis:50%;max-width:500px}
+        .hero-image-container{flex-basis:40%;max-width:400px;text-align:center;position:relative;display:flex;align-items:center;justify-content:center}
+        .hero-image{max-width:100%;height:auto;border-radius:50%;box-shadow:0 8px 25px rgba(0,86,179,.2);object-fit:cover}
+        .speech-bubble{position:absolute;background-color:#28a745;color:white;padding:8px 15px;border-radius:20px;font-size:.9em;font-weight:700;box-shadow:0 4px 6px rgba(0,0,0,.1);opacity:0;animation-fill-mode:forwards;animation-duration:1.5s;animation-timing-function:ease-out}.bubble-en{top:15%;left:10%;animation-name:floatBubble;animation-delay:.2s}.bubble-es{top:30%;right:0;background-color:#ffc107;color:#333;animation-name:floatBubble;animation-delay:.5s}.bubble-fr{bottom:25%;left:5%;background-color:#dc3545;animation-name:floatBubble;animation-delay:.8s}.bubble-pt{bottom:10%;right:10%;background-color:#17a2b8;animation-name:floatBubble;animation-delay:1.1s}@keyframes floatBubble{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+        .form-container{background-color:#fff;padding:30px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,.1)}
+        .form-group{margin-bottom:20px}
+        .form-group label{display:block;margin-bottom:8px;color:#555;font-weight:700}
+        .form-group input,.form-group select{width:100%;padding:12px;border:1px solid #ccc;border-radius:5px;box-sizing:border-box;font-size:1em}
+        button[type=submit]{width:100%;background-color:#28a745;color:white;padding:15px;border:none;border-radius:5px;cursor:pointer;font-size:1.1em;font-weight:700;transition:background-color .3s ease}
+        button[type=submit]:hover{background-color:#218838}
+        main{padding:20px;max-width:960px;margin:20px auto; display: flex; gap: 30px; align-items: flex-start;}
+        .main-content { flex: 2; }
+        .sidebar-content { flex: 1; }
+        section{background-color:#fff;padding:30px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,.08);margin-bottom:30px}
+        section h2{text-align:center;margin-top:0;margin-bottom:25px;color:#0056b3}
+        .room-item{background-color:#f8f9fa;padding:15px;margin-bottom:10px;border:1px solid #e9ecef;border-radius:5px;display:flex;justify-content:space-between;align-items:center;transition:transform .2s ease,box-shadow .2s ease}
+        .room-item:hover{transform:translateY(-2px);box-shadow:0 4px 8px rgba(0,0,0,.05)}
+        .room-name{font-weight:700;color:#495057;flex-grow:1}
+        .room-count{color:#6c757d;font-size:.9em;white-space:nowrap}
+        footer{text-align:center;padding:20px;margin-top:20px;color:#777;background-color:#e9ecef}
+        footer a{color:#007bff;text-decoration:none}
+        footer a:hover{text-decoration:underline}
+        .color-picker-container{position:relative}
+        .color-picker-wrapper{display:flex;align-items:center;gap:10px}
+        #selectedColorPreview{width:30px;height:30px;border-radius:5px;border:1px solid #ccc}
+        #colorPickerBtn{padding:8px 12px;font-size:.9em;background-color:#6c757d;color:white;border:none;border-radius:5px;cursor:pointer}
+        #colorPickerBtn:hover{background-color:#5a6268}
+        #colorSelector{display:none;position:absolute;top:100%;left:0;width:100%;box-sizing:border-box;z-index:10;grid-template-columns:repeat(8,1fr);gap:5px;margin-top:5px;padding:10px;background:#fff;border:1px solid #dee2e6;border-radius:5px;box-shadow:0 5px 15px rgba(0,0,0,.1)}
+        .color-swatch{width:100%;padding-bottom:100%;border-radius:5px;cursor:pointer;border:2px solid transparent;box-sizing:border-box;transition:transform .2s}
+        .color-swatch:hover{transform:scale(1.1)}
+        .color-swatch.selected{border-color:#007bff}
+        .game-card{background:linear-gradient(to right,#6f42c1,#4a148c);color:white;padding:25px;border-radius:8px;text-align:center;cursor:pointer;transition:transform .3s ease,box-shadow .3s ease}
+        .game-card:hover{transform:scale(1.03);box-shadow:0 10px 20px rgba(0,0,0,.2)}
+        .game-card h3{margin:0 0 10px 0;font-size:1.5em;color:white}
+        .game-card p{margin:0;font-size:1em;opacity:.9}
+        @media (max-width:960px){ main { flex-direction: column; } }
+        @media (max-width:768px){ .hero{flex-direction:column;text-align:center}header h1{font-size:2em}.hero-image-container{margin-top:30px;min-height:250px} }
     </style>
 </head>
 <body>
+    
+    <div class="top-nav">
+        <div id="logged-out-view">
+            <a href="/login.html">Login</a>
+            <a href="/register.html">Cadastre-se</a>
+        </div>
+        <div id="logged-in-view" style="display: none;">
+            <span id="welcome-message"></span>
+            <a href="/logout">Sair</a>
+        </div>
+    </div>
 
     <header>
         <h1>Verbi</h1>
-        <p>Conecte-se, pratique e aprenda com falantes de todo o mundo!</p>
+        <p>Jogue, pratique idiomas e conecte-se com o mundo!</p>
     </header>
 
     <div class="hero">
         <div class="hero-content">
             <div class="form-container">
-                <h2>Entre em uma Sala</h2>
+                <h2>Entre em uma Sala de Chat (Acesso Livre)</h2>
                 <form id="join-form">
                     <div class="form-group">
                         <label for="nickname">Seu Nickname:</label>
@@ -58,22 +82,19 @@
                         <label for="age">Sua Idade:</label>
                         <input type="number" id="age" name="idade" required placeholder="Apenas maiores de 18 anos">
                     </div>
-
                     <div class="form-group color-picker-container">
                         <label>Cor do Nickname:</label>
                         <div class="color-picker-wrapper">
                             <div id="selectedColorPreview"></div>
                             <button type="button" id="colorPickerBtn">Escolher Cor</button>
                         </div>
-                        <div class="color-selector" id="colorSelector">
-                            </div>
+                        <div class="color-selector" id="colorSelector"></div>
                         <input type="hidden" id="nicknameColor" name="color">
                     </div>
-
                     <div class="form-group">
                         <label for="room">Escolha uma Sala:</label>
                         <select id="room" name="sala">
-                             <option value="ingles">Inglês</option>
+                            <option value="ingles">Inglês</option>
                             <option value="espanhol">Espanhol</option>
                             <option value="frances">Francês</option>
                             <option value="portugues">Português</option>
@@ -91,8 +112,8 @@
         </div>
         
         <div class="hero-image-container">
-             <img src="globe.png" alt="Globo Terrestre" class="hero-image">
-             <div class="speech-bubble bubble-en">Hello!</div>
+            <img src="globe.png" alt="Globo Terrestre" class="hero-image">
+            <div class="speech-bubble bubble-en">Hello!</div>
             <div class="speech-bubble bubble-es">¡Hola!</div>
             <div class="speech-bubble bubble-fr">Bonjour!</div>
             <div class="speech-bubble bubble-pt">Olá!</div>
@@ -100,50 +121,62 @@
     </div>
 
     <main>
-        <section class="room-list">
-            <h2>Salas Ativas</h2>
-            <div class="room-item">
-                <span class="room-name">Inglês</span>
-                <span class="room-count">Participantes: <span id="count-ingles">0</span> / 20</span>
-            </div>
-            <div class="room-item">
-                <span class="room-name">Espanhol</span>
-                <span class="room-count">Participantes: <span id="count-espanhol">0</span> / 20</span>
-            </div>
-            <div class="room-item">
-                <span class="room-name">Francês</span>
-                <span class="room-count">Participantes: <span id="count-frances">0</span> / 20</span>
-            </div>
-            <div class="room-item">
-                <span class="room-name">Português</span>
-                <span class="room-count">Participantes: <span id="count-portugues">0</span> / 20</span>
-            </div>
-             <div class="room-item">
-                <span class="room-name">Mandarim</span>
-                <span class="room-count">Participantes: <span id="count-mandarim">0</span> / 20</span>
-            </div>
-            <div class="room-item">
-                <span class="room-name">Alemão</span>
-                <span class="room-count">Participantes: <span id="count-alemao">0</span> / 20</span>
-            </div>
-            <div class="room-item">
-                <span class="room-name">Italiano</span>
-                <span class="room-count">Participantes: <span id="count-italiano">0</span> / 20</span>
-            </div>
-            <div class="room-item">
-                <span class="room-name">Japonês</span>
-                <span class="room-count">Participantes: <span id="count-japones">0</span> / 20</span>
-            </div>
-            <div class="room-item">
-                <span class="room-name">Coreano</span>
-                <span class="room-count">Participantes: <span id="count-coreano">0</span> / 20</span>
-            </div>
-            <div class="room-item">
-                <span class="room-name">Árabe</span>
-                <span class="room-count">Participantes: <span id="count-arabe">0</span> / 20</span>
-            </div>
-        </section>
+        <div class="main-content">
+            <section class="room-list">
+                <h2>Salas de Idiomas Ativas</h2>
+                <div class="room-item">
+                    <span class="room-name">Inglês</span>
+                    <span class="room-count">Participantes: <span id="count-ingles">0</span> / 20</span>
+                </div>
+                <div class="room-item">
+                    <span class="room-name">Espanhol</span>
+                    <span class="room-count">Participantes: <span id="count-espanhol">0</span> / 20</span>
+                </div>
+                 <div class="room-item">
+                    <span class="room-name">Francês</span>
+                    <span class="room-count">Participantes: <span id="count-frances">0</span> / 20</span>
+                </div>
+                <div class="room-item">
+                    <span class="room-name">Português</span>
+                    <span class="room-count">Participantes: <span id="count-portugues">0</span> / 20</span>
+                </div>
+                <div class="room-item">
+                    <span class="room-name">Mandarim</span>
+                    <span class="room-count">Participantes: <span id="count-mandarim">0</span> / 20</span>
+                </div>
+                <div class="room-item">
+                    <span class="room-name">Alemão</span>
+                    <span class="room-count">Participantes: <span id="count-alemao">0</span> / 20</span>
+                </div>
+                <div class="room-item">
+                    <span class="room-name">Italiano</span>
+                    <span class="room-count">Participantes: <span id="count-italiano">0</span> / 20</span>
+                </div>
+                <div class="room-item">
+                    <span class="room-name">Japonês</span>
+                    <span class="room-count">Participantes: <span id="count-japones">0</span> / 20</span>
+                </div>
+                <div class="room-item">
+                    <span class="room-name">Coreano</span>
+                    <span class="room-count">Participantes: <span id="count-coreano">0</span> / 20</span>
+                </div>
+                <div class="room-item">
+                    <span class="room-name">Árabe</span>
+                    <span class="room-count">Participantes: <span id="count-arabe">0</span> / 20</span>
+                </div>
+            </section>
+        </div>
+        <div class="sidebar-content">
+            <section>
+                <h2>Novo Jogo!</h2>
+                <div class="game-card">
+                    <h3>Jogar STOP! Online</h3>
+                    <p>Jogadores online: <span id="stop-player-count">0</span></p>
+                </div>
+            </section>
+        </div>
     </main>
+    
     <footer>
         <p>&copy; 2025 Verbi. Todos os direitos reservados.</p>
         <p>Desenvolvido por <a href="mailto:paulo.stracci@gmail.com">Paulo Stracci</a></p>
@@ -152,17 +185,47 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            const loggedOutView = document.getElementById('logged-out-view');
+            const loggedInView = document.getElementById('logged-in-view');
+            const welcomeMessage = document.getElementById('welcome-message');
+            const stopGameCard = document.querySelector('.game-card');
             const form = document.getElementById('join-form');
+            const nicknameInput = document.getElementById('nickname');
+            const ageInput = document.getElementById('age');
             const colorSelector = document.getElementById('colorSelector');
             const nicknameColorInput = document.getElementById('nicknameColor');
             const colorPickerBtn = document.getElementById('colorPickerBtn');
             const selectedColorPreview = document.getElementById('selectedColorPreview');
 
-            const colors = [
-                '#000000', '#E53935', '#D81B60', '#8E24AA', '#5E35B1', '#3949AB', '#1E88E5', '#039BE5',
-                '#00ACC1', '#00897B', '#43A047', '#7CB342', '#FDD835', '#FFB300', '#FB8C00', '#F4511E'
-            ];
-            
+            fetch('/api/user/status')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.loggedIn) {
+                        loggedOutView.style.display = 'none';
+                        loggedInView.style.display = 'block';
+                        welcomeMessage.textContent = `Olá, ${data.nickname}!`;
+                        if (stopGameCard) { stopGameCard.onclick = () => { location.href='stop-lobby.html'; }; }
+
+                        // --- ALTERAÇÃO AQUI: Preenche o formulário com os dados do usuário ---
+                        if (nicknameInput && data.nickname) {
+                            nicknameInput.value = data.nickname;
+                        }
+                        if (ageInput && data.age) {
+                            ageInput.value = data.age;
+                        }
+                        
+                    } else {
+                        loggedOutView.style.display = 'block';
+                        loggedInView.style.display = 'none';
+                        if (stopGameCard) { stopGameCard.onclick = () => { location.href='login.html'; }; }
+                    }
+                })
+                .catch(err => {
+                    console.error("Erro ao verificar status de login:", err);
+                    if (stopGameCard) { stopGameCard.onclick = () => { location.href='login.html'; }; }
+                });
+
+            const colors = ['#000000', '#E53935', '#D81B60', '#8E24AA', '#5E35B1', '#3949AB', '#1E88E5', '#039BE5', '#00ACC1', '#00897B', '#43A047', '#7CB342', '#FDD835', '#FFB300', '#FB8C00', '#F4511E'];
             const defaultColor = '#000000';
             nicknameColorInput.value = defaultColor;
             selectedColorPreview.style.backgroundColor = defaultColor;
@@ -217,6 +280,13 @@
                     const roomLimpa = limparNomeSala(room);
                     const countElement = document.getElementById(`count-${roomLimpa}`);
                     if (countElement) countElement.textContent = counts[room];
+                }
+            });
+
+            socket.on('stopPlayerCountUpdate', (count) => {
+                const countElement = document.getElementById('stop-player-count');
+                if (countElement) {
+                    countElement.textContent = count;
                 }
             });
         });

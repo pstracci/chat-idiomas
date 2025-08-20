@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lobby do Jogo STOP! - Verbi</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: #f4f7f6; color: #333; }
+        .container { max-width: 1100px; margin: 20px auto; padding: 20px; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        header h1 { color: #4a148c; margin: 0; }
+        .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; font-weight: bold; text-decoration: none; display: inline-block; }
+        .btn-primary { background-color: #6f42c1; color: white; }
+        .btn-primary:hover { background-color: #5a349a; }
+        .btn-secondary { background-color: #6c757d; color: white; }
+        .btn-secondary:hover { background-color: #5a6268; }
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; }
+        #search-room { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
+        .room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+        .room-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); display: flex; flex-direction: column; justify-content: space-between; }
+        .room-card h3 { margin: 0 0 10px; color: #333; }
+        .room-card .details { display: flex; justify-content: space-between; color: #6c757d; margin-bottom: 15px; }
+        .room-card .status-aguardando { color: #28a745; font-weight: bold; }
+        .room-card .status-jogando { color: #ffc107; font-weight: bold; }
+        .room-card .actions { text-align: right; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        .modal-content { background-color: #fefefe; margin: auto; padding: 30px; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 8px; }
+        .modal-content h2 { margin-top: 0; color: #4a148c; }
+        .modal-group { margin-bottom: 15px; }
+        .modal-group label { display: block; margin-bottom: 5px; font-weight: 500; }
+        .modal-group input[type="text"], .modal-group input[type="password"], .modal-group select, .modal-group textarea { width: 100%; padding: 10px; box-sizing: border-box; border-radius: 5px; border: 1px solid #ccc; }
+        #pagination-controls { text-align: center; margin-top: 20px; }
+        #pagination-controls button { margin: 0 5px; }
+
+        /* --- ESTILOS CORRIGIDOS E NOVOS --- */
+        /* Chave Seletora Pública/Privada */
+        .toggle-switch-container { display: flex; align-items: center; gap: 12px; user-select: none; }
+        .toggle-label { font-weight: bold; transition: color 0.3s; }
+        .toggle-label.active { color: #007bff; }
+        .toggle-label.inactive { color: #6c757d; }
+        .toggle-switch { position: relative; display: inline-block; width: 60px; height: 34px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #6f42c1; }
+        input:checked + .slider:before { transform: translateX(26px); }
+
+        /* Input e Tags de Categorias */
+        #category-input-container { display: flex; gap: 10px; }
+        #category-input { flex-grow: 1; }
+        #add-category-btn { background-color: #007bff; color: white; border: none; padding: 0 15px; border-radius: 5px; cursor: pointer; }
+        #add-category-btn:hover { background-color: #0056b3; }
+        #category-tags-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; padding: 10px; background-color: #f8f9fa; border-radius: 5px; min-height: 24px; border: 1px solid #dee2e6;}
+        .category-tag { background-color: #6c757d; color: white; padding: 5px 10px; border-radius: 15px; display: flex; align-items: center; gap: 8px; font-size: 0.9em; }
+        .remove-tag-btn { background: none; border: none; color: white; font-weight: bold; cursor: pointer; padding: 0; line-height: 1; font-size: 1.2em; opacity: 0.7; }
+        .remove-tag-btn:hover { opacity: 1; }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Salas de STOP!</h1>
+            <a href="/" class="btn btn-secondary">Voltar</a>
+        </header>
+        <div class="controls">
+            <input type="text" id="search-room" placeholder="Pesquisar sala pelo nome...">
+            <button id="create-room-btn" class="btn btn-primary">Criar Nova Sala</button>
+        </div>
+        <div id="room-grid" class="room-grid"></div>
+        <div id="pagination-controls"></div>
+    </div>
+
+    <div id="create-room-modal" class="modal">
+        <div class="modal-content">
+            <span style="float: right; cursor: pointer; font-size: 1.5em;" id="close-modal-btn">&times;</span>
+            <h2>Criar Sala de STOP!</h2>
+            <form id="create-room-form">
+                <div class="modal-group">
+                    <label for="room-name">Nome da Sala:</label>
+                    <input type="text" id="room-name" required maxlength="26">
+                </div>
+                <div class="modal-group">
+                    <label for="max-participants">Máximo de Participantes:</label>
+                    <select id="max-participants">
+                        <option>2</option><option>3</option><option>4</option><option>5</option><option selected>6</option><option>8</option><option>10</option>
+                    </select>
+                </div>
+                <div class="modal-group">
+                    <label>Tipo de Sala:</label>
+                    <div class="toggle-switch-container">
+                        <span id="public-label" class="toggle-label active">Pública</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="is-private-toggle">
+                            <span class="slider"></span>
+                        </label>
+                        <span id="private-label" class="toggle-label inactive">Privada</span>
+                    </div>
+                </div>
+                <div class="modal-group" id="password-group" style="display: none;">
+                    <label for="room-password">Senha:</label>
+                    <input type="password" id="room-password">
+                </div>
+                <div class="modal-group">
+                    <label for="category-input">Categorias (mínimo 1, máximo 15):</label>
+                    <div id="category-input-container">
+                        <input type="text" id="category-input" placeholder="Digite uma categoria e clique em Adicionar" maxlength="15">
+                        <button type="button" id="add-category-btn">Adicionar</button>
+                    </div>
+                    <div id="category-tags-container"></div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">Criar e Entrar</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="stop-lobby.js"></script>
+</body>
+</html>

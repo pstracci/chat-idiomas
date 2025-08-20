@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <title>Jogo STOP! - Verbi</title>
+    <style>
+        :root { --primary-color: #6f42c1; --dark-purple: #4a148c; --light-gray: #f8f9fa; --gray-border: #dee2e6; --blue-accent: #007bff; --green-ready: #28a745; --gray-waiting: #6c757d;}
+        html, body { height: 100%; margin: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f9; color: #1d1d1f; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* Layout Geral */
+        .top-bar { flex-shrink: 0; display: flex; align-items: center; padding: 0 20px; background-color: #fff; border-bottom: 1px solid var(--gray-border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .top-bar a { text-decoration: none; font-size: 1.8em; color: var(--primary-color); padding: 10px 10px 10px 0; }
+        #roomTitle { flex-grow: 1; text-align: center; margin: 0; font-size: 1.2em; font-weight: 600; }
+        
+        main { display: flex; flex-direction: column; flex-grow: 1; overflow: hidden; }
+        .game-wrapper { display: flex; flex: 1; padding: 15px; gap: 15px; overflow: hidden; }
+
+        /* Painel Central (Jogo) */
+        .game-main { flex: 3; display: flex; flex-direction: column; min-width: 0; background-color: #fff; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .game-status-bar { display: none; justify-content: space-around; align-items: center; padding: 15px 20px; border-bottom: 1px solid var(--gray-border); background-color: var(--light-gray); border-radius: 8px 8px 0 0; }
+        .status-box { text-align: center; }
+        .status-box h4 { margin: 0 0 5px; color: #6c757d; text-transform: uppercase; font-size: 0.8em; }
+        .status-box span { font-size: 2.2em; font-weight: bold; color: var(--dark-purple); }
+        .game-grid { position: relative; flex-grow: 1; padding: 20px; overflow-y: auto; }
+        .category-item { margin-bottom: 15px; }
+        .category-item label { display: block; font-weight: bold; margin-bottom: 5px; color: #495057; }
+        .category-item input { width: 100%; padding: 12px; font-size: 1em; border: 1px solid #ced4da; border-radius: 5px; box-sizing: border-box; }
+        .category-item input:disabled { background-color: #e9ecef; }
+        .game-controls { padding: 20px; border-top: 1px solid var(--gray-border); text-align: center; }
+        .btn { padding: 12px 25px; border: none; border-radius: 5px; cursor: pointer; font-size: 1.1em; font-weight: bold; transition: background-color 0.2s; }
+        .btn-start { background-color: #28a745; color: white; }
+        .btn-primary { background-color: #6f42c1; color: white; }
+        .btn-stop { background-color: #dc3545; color: white; }
+        .btn:disabled { background-color: #6c757d; cursor: not-allowed; }
+
+        /* Painel da Direita (Placar e Jogadores) */
+        .players-sidebar { flex: 1; max-width: 300px; background-color: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; flex-direction: column; overflow-y: auto; }
+        .players-sidebar h3 { margin-top: 0; color: var(--dark-purple); border-bottom: 1px solid var(--gray-border); padding-bottom: 10px; flex-shrink: 0; }
+        #player-list div { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f1f1f1; cursor: pointer; }
+        #player-list div:hover { background-color: #f8f9fa; }
+        #player-list span:last-child { font-weight: bold; }
+        
+        #player-status-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; flex-shrink: 0; }
+        .status-card { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; border-radius: 5px; color: white; transition: background-color 0.3s; }
+        .status-card.status-ready { background-color: var(--green-ready); }
+        .status-card.status-waiting { background-color: var(--gray-waiting); }
+
+        /* Estilos do Chat na parte inferior */
+        .bottom-chat-bar { flex-shrink: 0; background-color: #fff; height: 28vh; border-top: 1px solid var(--gray-border); padding: 10px 15px; display: flex; flex-direction: column; box-sizing: border-box; }
+        .game-chat-messages { flex-grow: 1; overflow-y: auto; margin-bottom: 10px; }
+        .game-chat-messages p { margin: 0 0 8px; word-wrap: break-word; font-size: 0.9em; }
+        .game-chat-messages .system-message { color: #6c757d; font-style: italic; }
+        .game-chat-input-area { display: flex; gap: 5px; }
+        #game-chat-input { flex-grow: 1; border: 1px solid #ccc; border-radius: 15px; padding: 8px 12px; }
+        .emoji-container { position: relative; display: flex; align-items: center; }
+        #game-chat-emoji-btn { font-size: 1.2em; background: none; border: none; cursor: pointer; padding: 5px; }
+        #game-emoji-picker { display: none; position: absolute; bottom: 100%; left: 0; background: white; border-radius: 8px; box-shadow: 0 -4px 12px rgba(0,0,0,0.15); padding: 5px; width: 200px; flex-wrap: wrap; }
+        #game-emoji-picker span { cursor: pointer; padding: 4px; font-size: 1.5em; }
+        #game-chat-send-btn { font-size: 0.9em; padding: 8px 15px; }
+
+        /* Estilos do Painel de Configurações */
+        .room-settings-panel { display: flex; flex-direction: column; gap: 25px; text-align: left; }
+        .room-settings-panel .settings-header { text-align: center; color: var(--dark-purple); border-bottom: 1px solid var(--gray-border); padding-bottom: 10px; margin-bottom: 10px; }
+        .room-settings-panel .waiting-message { text-align: center; font-size: 1.2em; font-weight: 500; color: var(--primary-color); margin-top: 20px; }
+        .settings-main-row { display: flex; gap: 25px; }
+        .settings-column { flex: 1; }
+        .settings-group { margin-bottom: 18px; }
+        .settings-group label { display: block; font-weight: 600; color: #495057; margin-bottom: 8px; font-size: 1.1em; }
+        .settings-group input, .settings-group select { width: 100%; padding: 10px; box-sizing: border-box; border-radius: 5px; border: 1px solid #ccc; font-size: 1em; }
+        .settings-group .static-value { font-size: 1.2em; font-weight: 500; color: #333; }
+        #category-tags-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; padding: 10px; background-color: #f8f9fa; border-radius: 5px; min-height: 40px; border: 1px solid #dee2e6;}
+        .category-tag { background-color: #6c757d; color: white; padding: 6px 12px; border-radius: 15px; display: flex; align-items: center; gap: 8px; font-size: 1em; }
+        .remove-tag-btn { background: none; border: none; color: white; font-weight: bold; cursor: pointer; padding: 0; line-height: 1; font-size: 1.3em; opacity: 0.7; }
+        #add-category-input-container { display: flex; gap: 5px; }
+        #add-category-input { flex-grow: 1; }
+        #add-category-btn { background-color: var(--blue-accent); color: white; padding: 0 15px; font-size: 0.9em; }
+        .save-settings-btn { background-color: var(--blue-accent); color: white; margin-top: 15px; padding: 10px 20px; font-size: 1em; float: right; width: auto; }
+        
+        /* Tabela de Resultados */
+        #results-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        #results-table th, #results-table td { border: 1px solid #ddd; padding: 8px; text-align: left; word-wrap: break-word; }
+        .invalidate-cell:hover { background-color: #ffebee; }
+        .invalidate-cell { cursor: pointer; text-decoration: underline; text-decoration-style: dotted; }
+
+        /* Tela de Vencedor e Confetes */
+        .winner-screen { text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; }
+        .winner-screen .trophy { font-size: 6rem; line-height: 1; }
+        .winner-screen h1 { font-size: 3rem; margin: 10px 0; color: var(--dark-purple); }
+        .winner-screen p { font-size: 1.5rem; color: #6c757d; margin: 0; }
+        #confetti-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; z-index: 1000; }
+        .confetti { position: absolute; width: 10px; height: 20px; background-color: #f00; top: -20px; opacity: 0; }
+        @keyframes confetti-fall {
+            0% { top: -20px; opacity: 1; transform: rotate(0deg); }
+            100% { top: 100%; opacity: 1; transform: rotate(720deg); }
+        }
+
+    </style>
+</head>
+<body>
+    <header class="top-bar">
+        <a href="/stop-lobby.html" id="back-to-lobby">←</a>
+        <h2 id="roomTitle">Carregando Sala...</h2>
+    </header>
+
+    <main>
+        <div class="game-wrapper">
+            <div class="game-main">
+                <div class="game-status-bar">
+                    <div class="status-box"><h4>Letra</h4><span id="current-letter">?</span></div>
+                    <div class="status-box"><h4>Rodada</h4><span id="current-round">0/5</span></div>
+                    <div class="status-box"><h4>Tempo</h4><span id="timer">05:00</span></div>
+                </div>
+                <div class="game-grid" id="game-grid">
+                    <div id="confetti-container"></div>
+                </div>
+                <div class="game-controls">
+                    <button id="start-game-btn" class="btn" style="display: none;">Iniciar Jogo</button>
+                    <button id="ready-btn" class="btn btn-primary" style="display: none;">Estou Pronto!</button>
+                    <button id="stop-btn" class="btn btn-stop" style="display: none;">STOP!</button>
+                    <button id="new-game-btn" class="btn btn-primary" style="display: none;">Novo Jogo</button>
+                </div>
+            </div>
+            <div class="players-sidebar">
+                <h3>Placar</h3>
+                <div id="player-list"></div>
+                <h3 style="margin-top: 25px;">Status dos Jogadores</h3>
+                <div id="player-status-list"></div>
+            </div>
+        </div>
+        <div class="bottom-chat-bar">
+            <div class="game-chat-messages" id="game-chat-messages"></div>
+            <div class="game-chat-input-area">
+                <div class="emoji-container">
+                    <button id="game-chat-emoji-btn">😊</button>
+                    <div id="game-emoji-picker"></div>
+                </div>
+                <input type="text" id="game-chat-input" placeholder="Digite sua mensagem..." autocomplete="off">
+                <button id="game-chat-send-btn" class="btn btn-primary">Enviar</button>
+            </div>
+        </div>
+    </main>
+    
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="stop-game.js"></script> 
+</body>
+</html>

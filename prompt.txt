@@ -1,0 +1,6 @@
+Novos ajustes:
+
+Ao passar para a próxima rodada, o nome do botão nao deve ser "iniciar Jogo" e sim "Próxima rodada".
+
+Na fase de conferência, a tabela deve ser ordenada de forma diferente. As categorias devem ficar acima , uma ao lado da outra. Os nomes dos participantes na lateral um abaixo do outro. porém não mude a lógica de "zerar" a pontuação, está funcionando bem e deve continuar.
+
