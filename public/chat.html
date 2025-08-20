@@ -22,7 +22,7 @@
   }
 
   /* =============================================== */
-  /* === LAYOUT PRINCIPAL (SIMPLIFICADO E ROBUSTO) === */
+  /* === LAYOUT PRINCIPAL (CORRIGIDO E ROBUSTO) === */
   /* =============================================== */
   .top-bar {
     flex-shrink: 0; /* Cabeçalho não encolhe */
@@ -108,7 +108,8 @@
   }
   #sendBtn {
     background-color: var(--primary-color); color: white; border: none; border-radius: 22px;
-    padding: 0 20px; cursor: pointer; font-size: 16px; font-weight: 600;
+    padding: 10px 20px;
+    cursor: pointer; font-size: 16px; font-weight: 600;
   }
   
   #imagePreviewContainer {
@@ -129,6 +130,24 @@
   }
   #emojiPicker span { cursor: pointer; padding: 5px; font-size: 24px; }
   .mention-highlight { background-color: #fffbe6; border-left: 4px solid var(--primary-color); padding: 0 8px; border-radius: 4px; }
+  
+  #mentionSuggestions {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    left: 10px;
+    right: 10px;
+    background: white;
+    border: 1px solid #ccc;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
+    z-index: 1000;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+  #mentionSuggestions div { padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
+  #mentionSuggestions div:hover { background-color: #f0f8ff; }
   
   @media (max-width: 768px) {
     #usersBtn { display: block; }
@@ -160,21 +179,6 @@
     <div class="overlay" id="overlay"></div>
     <div class="messages-area">
         <div class="messages" id="messages"></div>
-        <div id="chatInputWrapper">
-            <div id="imagePreviewContainer">
-                <img id="imagePreview" />
-                <button id="removeImageBtn">&times;</button>
-            </div>
-            <div class="input-controls">
-                <button id="emojiBtn" class="control-btn">😊</button>
-                <button id="imageBtn" class="control-btn">🖼️</button>
-                <input type="file" id="imageInput" accept="image/*" style="display: none;">
-                <input id="msgInput" placeholder="Digite sua mensagem..." autocomplete="off" />
-                <div id="mentionSuggestions"></div>
-                <button id="sendBtn">Enviar</button>
-            </div>
-            <div id="emojiPicker"></div>
-        </div>
     </div>
     <div class="users" id="users">
         <div id="statusContainer">
@@ -186,6 +190,22 @@
             </select>
         </div>
     </div>
+</div>
+
+<div id="chatInputWrapper">
+    <div id="imagePreviewContainer">
+        <img id="imagePreview" />
+        <button id="removeImageBtn">&times;</button>
+    </div>
+    <div class="input-controls">
+        <button id="emojiBtn" class="control-btn">😊</button>
+        <button id="imageBtn" class="control-btn">🖼️</button>
+        <input type="file" id="imageInput" accept="image/*" style="display: none;">
+        <input id="msgInput" placeholder="Digite sua mensagem..." autocomplete="off" />
+        <button id="sendBtn">Enviar</button>
+    </div>
+    <div id="mentionSuggestions"></div>
+    <div id="emojiPicker"></div>
 </div>
 
 <audio id="mentionSound" src="/sounds/alert.wav" preload="auto"></audio>

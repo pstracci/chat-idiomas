@@ -16,7 +16,6 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const app = express();
 const server = http.createServer(app);
-// CORREÇÃO: Aumenta o limite de tamanho do payload para o Socket.IO
 const io = new Server(server, {
     maxHttpBufferSize: 5e6 // 5MB
 });
@@ -185,7 +184,6 @@ stopGameNamespace.on('connection', (socket) => {
     const loggedInUser = socket.request.user;
     if (!loggedInUser) return socket.disconnect();
     
-    // Envia a contagem atual assim que um usuário se conecta ao namespace do lobby/jogo
     broadcastStopPlayerCount();
     socket.emit('updateRoomList', getSanitizedRoomList());
 
@@ -225,11 +223,21 @@ stopGameNamespace.on('connection', (socket) => {
         socket.join(roomId);
         socket.stopRoomId = roomId;
         socket.stopUserId = id;
-		
-        room.participants[id] = { id, nickname, score: 0, socketId: socket.id, isReady: false, wins: 0 };
+
+        // --- LÓGICA DE RECONEXÃO CORRIGIDA ---
+        const isReconnecting = !!room.participants[id];
         
+        if (isReconnecting) {
+            clearTimeout(room.participants[id].disconnectTimer); // Cancela a remoção agendada
+            room.participants[id].socketId = socket.id; // Atualiza com a nova conexão
+        } else {
+            // Jogador genuinamente novo
+            room.participants[id] = { id, nickname, score: 0, socketId: socket.id, isReady: false, wins: 0 };
+        }
+		
         const ownerNickname = room.participants[room.ownerId]?.nickname || 'Desconhecido';
-        const isSpectating = room.gameState !== 'Aguardando';
+        // Um jogador só é espectador se for NOVO na sala E o jogo já começou.
+        const isSpectating = !isReconnecting && room.gameState !== 'Aguardando';
 
         socket.emit('roomInfo', { 
             name: room.name, isOwner: String(room.ownerId) === String(id), categories: room.categories,
@@ -250,39 +258,37 @@ stopGameNamespace.on('connection', (socket) => {
 
         if (!roomId || !userId || !room || !room.participants[userId]) return;
 
-        const wasOwner = String(room.ownerId) === String(userId);
-        
-        delete room.participants[userId];
-        
-        let roomExists = true;
-        if (Object.keys(room.participants).length === 0) {
-            delete stopRooms[roomId];
-            roomExists = false;
-        } else {
-            if (wasOwner) {
-                stopGameNamespace.to(roomId).emit('ownerDestroyedRoom');
-                delete stopRooms[roomId];
-                roomExists = false;
-            } else {
-                if (room.gameState === 'Validando') {
-                    const answeredPlayerIds = Object.keys(room.roundAnswers || {});
-                    const playersInGame = Object.values(room.participants).filter(p => !p.wasSpectating);
-                    if (playersInGame.every(p => answeredPlayerIds.includes(String(p.id)))) {
-                        calculateScores(roomId);
+        // --- LÓGICA DE DESCONEXÃO COM PERÍODO DE TOLERÂNCIA ---
+        const player = room.participants[userId];
+        player.disconnectTimer = setTimeout(() => {
+            // Este código só roda se o jogador não reconectar a tempo
+            if (stopRooms[roomId] && stopRooms[roomId].participants[userId] && stopRooms[roomId].participants[userId].socketId === socket.id) {
+                const wasOwner = String(room.ownerId) === String(userId);
+                delete room.participants[userId];
+
+                if (Object.keys(room.participants).length === 0) {
+                    delete stopRooms[roomId];
+                } else {
+                    if (wasOwner) {
+                        stopGameNamespace.to(roomId).emit('ownerDestroyedRoom');
+                        delete stopRooms[roomId];
+                    } else {
+                        if (room.gameState === 'Validando') {
+                            const answeredPlayerIds = Object.keys(room.roundAnswers || {});
+                            const playersInGame = Object.values(room.participants).filter(p => !p.wasSpectating);
+                            if (playersInGame.every(p => answeredPlayerIds.includes(String(p.id)))) {
+                                calculateScores(roomId);
+                            }
+                        }
+                        updatePlayerListAndCheckReadyState(roomId);
                     }
                 }
-                updatePlayerListAndCheckReadyState(roomId);
+                stopGameNamespace.emit('updateRoomList', getSanitizedRoomList());
+                broadcastStopPlayerCount();
             }
-        }
-
-        // Garante que a atualização seja enviada em todos os cenários de saída
-        if(roomExists) {
-            stopGameNamespace.emit('updateRoomList', getSanitizedRoomList());
-        }
-        broadcastStopPlayerCount();
+        }, 5000); // 5 segundos de tolerância para reconexão
     });
     
-    // ... todos os outros listeners (toggleReady, startGame, submitAnswers, etc.) permanecem iguais ...
     socket.on('toggleReady', () => {
         const roomId = socket.stopRoomId;
         const userId = socket.stopUserId;
@@ -508,7 +514,8 @@ function endRound(roomId, initiator) {
 
 function calculateScores(roomId) {
     const room = stopRooms[roomId];
-    if (!room) return;
+    if (!room || !room.participants || Object.keys(room.participants).length === 0) return;
+
     const { roundAnswers, participants, categories } = room;
     room.roundScores = {}; 
     const roundScores = room.roundScores;
@@ -520,27 +527,29 @@ function calculateScores(roomId) {
 
     const playersWhoPlayed = participantIds.filter(id => participants[id] && !participants[id].wasSpectating);
 
-    categories.forEach(category => {
-        const wordCounts = {};
-        playersWhoPlayed.forEach(userId => {
-            const answer = roundAnswers[userId]?.[category]?.trim().toLowerCase();
-            if (answer && answer.startsWith(room.currentLetter.toLowerCase())) {
-                wordCounts[answer] = (wordCounts[answer] || 0) + 1;
-            }
-        });
+    if (playersWhoPlayed.length > 0) {
+        categories.forEach(category => {
+            const wordCounts = {};
+            playersWhoPlayed.forEach(userId => {
+                const answer = roundAnswers[userId]?.[category]?.trim().toLowerCase();
+                if (answer && answer.startsWith(room.currentLetter.toLowerCase())) {
+                    wordCounts[answer] = (wordCounts[answer] || 0) + 1;
+                }
+            });
 
-        playersWhoPlayed.forEach(userId => {
-            const answer = roundAnswers[userId]?.[category]?.trim().toLowerCase();
-            let score = 0;
-            if (answer && answer.startsWith(room.currentLetter.toLowerCase())) {
-                score = (wordCounts[answer] === 1) ? 10 : 5;
-            }
-            if(roundScores[userId]) {
-                roundScores[userId].scores[category] = score;
-                roundScores[userId].total += score;
-            }
+            playersWhoPlayed.forEach(userId => {
+                const answer = roundAnswers[userId]?.[category]?.trim().toLowerCase();
+                let score = 0;
+                if (answer && answer.startsWith(room.currentLetter.toLowerCase())) {
+                    score = (wordCounts[answer] === 1) ? 10 : 5;
+                }
+                if(roundScores[userId]) {
+                    roundScores[userId].scores[category] = score;
+                    roundScores[userId].total += score;
+                }
+            });
         });
-    });
+    }
 
     participantIds.forEach(userId => {
         if (participants[userId] && roundScores[userId]) {
@@ -553,16 +562,14 @@ function calculateScores(roomId) {
     const resultsPayload = {
         round: room.currentRound,
         roundScores,
-        allAnswers: roundAnswers,
+        allAnswers: roundAnswers || {},
         participants: Object.values(participants).map(p => ({...p, isOwner: String(room.ownerId) === String(p.id)})),
         isFinalRound: room.currentRound >= room.totalRounds
     };
     stopGameNamespace.to(roomId).emit('roundResults', resultsPayload);
     
     Object.values(participants).forEach(p => { p.isReady = false; });
-
     updatePlayerListAndCheckReadyState(roomId);
-    stopGameNamespace.emit('updateRoomList', getSanitizedRoomList());
 }
 
 // --- INICIALIZAÇÃO DO SERVIDOR ---
