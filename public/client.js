@@ -1,3 +1,4 @@
+// client.js
 function limparNomeSala(nome) {
   return nome.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-');
 }
@@ -11,6 +12,7 @@ const color = decodeURIComponent(params.get('color')) || '#000000';
 const salaLimpa = limparNomeSala(sala);
 const socket = io();
 
+// Elementos da UI
 const backBtn = document.getElementById('backBtn');
 const messagesDiv = document.getElementById('messages');
 const msgInput = document.getElementById('msgInput');
@@ -27,6 +29,7 @@ const imageInput = document.getElementById('imageInput');
 const imagePreviewContainer = document.getElementById('imagePreviewContainer');
 const imagePreview = document.getElementById('imagePreview');
 const removeImageBtn = document.getElementById('removeImageBtn');
+const usersBtn = document.getElementById('usersBtn'); // Botão para mobile
 
 if (roomTitleEl && sala) {
     const formattedRoomName = sala.charAt(0).toUpperCase() + sala.slice(1);
@@ -41,6 +44,16 @@ let selectedImageData = null;
 
 backBtn.addEventListener('click', () => { window.location.href = '/'; });
 
+// ADICIONADO: Lógica para mostrar/esconder painel de usuários no mobile
+usersBtn.addEventListener('click', () => {
+    usersDiv.classList.toggle('show');
+});
+
+messagesDiv.addEventListener('click', () => {
+    usersDiv.classList.remove('show');
+});
+
+
 // LÓGICA DE IMAGEM
 imageBtn.addEventListener('click', () => {
     imageInput.click();
@@ -48,9 +61,7 @@ imageBtn.addEventListener('click', () => {
 
 imageInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
-    if (file) {
-        handleImageFile(file);
-    }
+    if (file) handleImageFile(file);
 });
 
 msgInput.addEventListener('paste', (e) => {
@@ -70,7 +81,7 @@ function handleImageFile(file) {
         alert('Por favor, selecione um arquivo de imagem.');
         return;
     }
-    if (file.size > 5 * 1024 * 1024) { // 1MB
+    if (file.size > 5 * 1024 * 1024) { // 5MB
         alert('A imagem é muito grande. O tamanho máximo é de 5MB.');
         return;
     }
@@ -90,6 +101,7 @@ removeImageBtn.addEventListener('click', () => {
     imagePreviewContainer.style.display = 'none';
     imagePreview.src = '';
 });
+
 
 // LÓGICA DE SOCKET
 socket.emit('joinRoom', { sala: salaLimpa, nickname, idade, color });
@@ -175,10 +187,7 @@ function sendMsg() {
     mentionSound.play().then(() => {
       mentionSound.pause();
       isAudioUnlocked = true;
-    }).catch(error => {
-      console.warn("Tentativa de desbloquear áudio falhou:", error);
-      isAudioUnlocked = true; 
-    });
+    }).catch(() => { isAudioUnlocked = true; });
   }
   const mentions = usersOnline.filter(u => text.includes('@' + u));
 
@@ -219,7 +228,6 @@ function updateUserList(users) {
     userDiv.innerHTML = `<span><span class="status-dot ${colorClass}"></span><strong style="color: ${user.color || '#000000'};">${user.nickname}</strong> (${user.idade})</span> <span class="status-text">(${statusText})</span>`;
     
     if (!isSelf) {
-        userDiv.style.cursor = 'pointer';
         userDiv.title = `Mencionar @${user.nickname}`;
         userDiv.onclick = () => mentionUser(user.nickname);
     }
@@ -261,7 +269,7 @@ emojis.forEach(e => {
 
 emojiBtn.addEventListener('click', (e) => {
   e.stopPropagation();
-  emojiPicker.style.display = emojiPicker.style.display === 'block' ? 'none' : 'block';
+  emojiPicker.style.display = emojiPicker.style.display === 'flex' ? 'none' : 'flex';
 });
 
 msgInput.addEventListener('input', () => {
