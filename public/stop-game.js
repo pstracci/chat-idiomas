@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let roomCategories = [];
     let currentRound = 0;
     let isFinalRound = false;
+    let roundTimerInterval;
 
     if (!roomId) {
         alert('ID da sala não encontrado.');
@@ -63,6 +64,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function displayRoomInfo(room, isSpectating = false) {
         currentRoomInfo = room;
+        gameGridEl.innerHTML = ''; // Limpa qualquer tela anterior (jogo, resultados, etc)
+        
         if (isSpectating) {
             gameGridEl.innerHTML = `<div class="room-settings-panel" style="text-align: center; justify-content: center; align-items: center; height: 100%;">
                 <div>
@@ -224,11 +227,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const input = document.getElementById('add-category-input');
         const categoryValue = input.value.trim();
 		
-	 // LINHA ADICIONADA
-    if (categoryValue.length > 15) {
-        alert('O nome da categoria não pode ter mais de 15 caracteres.');
-        return;
-    }
+	    if (categoryValue.length > 15) {
+            alert('O nome da categoria não pode ter mais de 15 caracteres.');
+            return;
+        }
 	
         if (categoryValue && !roomCategories.find(c => c.toLowerCase() === categoryValue.toLowerCase())) {
             roomCategories.push(categoryValue);
@@ -238,7 +240,6 @@ document.addEventListener('DOMContentLoaded', () => {
         input.focus();
     }
 
-    // --- Lógica de Animação ---
     function launchConfetti() {
         const container = document.getElementById('confetti-container');
         if(!container) return;
@@ -259,7 +260,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const text = gameChatInput.value.trim();
         if (!text) return;
 
-        const mentions = (currentRoomInfo.participants || []).filter(p => text.includes(`@${p.nickname}`)).map(p => p.nickname);
+        // A checagem de currentRoomInfo previne erros se o chat for usado antes da sala ser carregada
+        const participants = currentRoomInfo ? currentRoomInfo.participants || [] : [];
+        const mentions = participants.filter(p => text.includes(`@${p.nickname}`)).map(p => p.nickname);
         socket.emit('stopMessage', { text, mentions });
         gameChatInput.value = '';
     }
@@ -318,7 +321,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // --- Listeners de Eventos do Socket ---
-    socket.on('connect', () => socket.emit('playerReady', { roomId }) );
+    socket.on('connect', () => {
+        socket.emit('playerReady', { roomId });
+    });
     socket.on('settingsError', (message) => { alert(`Erro ao salvar: ${message}`); });
 	
 	socket.on('ownerCanStart', (canStart) => {
@@ -416,12 +421,18 @@ document.addEventListener('DOMContentLoaded', () => {
 		readyBtn.style.display = 'none';
         stopBtn.style.display = 'inline-block';
 
+        clearInterval(roundTimerInterval);
         let timeLeft = data.duration;
         const updateTimer = () => {
+            if (timeLeft <= 0) {
+                clearInterval(roundTimerInterval);
+                timerSpan.textContent = "00:00";
+                return;
+            }
             const minutes = Math.floor(timeLeft / 60);
             const seconds = timeLeft % 60;
             timerSpan.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            if (timeLeft-- <= 0) clearInterval(roundTimerInterval);
+            timeLeft--;
         };
         updateTimer();
         roundTimerInterval = setInterval(updateTimer, 1000);

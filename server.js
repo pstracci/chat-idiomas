@@ -208,6 +208,11 @@ stopGameNamespace.on('connection', (socket) => {
     socket.on('joinRoom', ({ roomId, password }) => {
         const room = stopRooms[roomId];
         if (!room) { return socket.emit('error', 'Sala não encontrada.'); }
+
+        if (room.gameState !== 'Aguardando' && !room.participants[loggedInUser.id]) {
+            return socket.emit('error', 'Não é possível entrar na sala. Existe um jogo em andamento.');
+        }
+
         if (room.isPrivate && room.password !== password) { return socket.emit('error', 'Senha incorreta.'); }
         if (Object.keys(room.participants).length >= room.maxParticipants && !room.participants[loggedInUser.id]) { 
             return socket.emit('error', 'Esta sala está cheia.'); 
@@ -224,28 +229,42 @@ stopGameNamespace.on('connection', (socket) => {
         socket.stopRoomId = roomId;
         socket.stopUserId = id;
 
-        // --- LÓGICA DE RECONEXÃO CORRIGIDA ---
         const isReconnecting = !!room.participants[id];
         
         if (isReconnecting) {
-            clearTimeout(room.participants[id].disconnectTimer); // Cancela a remoção agendada
-            room.participants[id].socketId = socket.id; // Atualiza com a nova conexão
+            clearTimeout(room.participants[id].disconnectTimer);
+            room.participants[id].socketId = socket.id;
         } else {
-            // Jogador genuinamente novo
             room.participants[id] = { id, nickname, score: 0, socketId: socket.id, isReady: false, wins: 0 };
         }
 		
         const ownerNickname = room.participants[room.ownerId]?.nickname || 'Desconhecido';
-        // Um jogador só é espectador se for NOVO na sala E o jogo já começou.
         const isSpectating = !isReconnecting && room.gameState !== 'Aguardando';
+        
+        const socketInstance = stopGameNamespace.sockets.get(socket.id);
+        if (!socketInstance) return;
 
-        socket.emit('roomInfo', { 
+        socketInstance.emit('roomInfo', { 
             name: room.name, isOwner: String(room.ownerId) === String(id), categories: room.categories,
             isPrivate: room.isPrivate, ownerNickname: ownerNickname, maxParticipants: room.maxParticipants,
             totalRounds: room.totalRounds, currentRound: room.currentRound, isSpectating: isSpectating
         });
-        socket.emit('stopChatHistory', room.chatHistory);
         
+        switch(room.gameState) {
+            case 'Jogando':
+                const remainingTime = room.roundEndTime ? Math.max(0, Math.round((room.roundEndTime - Date.now()) / 1000)) : ROUND_DURATION;
+                socketInstance.emit('roundStart', {
+                    letter: room.currentLetter, round: room.currentRound, categories: room.categories, duration: remainingTime
+                });
+                break;
+            case 'Validando':
+                if (room.lastResultsPayload) {
+                    socketInstance.emit('roundResults', room.lastResultsPayload);
+                }
+                break;
+        }
+
+        socketInstance.emit('stopChatHistory', room.chatHistory);
         updatePlayerListAndCheckReadyState(roomId);
         stopGameNamespace.emit('updateRoomList', getSanitizedRoomList());
         broadcastStopPlayerCount();
@@ -258,35 +277,30 @@ stopGameNamespace.on('connection', (socket) => {
 
         if (!roomId || !userId || !room || !room.participants[userId]) return;
 
-        // --- LÓGICA DE DESCONEXÃO COM PERÍODO DE TOLERÂNCIA ---
         const player = room.participants[userId];
         player.disconnectTimer = setTimeout(() => {
-            // Este código só roda se o jogador não reconectar a tempo
             if (stopRooms[roomId] && stopRooms[roomId].participants[userId] && stopRooms[roomId].participants[userId].socketId === socket.id) {
                 const wasOwner = String(room.ownerId) === String(userId);
-                delete room.participants[userId];
-
-                if (Object.keys(room.participants).length === 0) {
+                
+                if (wasOwner) {
+                    stopGameNamespace.to(roomId).emit('ownerDestroyedRoom');
                     delete stopRooms[roomId];
                 } else {
-                    if (wasOwner) {
-                        stopGameNamespace.to(roomId).emit('ownerDestroyedRoom');
-                        delete stopRooms[roomId];
-                    } else {
-                        if (room.gameState === 'Validando') {
-                            const answeredPlayerIds = Object.keys(room.roundAnswers || {});
-                            const playersInGame = Object.values(room.participants).filter(p => !p.wasSpectating);
-                            if (playersInGame.every(p => answeredPlayerIds.includes(String(p.id)))) {
-                                calculateScores(roomId);
-                            }
+                    delete room.participants[userId];
+                    if (room.gameState === 'Validando') {
+                        const answeredPlayerIds = Object.keys(room.roundAnswers || {});
+                        const playersInGame = Object.values(room.participants).filter(p => !p.wasSpectating);
+                        if (playersInGame.every(p => answeredPlayerIds.includes(String(p.id)))) {
+                            calculateScores(roomId);
                         }
-                        updatePlayerListAndCheckReadyState(roomId);
                     }
+                    updatePlayerListAndCheckReadyState(roomId);
                 }
+                
                 stopGameNamespace.emit('updateRoomList', getSanitizedRoomList());
                 broadcastStopPlayerCount();
             }
-        }, 5000); // 5 segundos de tolerância para reconexão
+        }, 5000);
     });
     
     socket.on('toggleReady', () => {
@@ -325,6 +339,7 @@ stopGameNamespace.on('connection', (socket) => {
 
         room.gameState = 'Aguardando';
         room.currentRound = 0;
+        room.lastResultsPayload = null;
         Object.values(room.participants).forEach(p => {
             p.score = 0;
             p.isReady = false;
@@ -384,6 +399,7 @@ stopGameNamespace.on('connection', (socket) => {
                 participants: Object.values(room.participants).map(p => ({...p, isOwner: String(room.ownerId) === String(p.id)})),
                 isFinalRound: room.currentRound >= room.totalRounds
             };
+            room.lastResultsPayload = resultsPayload;
             
             stopGameNamespace.to(roomId).emit('roundResults', resultsPayload);
             updatePlayerListAndCheckReadyState(roomId);
@@ -446,12 +462,12 @@ stopGameNamespace.on('connection', (socket) => {
             if (socketInstance) {
                 const roomInfoPayload = {
                     name: room.name, isOwner: String(room.ownerId) === String(p.id), categories: room.categories,
-                    isPrivate: room.isPrivate, ownerNickname: ownerNick, maxParticipants: room.maxParticipants, totalRounds: room.totalRounds
+                    isPrivate: room.isPrivate, ownerNickname: ownerNick, maxParticipants: room.maxParticipants, totalRounds: room.totalRounds,
+                    currentRound: room.currentRound
                 };
                 socketInstance.emit('roomInfo', roomInfoPayload);
             }
         });
-
         stopGameNamespace.emit('updateRoomList', getSanitizedRoomList());
     });
 });
@@ -485,6 +501,10 @@ function startGame(roomId) {
     room.status = 'Jogando';
     room.currentRound++;
     room.roundAnswers = {};
+    room.lastResultsPayload = null;
+    
+    room.roundEndTime = Date.now() + ROUND_DURATION * 1000;
+
     Object.values(room.participants).forEach(p => { 
         p.isReady = false;
         p.wasSpectating = p.isSpectating || false;
@@ -566,6 +586,8 @@ function calculateScores(roomId) {
         participants: Object.values(participants).map(p => ({...p, isOwner: String(room.ownerId) === String(p.id)})),
         isFinalRound: room.currentRound >= room.totalRounds
     };
+    room.lastResultsPayload = resultsPayload;
+    
     stopGameNamespace.to(roomId).emit('roundResults', resultsPayload);
     
     Object.values(participants).forEach(p => { p.isReady = false; });
