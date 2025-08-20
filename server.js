@@ -20,7 +20,6 @@ const server = http.createServer(app);
 const io = new Server(server, {
     maxHttpBufferSize: 5e6 // 5MB
 });
-const io = new Server(server);
 
 // --- MIDDLEWARES DO EXPRESS ---
 app.set('trust proxy', 1);
