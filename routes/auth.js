@@ -2,127 +2,160 @@ const express = require('express');
 const router = express.Router();
 const passport = require('passport');
 const bcrypt = require('bcrypt');
-const crypto = require('crypto');
-const nodemailer = require('nodemailer');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 
-// Rota para o formulário de CADASTRO
-router.post('/register', async (req, res, next) => {
+// Configuração do Nodemailer
+const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST,
+    port: process.env.EMAIL_PORT,
+    secure: true,
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
+
+
+// Rota de Registro
+router.post('/register', async (req, res) => {
     try {
-        const { firstName, lastName, age, nickname, email, password, emailConsent } = req.body;
+        const { firstName, lastName, nickname, email, password, emailConsent } = req.body;
 
-        const existingEmail = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
-        if (existingEmail) {
-            return res.redirect('/register.html?error=email_exists');
-        }
+        // Verifica se email ou nickname já existem
+        const existingUser = await prisma.user.findFirst({
+            where: { OR: [{ email: email.toLowerCase() }, { nickname }] }
+        });
 
-        const existingNickname = await prisma.user.findUnique({ where: { nickname } });
-        if (existingNickname) {
-            return res.redirect('/register.html?error=nickname_exists');
+        if (existingUser) {
+            const errorType = existingUser.email === email.toLowerCase() ? 'email_exists' : 'nickname_exists';
+            return res.redirect(`/register.html?error=${errorType}`);
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = await prisma.user.create({
+
+        // --- LÓGICA MODIFICADA ---
+        // Cria o usuário e o perfil associado em uma única transação
+        const user = await prisma.user.create({
             data: {
-                firstName, lastName, age: parseInt(age), nickname,
-                email: email.toLowerCase(), password: hashedPassword,
-                emailConsent: !!emailConsent
-            }
+                nickname,
+                email: email.toLowerCase(),
+                password: hashedPassword,
+                emailConsent: !!emailConsent,
+                profile: {
+                    create: {
+                        firstName: firstName,
+                        lastName: lastName,
+                    },
+                },
+            },
         });
 
-        req.login(newUser, (err) => {
-            if (err) { return next(err); }
+        req.login(user, (err) => {
+            if (err) {
+                console.error("Erro no login automático após registro:", err);
+                return res.redirect('/login.html');
+            }
             return res.redirect('/');
         });
-    } catch (err) {
-        console.error("Erro no registro:", err);
+
+    } catch (error) {
+        console.error("Erro no processo de registro:", error);
         res.redirect('/register.html?error=unknown');
     }
 });
 
-// Rota para o formulário de LOGIN
+
+// Rota de Login
 router.post('/login', passport.authenticate('local', {
     successRedirect: '/',
-    failureRedirect: '/login.html?error=1',
+    failureRedirect: '/login.html?error=true'
 }));
 
-// Rota de LOGOUT
+// Rota de Logout
 router.get('/logout', (req, res, next) => {
+    const socketId = req.session.socketId;
+    if (socketId && io.sockets.sockets.has(socketId)) {
+        console.log(`Desconectando socket ${socketId} no logout.`);
+        io.sockets.sockets.get(socketId).disconnect(true);
+    }
+
     req.logout((err) => {
         if (err) { return next(err); }
-        res.redirect('/');
+        req.session.destroy(() => {
+            res.clearCookie('connect.sid');
+            res.redirect('/');
+        });
     });
 });
 
-// --- NOVAS ROTAS DE REDEFINIÇÃO DE SENHA ---
+// Rota para verificar status de login
+router.get('/api/user/status', (req, res) => {
+    if (req.isAuthenticated()) {
+        res.json({
+            loggedIn: true,
+            nickname: req.user.nickname,
+            userId: req.user.id
+        });
+    } else {
+        res.json({ loggedIn: false });
+    }
+});
 
-// Rota para lidar com a solicitação de redefinição de senha
+
+// Rotas de Recuperação de Senha
 router.post('/forgot-password', async (req, res) => {
     try {
-        const user = await prisma.user.findFirst({ 
-    where: { email: { equals: req.body.email, mode: 'insensitive' } } 
-});
-        if (!user || !user.password) { // Não encontra ou é usuário de rede social
-            return res.redirect('/forgot-password.html?error=notfound');
+        const user = await prisma.user.findUnique({ where: { email: req.body.email.toLowerCase() } });
+        if (!user) {
+            return res.redirect('/forgot-password.html?error=not_found');
         }
 
         const token = crypto.randomBytes(20).toString('hex');
-        const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+        const expires = new Date(Date.now() + 3600000); // 1 hora
 
         await prisma.user.update({
-            where: { id: user.id },
+            where: { email: req.body.email.toLowerCase() },
             data: {
-                passwordResetToken: hashedToken,
-                passwordResetExpires: new Date(Date.now() + 3600000) // 1 hora
-            }
-        });
-
-        const resetURL = `http://${req.headers.host}/reset-password.html?token=${token}`;
-        
-        // Configuração do Nodemailer
-        let transporter = nodemailer.createTransport({
-            host: process.env.EMAIL_HOST,
-            port: 587,
-            secure: false,
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS,
+                passwordResetToken: token,
+                passwordResetExpires: expires,
             },
         });
+
+        const resetURL = `${req.protocol}://${req.get('host')}/reset-password.html?token=${token}`;
         
         await transporter.sendMail({
-            from: `"Verbi" <${process.env.EMAIL_USER}>`,
             to: user.email,
-            subject: "Redefinição de Senha - Verbi",
-            html: `<p>Você solicitou a redefinição da sua senha.</p>
-                   <p>Clique neste <a href="${resetURL}">link</a> para criar uma nova senha.</p>
-                   <p>Este link expira em 1 hora.</p>`,
+            from: process.env.EMAIL_USER,
+            subject: 'Redefinição de Senha - Verbi',
+            html: `Você está recebendo este e-mail porque solicitou a redefinição de senha para sua conta no Verbi.<br><br>
+                   Por favor, clique no link a seguir ou cole-o em seu navegador para concluir o processo:<br><br>
+                   <a href="${resetURL}">${resetURL}</a><br><br>
+                   Se você não solicitou isso, por favor, ignore este e-mail e sua senha permanecerá inalterada.`
         });
 
         res.redirect('/forgot-password.html?status=success');
 
-    } catch (err) {
-        console.error("Erro no forgot-password:", err);
-        res.redirect('/forgot-password.html?error=unknown');
+    } catch (error) {
+        console.error('Erro em /forgot-password:', error);
+        res.redirect('/forgot-password.html?error=server_error');
     }
 });
 
-// Rota para lidar com a submissão da nova senha
 router.post('/reset-password', async (req, res) => {
     const { token, password, confirmPassword } = req.body;
-
     if (password !== confirmPassword) {
         return res.redirect(`/reset-password.html?token=${token}&error=mismatch`);
     }
 
     try {
-        const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
         const user = await prisma.user.findFirst({
             where: {
-                passwordResetToken: hashedToken,
-                passwordResetExpires: { gt: new Date() }
-            }
+                passwordResetToken: token,
+                passwordResetExpires: { gt: new Date() },
+            },
         });
 
         if (!user) {
@@ -135,17 +168,15 @@ router.post('/reset-password', async (req, res) => {
             data: {
                 password: hashedPassword,
                 passwordResetToken: null,
-                passwordResetExpires: null
-            }
+                passwordResetExpires: null,
+            },
         });
 
         res.redirect('/login.html?reset=success');
-
-    } catch (err) {
-        console.error("Erro no reset-password:", err);
-        res.redirect(`/reset-password.html?token=${token}&error=unknown`);
+    } catch (error) {
+        console.error('Erro em /reset-password:', error);
+        res.redirect(`/reset-password.html?token=${token}&error=invalid`);
     }
 });
-
 
 module.exports = router;
