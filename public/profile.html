@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Perfil - Verbi</title>
+    <style>
+        :root { --primary-color: #007bff; --light-gray: #f8f9fa; --gray-border: #dee2e6; --green-online: #28a745; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: #f4f7f6; color: #333; }
+        .top-nav { background-color: #343a40; color: white; padding: 8px 40px; text-align: right; }
+        .top-nav a { color: white; text-decoration: none; margin-left: 20px; font-weight: 500; }
+        .container { max-width: 960px; margin: 30px auto; padding: 20px; display: grid; grid-template-columns: 300px 1fr; gap: 30px; }
+        .profile-sidebar { text-align: center; }
+        .profile-picture-container { position: relative; width: 180px; height: 180px; margin: 0 auto 20px; }
+        #profilePicture { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 4px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        #uploadButton { position: absolute; bottom: 10px; right: 10px; background-color: var(--primary-color); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        #profilePictureInput { display: none; }
+        .user-info h2 { margin: 0; }
+        .user-info p { color: #6c757d; }
+        .nickname-container { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px; min-height: 40px; }
+        .nickname-container button { background: none; border: none; cursor: pointer; font-size: 20px; padding: 5px; color: var(--primary-color); }
+        #editNicknameInputContainer { display: none; align-items: center; gap: 5px; }
+        #nicknameInput { padding: 8px; border: 1px solid #ccc; border-radius: 5px; }
+        .status { display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 500; }
+        .status.online { color: var(--green-online); }
+        .status .dot { width: 12px; height: 12px; border-radius: 50%; background-color: var(--green-online); }
+        .status.offline .dot { background-color: #6c757d; }
+        .card { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 8px; }
+        .form-group input, .form-group select { width: 100%; padding: 12px; border: 1px solid var(--gray-border); border-radius: 5px; box-sizing: border-box; }
+        .form-group input:disabled, .form-group select:disabled { background-color: #e9ecef; cursor: not-allowed; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .btn-save { width: 100%; background-color: #28a745; color: white; padding: 15px; border: none; border-radius: 5px; cursor: pointer; font-size: 1.1em; font-weight: 700; }
+        .language-list { list-style: none; padding: 0; }
+        .language-item { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .language-item input, .language-item select { flex-grow: 1; }
+        .remove-btn { background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; padding: 5px 10px; }
+        .add-btn { background: var(--primary-color); color: white; border: none; border-radius: 5px; cursor: pointer; padding: 5px 10px; }
+        .country-display { display: flex; align-items: center; gap: 10px; font-size: 1.2em; }
+        .country-display img { border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    </style>
+</head>
+<body>
+    <div class="top-nav">
+        <a href="/">Página Inicial</a>
+        <a href="/logout">Sair</a>
+    </div>
+    <div class="container">
+        <aside class="profile-sidebar card">
+            <div class="profile-picture-container">
+                <img id="profilePicture" src="default-avatar.png" alt="Foto de Perfil">
+                <input type="file" id="profilePictureInput" accept="image/jpeg, image/png">
+                <button id="uploadButton" title="Trocar imagem">✏️</button>
+            </div>
+            <div class="user-info">
+                <div class="nickname-container">
+                    <h2 id="nicknameDisplay">[Nickname]</h2>
+                    <button id="editNicknameBtn" title="Editar nickname">✏️</button>
+                    <div id="editNicknameInputContainer">
+                        <input type="text" id="nicknameInput" maxlength="10">
+                        <button id="saveNicknameBtn" title="Salvar nickname">✔️</button>
+                    </div>
+                </div>
+                <div id="statusDisplay" class="status offline"><div class="dot"></div><span>Offline</span></div>
+                <hr>
+                <div id="countryDisplay" class="country-display">
+                    <span id="countryFlag"></span>
+                    <span id="countryName"></span>
+                </div>
+            </div>
+        </aside>
+        <main class="profile-details card">
+            <form id="profileForm">
+                <h3>Dados Gerais</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="firstName">Nome</label>
+                        <input type="text" id="firstName" name="firstName">
+                    </div>
+                    <div class="form-group">
+                        <label for="lastName">Sobrenome</label>
+                        <input type="text" id="lastName" name="lastName">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="email">E-mail</label>
+                    <input type="email" id="email" name="email" disabled title="O e-mail não pode ser alterado.">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="dateOfBirth">Data de Nascimento</label>
+                        <input type="date" id="dateOfBirth" name="dateOfBirth">
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">Telefone</label>
+                        <input type="tel" id="phone" name="phone" placeholder="(Opcional)">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="country">País de Nascimento</label>
+                    <input type="text" id="country" name="country" placeholder="Ex: Brasil">
+                </div>
+                <hr>
+                <h3>Idiomas</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Eu falo:</label>
+                        <ul id="languagesSpokenList" class="language-list"></ul>
+                        <button type="button" class="add-btn" id="addSpokenLanguageBtn">Adicionar</button>
+                    </div>
+                    <div class="form-group">
+                        <label>Quero aprender:</label>
+                        <ul id="languagesLearningList" class="language-list"></ul>
+                        <button type="button" class="add-btn" id="addLearningLanguageBtn">Adicionar</button>
+                    </div>
+                </div>
+                <button type="submit" class="btn-save">Salvar Alterações</button>
+            </form>
+        </main>
+    </div>
+    <script src="profile.js"></script>
+</body>
+</html>

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cadastro - Verbi</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px 0; }
         .form-wrapper { background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
         h2 { text-align: center; color: #0056b3; margin-top: 0; }
         .form-group { margin-bottom: 20px; }
@@ -34,8 +34,8 @@
                 <input type="text" id="lastName" name="lastName" required>
             </div>
             <div class="form-group">
-                <label for="age">Idade:</label>
-                <input type="number" id="age" name="age" required>
+                <label for="dateOfBirth">Data de Nascimento:</label>
+                <input type="date" id="dateOfBirth" name="dateOfBirth" required>
             </div>
             <div class="form-group">
                 <label for="nickname">Nickname (máx. 10 caracteres):</label>
