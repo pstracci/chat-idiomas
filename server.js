@@ -11,6 +11,7 @@ const { Server } = require('socket.io');
 const PgSimple = require('connect-pg-simple')(session);
 const { PrismaClient } = require('@prisma/client');
 
+
 // --- INICIALIZAÇÃO E CONFIGURAÇÃO ---
 const prisma = new PrismaClient();
 const app = express();
@@ -61,8 +62,11 @@ app.use(updateUserStatus);
 // --- ROTAS ---
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profile');
+const agoraRoutes = require('./routes/agora'); 
 app.use('/', authRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/agora', agoraRoutes);
+
 
 function isAuthenticated(req, res, next) {
     if (req.isAuthenticated()) return next();

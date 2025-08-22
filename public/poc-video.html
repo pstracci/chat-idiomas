@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>POC Vídeo Chamada - Verbi</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background-color: #f4f7f6; color: #333; padding: 20px; }
+        .container { max-width: 1024px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { color: #0056b3; text-align: center; }
+        .controls { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 20px; }
+        .controls button { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; font-weight: bold; transition: background-color 0.3s; }
+        #join-btn { background-color: #28a745; color: white; }
+        #leave-btn { background-color: #dc3545; color: white; }
+        #mic-btn, #cam-btn { background-color: #6c757d; color: white; }
+        .video-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; margin-bottom: 20px; }
+        .video-player { width: 480px; height: 360px; background: #e9ecef; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden; position: relative; }
+        .video-player div { width: 100%; height: 100%; } /* Garante que o vídeo da Agora preencha o container */
+        #local-player { border: 2px solid #007bff; }
+        .player-label { position: absolute; bottom: 10px; left: 10px; background: rgba(0, 0, 0, 0.5); color: white; padding: 5px 10px; border-radius: 5px; font-size: 0.9em; }
+        .chat-container { border-top: 1px solid #dee2e6; padding-top: 20px; }
+        h2 { text-align: center; color: #0056b3; }
+        #chat-box { width: 100%; height: 200px; border: 1px solid #dee2e6; border-radius: 5px; overflow-y: auto; padding: 10px; margin-bottom: 10px; box-sizing: border-box; }
+        #chat-box p { margin: 0 0 10px; }
+        .chat-controls { display: flex; gap: 10px; }
+        #chat-input { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
+        #send-btn { background-color: #007bff; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Prova de Conceito - Chamada de Vídeo Agora.io</h1>
+        <div class="controls">
+            <button id="join-btn">Entrar na Chamada</button>
+            <button id="leave-btn">Sair da Chamada</button>
+            <button id="mic-btn">Mutar Áudio</button>
+            <button id="cam-btn">Desligar Câmara</button>
+        </div>
+        <div class="video-container">
+            <div class="video-player" id="local-player-container">
+                <div id="local-player"></div>
+                <span class="player-label">Você</span>
+            </div>
+            <div class="video-player" id="remote-player-container">
+                <div id="remote-players"></div>
+                 <span class="player-label">Remoto</span>
+            </div>
+        </div>
+        <div class="chat-container">
+            <h2>Chat da Chamada</h2>
+            <div id="chat-box"></div>
+            <div class="chat-controls">
+                <input type="text" id="chat-input" placeholder="Digite a sua mensagem...">
+                <button id="send-btn" class="controls-btn">Enviar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://download.agora.io/sdk/release/AgoraRTC_N.js"></script>
+    <script src="https://unpkg.com/agora-rtm-sdk@1.5.1/index.js"></script>
+    <script src="poc-video.js"></script>
+</body>
+</html>
