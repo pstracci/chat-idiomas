@@ -19,22 +19,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     const editNicknameInputContainer = document.getElementById('editNicknameInputContainer');
     const nicknameInput = document.getElementById('nicknameInput');
     const saveNicknameBtn = document.getElementById('saveNicknameBtn');
+    const connectionControls = document.getElementById('connection-controls');
+    const connectBtn = document.getElementById('connect-btn');
+    const disconnectBtn = document.getElementById('disconnect-btn');
 
     // --- ESTADO ---
     let profileData = {};
     let currentUser = {};
+    let isLoggedIn = false;
     let isOwnProfile = false;
     let base64Image = null;
 
     // --- FUNÇÕES ---
 
-    // Função para buscar o status do usuário logado
     async function getCurrentUserStatus() {
-        const response = await fetch('/api/user/status');
-        return response.json();
+        try {
+            const response = await fetch('/api/user/status');
+            const data = await response.json();
+            isLoggedIn = data.loggedIn;
+            return data;
+        } catch (error) {
+            isLoggedIn = false;
+            return { loggedIn: false };
+        }
     }
 
-    // Função para obter a bandeira do país a partir de uma API externa
     async function getCountryInfo(countryName) {
         if (!countryName) return { name: 'Não definido', flag: '🏳️' };
         try {
@@ -49,7 +58,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Função para renderizar as listas de idiomas
     function renderLanguageLists() {
         languagesSpokenList.innerHTML = '';
         profileData.languagesSpoken?.forEach((lang, index) => {
@@ -78,7 +86,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Função para preencher todos os campos da página com os dados do perfil
     async function populatePage() {
         const { user } = profileData;
         
@@ -121,147 +128,123 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         renderLanguageLists();
         toggleEditMode();
+        updateConnectionButton();
     }
     
-    // Habilita/desabilita o modo de edição
-	function toggleEditMode() {
-		// --- ADICIONADO: Pega o elemento do campo de telefone ---
-		const phoneInput = document.getElementById('phone');
-	
-		// Desabilita todos os campos do formulário se não for o perfil próprio
-		[...profileForm.elements].forEach(el => el.disabled = !isOwnProfile);
-		
-		// Esconde/mostra os botões de edição com base em quem está vendo o perfil
-		uploadButton.style.display = isOwnProfile ? 'flex' : 'none';
-		saveButton.style.display = isOwnProfile ? 'block' : 'none';
-		addSpokenLanguageBtn.style.display = isOwnProfile ? 'block' : 'none';
-		addLearningLanguageBtn.style.display = isOwnProfile ? 'block' : 'none';
-		editNicknameBtn.style.display = isOwnProfile ? 'block' : 'none';
-	
-		// --- ADICIONADO: Lógica para alterar o placeholder do telefone ---
-		if (isOwnProfile) {
-			phoneInput.placeholder = '(Opcional)';
-		} else {
-			phoneInput.placeholder = 'Não disponível';
-		}
-	}
-
-    // --- LÓGICA DE EVENTOS ---
-
-    // Lógica de Edição do Nickname
-    editNicknameBtn.addEventListener('click', () => {
-        nicknameDisplay.style.display = 'none';
-        editNicknameBtn.style.display = 'none';
-        editNicknameInputContainer.style.display = 'flex';
-        nicknameInput.focus();
-    });
-
-    saveNicknameBtn.addEventListener('click', () => {
-        const newNickname = nicknameInput.value.trim();
-        if (newNickname) {
-            nicknameDisplay.textContent = newNickname;
-            profileData.user.nickname = newNickname;
+    function toggleEditMode() {
+        const phoneInput = document.getElementById('phone');
+        const canEdit = isOwnProfile && isLoggedIn;
+        [...profileForm.elements].forEach(el => el.disabled = !canEdit);
+        uploadButton.style.display = canEdit ? 'flex' : 'none';
+        saveButton.style.display = canEdit ? 'block' : 'none';
+        addSpokenLanguageBtn.style.display = canEdit ? 'block' : 'none';
+        addLearningLanguageBtn.style.display = canEdit ? 'block' : 'none';
+        editNicknameBtn.style.display = canEdit ? 'block' : 'none';
+        if (canEdit) {
+            phoneInput.placeholder = '(Opcional)';
+        } else {
+            phoneInput.placeholder = 'Não disponível';
         }
-        nicknameDisplay.style.display = 'block';
-        editNicknameBtn.style.display = 'block';
-        editNicknameInputContainer.style.display = 'none';
-    });
-    
-    // Upload de Imagem
-    uploadButton.addEventListener('click', () => profilePictureInput.click());
-    profilePictureInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        if (file.size > 2 * 1024 * 1024) return alert('A imagem é muito grande! O tamanho máximo é 2MB.');
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            base64Image = event.target.result;
-            profilePicture.src = base64Image;
-        };
-        reader.readAsDataURL(file);
-    });
+    }
 
-    // Adicionar/Remover Idiomas
-    addSpokenLanguageBtn.addEventListener('click', () => {
-        if (!profileData.languagesSpoken) profileData.languagesSpoken = [];
-        profileData.languagesSpoken.push({ language: '', level: 'A1' });
-        renderLanguageLists();
-    });
-    addLearningLanguageBtn.addEventListener('click', () => {
-        if (!profileData.languagesLearning) profileData.languagesLearning = [];
-        profileData.languagesLearning.push('');
-        renderLanguageLists();
-    });
-
-    document.addEventListener('click', (e) => {
-        if (e.target.matches('.remove-btn')) {
-            const { index, type } = e.target.dataset;
-            if (type === 'spoken') profileData.languagesSpoken.splice(index, 1);
-            if (type === 'learning') profileData.languagesLearning.splice(index, 1);
-            renderLanguageLists();
+    function updateConnectionButton() {
+        if (!connectionControls || !connectBtn || !disconnectBtn) {
+            return;
         }
-    });
-
-    // Atualiza o estado dos idiomas enquanto o usuário digita
-    document.addEventListener('input', (e) => {
-        if (e.target.matches('.language-item input, .language-item select')) {
-            const { index, type, key } = e.target.dataset;
-            if (type === 'spoken') {
-                if (!profileData.languagesSpoken[index]) profileData.languagesSpoken[index] = {};
-                profileData.languagesSpoken[index][key] = e.target.value;
-            }
-            if (type === 'learning') {
-                profileData.languagesLearning[index] = e.target.value;
-            }
+        if (isOwnProfile) {
+            connectionControls.style.display = 'none';
+            return;
         }
-    });
+        if (!isLoggedIn) {
+            connectionControls.style.display = 'none';
+            return;
+        }
+        connectionControls.style.display = 'block';
+        connectBtn.style.display = 'block';
+        disconnectBtn.style.display = 'none';
+        connectBtn.disabled = false;
+        connectBtn.classList.remove('btn-accept');
 
-    // Submissão do Formulário
-    profileForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData(profileForm);
-        const data = Object.fromEntries(formData.entries());
-        
-        const payload = {
-            ...data,
-            nickname: profileData.user.nickname,
-            profilePicture: base64Image || profileData.profilePicture,
-            languagesSpoken: (profileData.languagesSpoken || []).filter(l => l.language?.trim()),
-            languagesLearning: (profileData.languagesLearning || []).filter(l => l?.trim()),
-        };
+        const status = profileData.connectionStatus;
+        const connectionId = profileData.connectionId;
+        const nickname = profileData.user.nickname;
 
+        switch (status) {
+            case 'ACCEPTED':
+                connectBtn.textContent = 'Conectado';
+                connectBtn.disabled = true;
+                disconnectBtn.style.display = 'block';
+                disconnectBtn.onclick = () => disconnectUser(connectionId, nickname);
+                break;
+            case 'PENDING_SENT':
+                connectBtn.textContent = 'Pedido Pendente';
+                connectBtn.disabled = true;
+                break;
+            case 'PENDING_RECEIVED':
+                connectBtn.textContent = 'Aceitar Pedido';
+                connectBtn.classList.add('btn-accept');
+                connectBtn.onclick = () => acceptConnection(connectionId);
+                break;
+            default:
+                connectBtn.textContent = 'Pedir para se conectar';
+                connectBtn.onclick = () => sendConnectionRequest();
+                break;
+        }
+    }
+
+    async function disconnectUser(connectionId, nickname) {
+        if (!confirm(`Tem a certeza que deseja desconectar de ${nickname}?`)) {
+            return;
+        }
         try {
-            const response = await fetch('/api/profile/me', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-            if (response.status === 409) {
-                const errorData = await response.json();
-                return alert(errorData.error);
+            const response = await fetch(`/api/connections/delete/${connectionId}`, { method: 'DELETE' });
+            if (!response.ok) {
+                throw new Error('Não foi possível desconectar.');
             }
-            if (!response.ok) throw new Error('Falha ao salvar.');
-            alert('Perfil atualizado com sucesso!');
-            base64Image = null;
-            window.location.reload();
+            profileData.connectionStatus = null;
+            profileData.connectionId = null;
+            updateConnectionButton();
         } catch (error) {
-            alert(`Erro ao salvar o perfil: ${error.message}`);
+            alert(error.message);
         }
-    });
+    }
 
-    // --- INICIALIZAÇÃO DA PÁGINA ---
+    async function sendConnectionRequest() { if (connectBtn) connectBtn.disabled = true; try { const response = await fetch(`/api/connections/request/${profileData.user.id}`, { method: 'POST' }); if (!response.ok) throw new Error('Falha ao enviar pedido.'); if (connectBtn) connectBtn.textContent = 'Pedido Enviado'; } catch (error) { alert(error.message); if (connectBtn) connectBtn.disabled = false; } }
+    async function acceptConnection(connectionId) { if (connectBtn) connectBtn.disabled = true; try { const response = await fetch(`/api/connections/accept/${connectionId}`, { method: 'PUT' }); if (!response.ok) throw new Error('Falha ao aceitar pedido.'); if (connectBtn) { connectBtn.textContent = 'Conectado'; connectBtn.classList.remove('btn-accept'); } profileData.connectionStatus = 'ACCEPTED'; updateConnectionButton(); } catch (error) { alert(error.message); if (connectBtn) connectBtn.disabled = false; } }
+    
+    // LÓGICA DE EVENTOS
+    editNicknameBtn.addEventListener('click', () => { nicknameDisplay.style.display = 'none'; editNicknameBtn.style.display = 'none'; editNicknameInputContainer.style.display = 'flex'; nicknameInput.focus(); });
+    saveNicknameBtn.addEventListener('click', () => { const newNickname = nicknameInput.value.trim(); if (newNickname) { nicknameDisplay.textContent = newNickname; profileData.user.nickname = newNickname; } nicknameDisplay.style.display = 'block'; editNicknameBtn.style.display = 'block'; editNicknameInputContainer.style.display = 'none'; });
+    uploadButton.addEventListener('click', () => profilePictureInput.click());
+    profilePictureInput.addEventListener('change', (e) => { const file = e.target.files[0]; if (!file) return; if (file.size > 2 * 1024 * 1024) return alert('A imagem é muito grande! O tamanho máximo é 2MB.'); const reader = new FileReader(); reader.onload = (event) => { base64Image = event.target.result; profilePicture.src = base64Image; }; reader.readAsDataURL(file); });
+    addSpokenLanguageBtn.addEventListener('click', () => { if (!profileData.languagesSpoken) profileData.languagesSpoken = []; profileData.languagesSpoken.push({ language: '', level: 'A1' }); renderLanguageLists(); });
+    addLearningLanguageBtn.addEventListener('click', () => { if (!profileData.languagesLearning) profileData.languagesLearning = []; profileData.languagesLearning.push(''); renderLanguageLists(); });
+    document.addEventListener('click', (e) => { if (e.target.matches('.remove-btn')) { const { index, type } = e.target.dataset; if (type === 'spoken') profileData.languagesSpoken.splice(index, 1); if (type === 'learning') profileData.languagesLearning.splice(index, 1); renderLanguageLists(); } });
+    document.addEventListener('input', (e) => { if (e.target.matches('.language-item input, .language-item select')) { const { index, type, key } = e.target.dataset; if (type === 'spoken') { if (!profileData.languagesSpoken[index]) profileData.languagesSpoken[index] = {}; profileData.languagesSpoken[index][key] = e.target.value; } if (type === 'learning') { profileData.languagesLearning[index] = e.target.value; } } });
+    profileForm.addEventListener('submit', async (e) => { e.preventDefault(); const formData = new FormData(profileForm); const data = Object.fromEntries(formData.entries()); const payload = { ...data, nickname: profileData.user.nickname, profilePicture: base64Image || profileData.profilePicture, languagesSpoken: (profileData.languagesSpoken || []).filter(l => l.language?.trim()), languagesLearning: (profileData.languagesLearning || []).filter(l => l?.trim()), }; try { const response = await fetch('/api/profile/me', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), }); if (!response.ok) { const errorData = await response.json().catch(() => ({})); throw new Error(errorData.error || 'Falha ao salvar.'); } alert('Perfil atualizado com sucesso!'); base64Image = null; window.location.reload(); } catch (error) { alert(`Erro ao salvar o perfil: ${error.message}`); } });
+
+    // --- INICIALIZAÇÃO DA PÁGINA (LÓGICA CORRIGIDA) ---
     try {
         currentUser = await getCurrentUserStatus();
         const params = new URLSearchParams(window.location.search);
         const urlUserId = params.get('userId');
         let fetchUrl;
 
-        if (urlUserId && urlUserId !== currentUser.userId) {
-            isOwnProfile = false;
+        // Caso 1: Utilizador está a tentar ver um perfil sem especificar qual (ex: /profile.html)
+        if (!urlUserId) {
+            if (isLoggedIn) {
+                // Se está logado, mostramos o seu próprio perfil
+                isOwnProfile = true;
+                fetchUrl = '/api/profile/me';
+            } else {
+                // Se não está logado, não há o que mostrar.
+                throw new Error('Perfil não encontrado. Por favor, faça login para ver o seu perfil.');
+            }
+        } 
+        // Caso 2: Um perfil específico foi solicitado na URL
+        else {
+            isOwnProfile = isLoggedIn && (urlUserId === currentUser.userId);
             fetchUrl = `/api/profile/${urlUserId}`;
-        } else {
-            isOwnProfile = true;
-            fetchUrl = '/api/profile/me';
         }
 
         const response = await fetch(fetchUrl);
@@ -269,20 +252,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         profileData = await response.json();
         
-        // Garante que os campos de idioma sejam arrays, mesmo que venham nulos ou mal formatados
-        if (typeof profileData.languagesSpoken === 'string') {
-            try {
-                profileData.languagesSpoken = JSON.parse(profileData.languagesSpoken || '[]');
-            } catch {
-                profileData.languagesSpoken = [];
-            }
-        }
+        if (typeof profileData.languagesSpoken === 'string') profileData.languagesSpoken = JSON.parse(profileData.languagesSpoken || '[]');
         if (!Array.isArray(profileData.languagesSpoken)) profileData.languagesSpoken = [];
         if (!Array.isArray(profileData.languagesLearning)) profileData.languagesLearning = [];
         
         await populatePage();
+
     } catch (error) {
-        console.error(error);
-        document.body.innerHTML = '<h1>Perfil não encontrado ou erro ao carregar.</h1>';
+        console.error("Erro na inicialização da página:", error);
+        document.body.innerHTML = `<h1>Erro ao carregar o perfil</h1><p>${error.message}</p><a href="/">Voltar</a>`;
     }
 });

@@ -39,6 +39,11 @@
         .add-btn { background: var(--primary-color); color: white; border: none; border-radius: 5px; cursor: pointer; padding: 5px 10px; }
         .country-display { display: flex; align-items: center; gap: 10px; font-size: 1.2em; }
         .country-display img { border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+		.connection-controls { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .btn-connect { background-color: var(--primary-color); color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 1em; }
+        .btn-connect:disabled { background-color: #6c757d; cursor: not-allowed; }
+        .btn-accept { background-color: #28a745; }
+        .btn-disconnect { background-color: #dc3545; }
     </style>
 </head>
 <body>
@@ -68,6 +73,12 @@
                     <span id="countryFlag"></span>
                     <span id="countryName"></span>
                 </div>
+
+                <div id="connection-controls" class="connection-controls" style="display: none;">
+                    <button id="connect-btn" class="btn-connect"></button>
+                    <button id="disconnect-btn" class="btn-connect btn-disconnect" style="display: none;">Desconectar</button>
+                </div>
+                
             </div>
         </aside>
         <main class="profile-details card">

@@ -4,22 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<meta name="description" content="Encontre parceiros para praticar inglês, espanhol, francês e mais! Salas de chat gratuitas para conversação e aprendizado de idiomas com pessoas do mundo todo. Entre no Verbi e acelere sua fluência!">
-    <title>Verbi - Pratique Idiomas e Jogue STOP!</title>
+    <title>Verbi - Jogue, conecte-se  e pratique Idiomas com nativos do mundo todo!</title>
     <style>
         body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0;background-color:#f4f7f6;color:#333;line-height:1.6}
-        .top-nav{background-color:#343a40;color:white;padding:8px 40px;display:flex;justify-content:flex-end;align-items:center;font-size:.9em}.top-nav a{color:white;text-decoration:none;margin-left:20px;font-weight:500}.top-nav a:hover{text-decoration:underline}#logged-in-view span{margin-right:20px}
+        .top-nav{background-color:#343a40;color:white;padding:8px 40px;display:flex;justify-content:flex-end;align-items:center;font-size:.9em}
+        #logged-in-view {display: none; align-items: center; gap: 15px;}
+        .top-nav a{color:white;text-decoration:none;margin:0;font-weight:500}.top-nav a:hover{text-decoration:underline}#logged-in-view span{margin:0}
         header{background:linear-gradient(to right,#007bff,#0056b3);color:white;padding:30px 20px;text-align:center;box-shadow:0 4px 8px rgba(0,0,0,.1)}
         header h1{margin:0;font-size:2.5em}
         header p{margin-top:5px;font-size:1.2em;opacity:.9}
         .hero{display:flex;align-items:center;justify-content:center;padding:50px 20px;gap:40px}
         
-        /* --- CSS MODIFICADO --- */
         .hero-content{
             flex-basis:50%;
             max-width:500px;
-            display: flex; /* Adicionado para organizar os cards */
-            flex-direction: column; /* Adicionado para empilhar verticalmente */
-            gap: 25px; /* Adicionado para criar espaço entre os cards */
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
         }
 
         .hero-image-container{flex-basis:40%;max-width:400px;text-align:center;position:relative;display:flex;align-items:center;justify-content:center}
@@ -63,6 +64,103 @@
         .user-search-container { position: relative; }
         @media (max-width:960px){ main { flex-direction: column; } }
         @media (max-width:768px){ .hero{flex-direction:column;text-align:center}header h1{font-size:2em}.hero-image-container{margin-top:30px;min-height:250px} }
+
+        .connections-widget {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            width: 280px;
+            max-height: 400px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+        }
+        .widget-header {
+            padding: 10px 15px;
+            background-color: #343a40;
+            color: white;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .widget-header h3 { margin: 0; font-size: 1.1em; }
+        .toggle-widget { cursor: pointer; font-size: 1.5em; line-height: 1; }
+        .widget-body { overflow-y: auto; padding: 5px; }
+        .connections-list { list-style: none; padding: 0; margin: 0; }
+        .connection-item { display: flex; align-items: center; padding: 8px 10px; border-radius: 5px; }
+        .connection-item-link { text-decoration: none; color: inherit; display: flex; align-items: center; flex-grow: 1; }
+        .connection-item:hover { background-color: #f1f1f1; }
+        .connection-item img { width: 35px; height: 35px; border-radius: 50%; margin-right: 10px; object-fit: cover; }
+        .connection-item .action-buttons { margin-left: auto; display: flex; align-items: center;}
+        .btn-video { background: none; border: none; font-size: 1.2em; cursor: pointer; color: #28a745; padding: 5px; }
+        .btn-video:hover { opacity: 0.7; }
+        .btn-chat { background: none; border: none; font-size: 1.2em; cursor: pointer; color: #007bff; padding: 5px; }
+        .btn-chat:hover { opacity: 0.7; }
+        .btn-disconnect { background: none; border: none; font-size: 1.2em; cursor: pointer; color: #dc3545; padding: 5px; }
+        .btn-disconnect:hover { opacity: 0.7; }
+        
+        .notification-container {
+            position: relative;
+        }
+        #notification-bell {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+        #notification-bell .icon { font-size: 1.5em; line-height: 1; }
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -8px;
+            background-color: #dc3545;
+            color: white;
+            border-radius: 50%;
+            font-size: 0.75em;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            padding: 2px;
+            box-sizing: border-box;
+            display: none;
+        }
+        .notifications-dropdown {
+            display: none;
+            position: absolute;
+            top: 40px;
+            right: 0;
+            width: 350px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.2);
+            z-index: 2000;
+            color: #333;
+        }
+        .notifications-dropdown.active {
+            display: block;
+        }
+        .notifications-dropdown h2 {
+            padding: 15px;
+            margin: 0;
+            font-size: 1.1em;
+            border-bottom: 1px solid #eee;
+        }
+        .requests-list { list-style: none; padding: 0; margin: 0; max-height: 300px; overflow-y: auto; }
+        .request-item { display: flex; align-items: center; padding: 10px 15px; border-bottom: 1px solid #eee; }
+        .request-item:last-child { border-bottom: none; }
+        .request-item img { width: 40px; height: 40px; border-radius: 50%; margin-right: 15px; }
+        .request-item .info { flex-grow: 1; font-size: 0.9em; }
+        .request-item .actions button { margin-left: 5px; padding: 5px 10px; border-radius: 5px; cursor: pointer; border: none; color: white; }
+        .btn-accept { background-color: #28a745; }
+        .btn-reject { background-color: #6c757d; }
+        .btn-read { background-color: #007bff; } /* Estilo para o novo botão 'Lido' */
+        .connections-widget, .hero, header, main, footer { z-index: 1; }
     </style>
 </head>
 <body>
@@ -72,8 +170,19 @@
             <a href="/login.html">Login</a>
             <a href="/register.html">Cadastre-se</a>
         </div>
-        <div id="logged-in-view" style="display: none;">
+        <div id="logged-in-view">
             <span id="welcome-message"></span>
+			<span id="admin-link-container"></span>
+            <div class="notification-container">
+                <div id="notification-bell" title="Notificações" style="display: none;">
+                    <span class="icon">🔔</span>
+                    <span id="notification-count" class="notification-badge"></span>
+                </div>
+                <div id="notifications-dropdown" class="notifications-dropdown">
+                    <h2>Notificações</h2>
+                    <ul id="requests-list" class="requests-list"></ul>
+                </div>
+            </div>
             <a href="/profile.html">Meu Perfil</a>
             <a href="/logout">Sair</a>
         </div>
@@ -94,7 +203,6 @@
                     <div id="searchResults"></div>
                 </div>
             </div>
-
             <div class="form-container">
                 <h2>Entre em uma Sala de Chat (Acesso Livre)</h2>
                 <form id="join-form">
@@ -166,12 +274,23 @@
         <p>&copy; 2025 Verbi. Todos os direitos reservados.</p>
         <p>Desenvolvido por <a href="mailto:paulo.stracci@gmail.com">Paulo Stracci</a></p>
     </footer>
+    
+    <div id="connections-widget" class="connections-widget">
+        <div class="widget-header">
+            <h3>Minhas Conexões</h3>
+            <span id="toggle-widget" class="toggle-widget">-</span>
+        </div>
+        <div id="widget-body" class="widget-body">
+            <ul id="connections-list" class="connections-list">
+                </ul>
+        </div>
+    </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // O SCRIPT PERMANECE O MESMO DA VERSÃO ANTERIOR
-        // Nenhuma alteração de lógica foi necessária aqui.
         document.addEventListener('DOMContentLoaded', () => {
+            // ELEMENTOS DA UI
+			const adminLinkContainer = document.getElementById('admin-link-container');
             const loggedOutView = document.getElementById('logged-out-view');
             const loggedInView = document.getElementById('logged-in-view');
             const welcomeMessage = document.getElementById('welcome-message');
@@ -187,60 +306,173 @@
             const searchResultsDiv = document.getElementById('searchResults');
             const roomSelect = document.getElementById('room');
             const dynamicRoomListContainer = document.getElementById('dynamic-room-list');
+            const connectionsWidget = document.getElementById('connections-widget');
+            const connectionsList = document.getElementById('connections-list');
+            const toggleWidget = document.getElementById('toggle-widget');
+            const widgetBody = document.getElementById('widget-body');
+            const notificationBell = document.getElementById('notification-bell');
+            const notificationCount = document.getElementById('notification-count');
+            const notificationsDropdown = document.getElementById('notifications-dropdown');
+            const requestsList = document.getElementById('requests-list');
+            const notificationContainer = document.querySelector('.notification-container');
 
-            function calculateAge(dateString) {
-                if (!dateString) return '';
-                const birthday = new Date(dateString);
-                const today = new Date();
-                let age = today.getFullYear() - birthday.getFullYear();
-                const m = today.getMonth() - birthday.getMonth();
-                if (m < 0 || (m === 0 && today.getDate() < birthday.getDate())) {
-                    age--;
+            // FUNÇÕES
+            function calculateAge(dateString) { if (!dateString) return ''; const birthday = new Date(dateString); const today = new Date(); let age = today.getFullYear() - birthday.getFullYear(); const m = today.getMonth() - birthday.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birthday.getDate())) { age--; } return age; }
+            function populateRoomList() { dynamicRoomListContainer.innerHTML = ''; const roomOptions = roomSelect.querySelectorAll('option'); roomOptions.forEach(option => { const roomName = option.textContent; const roomValue = option.value; const roomItem = document.createElement('div'); roomItem.className = 'room-item'; roomItem.dataset.value = roomValue; roomItem.innerHTML = `<span class="room-name">${roomName}</span><span class="room-count">Participantes: <span id="count-${roomValue}">0</span> / 20</span>`; roomItem.addEventListener('click', () => { roomSelect.value = roomValue; form.scrollIntoView({ behavior: 'smooth', block: 'center' }); }); dynamicRoomListContainer.appendChild(roomItem); }); }
+            
+            function populateConnectionsWidget(connections) {
+                connectionsList.innerHTML = '';
+                if (!connections || connections.length === 0) {
+                    connectionsList.innerHTML = '<li style="padding: 10px; color: #6c757d; font-size: 0.9em;">Você ainda não tem conexões.</li>';
+                    return;
                 }
-                return age;
-            }
-
-            function populateRoomList() {
-                dynamicRoomListContainer.innerHTML = '';
-                const roomOptions = roomSelect.querySelectorAll('option');
-                roomOptions.forEach(option => {
-                    const roomName = option.textContent;
-                    const roomValue = option.value;
-                    const roomItem = document.createElement('div');
-                    roomItem.className = 'room-item';
-                    roomItem.dataset.value = roomValue;
-                    roomItem.innerHTML = `
-                        <span class="room-name">${roomName}</span>
-                        <span class="room-count">Participantes: <span id="count-${roomValue}">0</span> / 20</span>
+                
+                connections.forEach(conn => {
+                    const li = document.createElement('li');
+                    li.className = 'connection-item';
+                    li.id = `connection-${conn.connectionId}`;
+                    
+                    li.innerHTML = `
+                        <a href="/profile.html?userId=${conn.friendInfo.id}" class="connection-item-link">
+                            <img src="${conn.friendInfo.profilePicture || 'default-avatar.png'}" alt="Avatar">
+                            <span>${conn.friendInfo.nickname}</span>
+                        </a>
+                        <div class="action-buttons">
+                            <button class="btn-video" data-nickname="${conn.friendInfo.nickname}" title="Criar sala de vídeo com ${conn.friendInfo.nickname}">🎥</button>
+                            <button class="btn-chat" data-id="${conn.friendInfo.id}" data-nickname="${conn.friendInfo.nickname}" title="Conversar com ${conn.friendInfo.nickname}">💬</button>
+                        </div>
                     `;
-                    roomItem.addEventListener('click', () => {
-                        roomSelect.value = roomValue;
-                        form.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    });
-                    dynamicRoomListContainer.appendChild(roomItem);
+                    connectionsList.appendChild(li);
                 });
             }
             
+            async function createVideoRoom(nickname) { if (!confirm(`Criar uma sala de vídeo com ${nickname} irá custar 1 crédito. Deseja continuar?`)) { return; } try { const response = await fetch('/api/video/generate-link'); const data = await response.json(); if (response.status === 402) { alert(data.error); return; } if (!response.ok) { throw new Error(data.error || 'Falha ao criar a sala.'); } window.open(data.joinUrl, '_blank'); } catch (error) { alert(error.message); } }
+            
+            function startChat(userId, nickname) {
+                alert(`Funcionalidade de chat com ${nickname} será implementada em breve!`);
+            }
+
+            function renderNotifications(notifications) {
+                requestsList.innerHTML = '';
+                notificationBell.style.display = 'flex';
+
+                if (!notifications || notifications.length === 0) {
+                    notificationCount.style.display = 'none';
+                    requestsList.innerHTML = '<li style="padding: 15px; text-align: center; color: #6c757d;">Nenhuma notificação nova.</li>';
+                    return;
+                }
+
+                notificationCount.textContent = notifications.length;
+                notificationCount.style.display = 'flex';
+
+                notifications.forEach(notif => {
+                    const li = document.createElement('li');
+                    li.className = 'request-item';
+
+                    if (notif.type === 'CONNECTION_REQUEST' && notif.requester) {
+                        li.id = `request-${notif.relatedId}`;
+                        li.innerHTML = `
+                            <img src="${notif.requester.profilePicture || 'default-avatar.png'}" alt="Avatar">
+                            <div class="info"><strong>${notif.requester.nickname}</strong> quer se conectar.</div>
+                            <div class="actions">
+                                <button class="btn-accept" data-id="${notif.relatedId}">Aceitar</button>
+                                <button class="btn-reject" data-id="${notif.relatedId}">Recusar</button>
+                            </div>
+                        `;
+                    } else if (notif.type === 'SYSTEM_MESSAGE') {
+                        li.id = `notification-${notif.id}`;
+                        li.innerHTML = `
+                            <span style="font-size: 2em; margin-right: 15px;">📢</span>
+                            <div class="info" style="align-self: center;">${notif.content}</div>
+                            <div class="actions">
+                                <button class="btn-read" data-id="${notif.id}">Lido</button>
+                            </div>
+                        `;
+                    } else {
+                        li.innerHTML = `<div class="info">${notif.content}</div>`;
+                    }
+                    requestsList.appendChild(li);
+                });
+            }
+            
+            async function loadAndDisplayNotifications() {
+                try {
+                    const response = await fetch('/api/notifications');
+                    if (!response.ok) {
+                        if (response.status !== 401) {
+                            console.error('Falha ao buscar notificações');
+                        }
+                        return;
+                    }
+                    const notifications = await response.json();
+                    renderNotifications(notifications);
+                } catch (error) {
+                    console.error('Erro ao carregar notificações:', error);
+                }
+            }
+
+            async function handleRequestAction(connectionId, action) { 
+                const url = action === 'accept' ? `/api/connections/accept/${connectionId}` : `/api/connections/delete/${connectionId}`; 
+                const method = action === 'accept' ? 'PUT' : 'DELETE'; 
+                try { 
+                    const response = await fetch(url, { method }); 
+                    if (!response.ok) throw new Error(`Falha ao ${action === 'accept' ? 'aceitar' : 'rejeitar'} o pedido.`); 
+                    
+                    const statusResponse = await fetch('/api/user/status');
+                    const data = await statusResponse.json();
+                    if(data.loggedIn) {
+                        populateConnectionsWidget(data.connections);
+                    }
+                    loadAndDisplayNotifications();
+                } catch (error) { 
+                    alert(error.message); 
+                } 
+            }
+
+            async function handleMarkAsRead(notificationId) {
+                try {
+                    const response = await fetch(`/api/notifications/${notificationId}/read`, {
+                        method: 'PUT'
+                    });
+                    if (!response.ok) {
+                        throw new Error('Falha ao marcar notificação como lida.');
+                    }
+                    loadAndDisplayNotifications();
+                } catch (error) {
+                    console.error(error);
+                    alert(error.message);
+                }
+            }
+            
+            // INICIALIZAÇÃO DA PÁGINA
             populateRoomList();
 
             fetch('/api/user/status')
                 .then(res => res.json())
                 .then(data => {
                     if (data.loggedIn) {
+                        loggedInView.style.display = 'flex';
                         loggedOutView.style.display = 'none';
-                        loggedInView.style.display = 'block';
-                        welcomeMessage.textContent = `Olá, ${data.nickname}!`;
+                        
+                        welcomeMessage.textContent = `Olá, ${data.user.nickname}!`;
+                        
                         if (stopGameCard) { stopGameCard.onclick = () => { location.href='stop-lobby.html'; }; }
-                        if (nicknameInput && data.nickname) { nicknameInput.value = data.nickname; }
-                        fetch('/api/profile/me')
-                            .then(res => res.json())
-                            .then(profile => {
-                                if (ageInput && profile.dateOfBirth) {
-                                    const age = calculateAge(profile.dateOfBirth);
-                                    if (age) ageInput.value = age;
-                                }
-                            })
-                            .catch(err => console.error("Erro ao buscar perfil para preencher idade:", err));
+                        if (nicknameInput && data.user.nickname) { nicknameInput.value = data.user.nickname; }
+                        
+                        if (ageInput && data.user.profile && data.user.profile.dateOfBirth) {
+                            const age = calculateAge(data.user.profile.dateOfBirth);
+                            if (age) ageInput.value = age;
+                        }
+                        
+                        populateConnectionsWidget(data.connections);
+                        connectionsWidget.style.display = 'flex';
+
+                        loadAndDisplayNotifications();
+						
+						if (data.user.role === 'ADMIN') {
+                            adminLinkContainer.innerHTML = `<a href="/admin.html">Admin</a>`;
+                        }
+
                     } else {
                         loggedOutView.style.display = 'block';
                         loggedInView.style.display = 'none';
@@ -252,7 +484,7 @@
                     if (stopGameCard) { stopGameCard.onclick = () => { location.href='login.html'; }; }
                 });
 
-            const colors = ['#000000', '#E53935', '#D81B60', '#8E24AA', '#5E35B1', '#3949AB', '#1E88E5', '#039BE5', '#00ACC1', '#00897B', '#43A047', '#7CB342', '#FDD835', '#FFB300', '#FB8C00', '#F4511E'];
+            const colors = ['#000000', '#E53935', '#D81B60', '#8E24AA', '#5E35B1', '#3949AB', '#1E88E5', '#039BE5', '#00ACC1', '#00897B', '#43A047', '#7CB342', '#FDD835', '#FB8C00', '#FB8C00', '#F4511E'];
             const defaultColor = '#000000';
             nicknameColorInput.value = defaultColor;
             selectedColorPreview.style.backgroundColor = defaultColor;
@@ -337,6 +569,48 @@
             });
             document.addEventListener('click', (e) => {
                 if (!userSearchInput.contains(e.target)) { searchResultsDiv.style.display = 'none'; }
+            });
+
+            toggleWidget.addEventListener('click', () => {
+                const isVisible = widgetBody.style.display !== 'none';
+                widgetBody.style.display = isVisible ? 'none' : 'block';
+                toggleWidget.textContent = isVisible ? '+' : '-';
+            });
+
+            connectionsList.addEventListener('click', (e) => {
+                const videoButton = e.target.closest('.btn-video');
+                const chatButton = e.target.closest('.btn-chat');
+                
+                if (videoButton) {
+                    const nickname = videoButton.dataset.nickname;
+                    createVideoRoom(nickname);
+                }
+                
+                if (chatButton) {
+                    const userId = chatButton.dataset.id;
+                    const nickname = chatButton.dataset.nickname;
+                    startChat(userId, nickname);
+                }
+            });
+
+            notificationBell.addEventListener('click', (e) => {
+                e.stopPropagation();
+                notificationsDropdown.classList.toggle('active');
+            });
+            window.addEventListener('click', (e) => {
+                if (notificationContainer && !notificationContainer.contains(e.target)) {
+                    notificationsDropdown.classList.remove('active');
+                }
+            });
+
+            requestsList.addEventListener('click', (e) => {
+                if (e.target.matches('.btn-accept')) {
+                    handleRequestAction(e.target.dataset.id, 'accept');
+                } else if (e.target.matches('.btn-reject')) {
+                    handleRequestAction(e.target.dataset.id, 'reject');
+                } else if (e.target.matches('.btn-read')) {
+                    handleMarkAsRead(e.target.dataset.id);
+                }
             });
         });
     </script>

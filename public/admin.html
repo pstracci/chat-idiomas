@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Administração - Verbi</title>
+    <style>
+        :root { --primary-color: #007bff; --danger-color: #dc3545; --success-color: #28a745; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; background-color: #f4f7f6; color: #333; }
+        .top-nav { background-color: #343a40; color: white; padding: 8px 40px; text-align: right; }
+        .top-nav a { color: white; text-decoration: none; margin-left: 20px; font-weight: 500; }
+        .container { max-width: 1200px; margin: 30px auto; padding: 20px; }
+        .card { background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 30px; }
+        h1, h2 { color: #0056b3; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #dee2e6; padding: 12px; text-align: left; }
+        th { background-color: #f8f9fa; }
+        .actions-cell { display: flex; gap: 10px; }
+        .btn { border: none; border-radius: 5px; padding: 8px 12px; cursor: pointer; color: white; font-weight: bold; }
+        .btn-edit { background-color: var(--primary-color); }
+        .btn-delete { background-color: var(--danger-color); }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; }
+        .form-group textarea { width: 100%; min-height: 80px; padding: 10px; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; }
+        .btn-send { background-color: var(--success-color); width: 100%; padding: 12px; font-size: 1.1em; }
+    </style>
+</head>
+<body>
+    <div class="top-nav">
+        <a href="/">Voltar ao Site</a>
+        <a href="/logout">Sair</a>
+    </div>
+
+    <div class="container">
+        <h1>Painel de Administração</h1>
+
+        <div class="card">
+            <h2>Gestão de Utilizadores</h2>
+            <table id="users-table">
+                <thead>
+                    <tr>
+                        <th>Nickname</th>
+                        <th>Email</th>
+                        <th>Créditos</th>
+                        <th>Data de Registo</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>Enviar Notificação Global</h2>
+            <form id="notification-form">
+                <div class="form-group">
+                    <label for="notification-message">Mensagem:</label>
+                    <textarea id="notification-message" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-send">Enviar para Todos os Utilizadores</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>

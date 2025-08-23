@@ -4,7 +4,7 @@ const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-// Middleware para garantir que o usuário está autenticado
+// Middleware para garantir que o utilizador está autenticado (usado apenas para rotas que precisam)
 function isAuthenticated(req, res, next) {
     if (req.isAuthenticated()) {
         return next();
@@ -12,7 +12,7 @@ function isAuthenticated(req, res, next) {
     res.status(401).json({ error: 'Não autorizado' });
 }
 
-// Rota para buscar o perfil do próprio usuário logado
+// Rota para buscar o perfil do próprio utilizador logado
 router.get('/me', isAuthenticated, async (req, res) => {
     try {
         const profile = await prisma.profile.findUnique({
@@ -20,13 +20,10 @@ router.get('/me', isAuthenticated, async (req, res) => {
             include: { user: { select: { email: true, nickname: true } } },
         });
 
-        // Se o perfil não existir por algum motivo, cria um perfil básico
         if (!profile) {
             const newProfile = await prisma.profile.create({
                 data: { 
                     userId: req.user.id,
-                    firstName: req.user.firstName, // Puxa dados do registro inicial
-                    lastName: req.user.lastName,   // Puxa dados do registro inicial
                 },
                 include: { user: { select: { email: true, nickname: true } } },
             });
@@ -40,16 +37,15 @@ router.get('/me', isAuthenticated, async (req, res) => {
     }
 });
 
-// Rota para atualizar o perfil do usuário logado
+// Rota para atualizar o perfil do utilizador logado
 router.put('/me', isAuthenticated, async (req, res) => {
     const { nickname, firstName, lastName, dateOfBirth, phone, country, profilePicture, languagesSpoken, languagesLearning } = req.body;
     
     try {
-        // Atualiza os dados em ambos os modelos (User e Profile) em uma única transação
         const [, updatedProfile] = await prisma.$transaction([
             prisma.user.update({
                 where: { id: req.user.id },
-                data: { nickname: nickname }, // Simplesmente atualiza o nickname
+                data: { nickname: nickname },
             }),
             prisma.profile.update({
                 where: { userId: req.user.id },
@@ -73,9 +69,8 @@ router.put('/me', isAuthenticated, async (req, res) => {
     }
 });
 
-// Rota de busca por usuários
-// Trecho novo e aprimorado da busca
-router.get('/search', isAuthenticated, async (req, res) => {
+// --- ROTA MODIFICADA: Busca de utilizadores agora é pública ---
+router.get('/search', async (req, res) => {
     const query = req.query.q;
     if (!query) {
         return res.json([]);
@@ -83,67 +78,40 @@ router.get('/search', isAuthenticated, async (req, res) => {
     try {
         const users = await prisma.user.findMany({
             where: {
-                // Garante que você não apareça nos resultados
-                id: {
-                    not: req.user.id,
-                },
-                // Busca no nickname OU no nome/sobrenome do perfil
+                // Remove a condição que excluía o próprio utilizador, pois pode não haver um.
                 OR: [
-                    {
-                        nickname: {
-                            contains: query,
-                            mode: 'insensitive',
-                        }
-                    },
-                    {
-                        profile: {
-                            firstName: {
-                                contains: query,
-                                mode: 'insensitive',
-                            }
-                        }
-                    },
-                    {
-                        profile: {
-                            lastName: {
-                                contains: query,
-                                mode: 'insensitive',
-                            }
-                        }
-                    }
+                    { nickname: { contains: query, mode: 'insensitive' } },
+                    { profile: { firstName: { contains: query, mode: 'insensitive' } } },
+                    { profile: { lastName: { contains: query, mode: 'insensitive' } } },
                 ]
             },
-            take: 5, // Limita a 5 resultados para a pré-visualização
+            take: 5,
             select: {
                 id: true,
                 nickname: true,
                 profile: {
-                    select: {
-                        profilePicture: true,
-                    },
+                    select: { profilePicture: true },
                 },
             },
         });
         res.json(users);
     } catch (error) {
-        console.error("Erro na busca de usuários:", error);
-        res.status(500).json({ error: 'Erro ao buscar usuários' });
+        console.error("Erro na busca de utilizadores:", error);
+        res.status(500).json({ error: 'Erro ao buscar utilizadores' });
     }
 });
 
-// Rota para buscar o perfil público de um usuário pelo seu ID
-router.get('/:userId', isAuthenticated, async (req, res) => {
+
+router.get('/:userId', async (req, res) => { // Removido o middleware isAuthenticated
     try {
+        const loggedInUser = req.user; // Pode ser undefined se não estiver logado
+        const profileUserId = req.params.userId;
+
         const profile = await prisma.profile.findUnique({
-            where: { userId: req.params.userId },
+            where: { userId: profileUserId },
             include: {
                 user: {
-                    select: {
-                        id: true,
-                        nickname: true,
-                        isOnline: true,
-                        lastSeen: true,
-                    },
+                    select: { id: true, nickname: true, isOnline: true, lastSeen: true },
                 },
             },
         });
@@ -151,20 +119,39 @@ router.get('/:userId', isAuthenticated, async (req, res) => {
         if (!profile) {
             return res.status(404).json({ error: 'Perfil não encontrado' });
         }
-        
-        // Retornamos um objeto de perfil "público", sem dados sensíveis como telefone.
-        const publicProfile = {
-            ...profile,
-            phone: undefined, // Garante que o telefone não seja exposto
-            user: {
-                ...profile.user,
-                email: undefined // Garante que o email não seja exposto
-            }
-        };
 
-        res.json(publicProfile);
+        let connectionStatus = null;
+        let connectionId = null;
+
+        // Só verifica a conexão se houver um utilizador logado
+        if (loggedInUser && loggedInUser.id !== profileUserId) {
+            const connection = await prisma.connection.findFirst({
+                where: {
+                    OR: [
+                        { requesterId: loggedInUser.id, addresseeId: profileUserId },
+                        { requesterId: profileUserId, addresseeId: loggedInUser.id },
+                    ],
+                },
+            });
+            if (connection) {
+                connectionId = connection.id;
+                if (connection.status === 'PENDING' && connection.requesterId === loggedInUser.id) {
+                    connectionStatus = 'PENDING_SENT';
+                } else if (connection.status === 'PENDING' && connection.addresseeId === loggedInUser.id) {
+                    connectionStatus = 'PENDING_RECEIVED';
+                } else {
+                    connectionStatus = connection.status;
+                }
+            }
+        }
+        
+        profile.connectionStatus = connectionStatus;
+        profile.connectionId = connectionId;
+
+        res.json(profile);
 
     } catch (error) {
+        console.error("Erro ao buscar perfil público:", error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });

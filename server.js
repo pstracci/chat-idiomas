@@ -9,7 +9,7 @@ const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
 const PgSimple = require('connect-pg-simple')(session);
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient, Role } = require('@prisma/client');
 
 
 // --- INICIALIZAÇÃO E CONFIGURAÇÃO ---
@@ -63,31 +63,50 @@ app.use(updateUserStatus);
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profile');
 const agoraRoutes = require('./routes/agora'); 
+const videoRoutes = require('./routes/video');
+const connectionsRoutes = require('./routes/connections');
+const adminRoutes = require('./routes/admin');
+const notificationRoutes = require('./routes/notifications'); // Rota de notificações adicionada
+
 app.use('/', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/agora', agoraRoutes);
+app.use('/api/video', videoRoutes);
+app.use('/api/connections', connectionsRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes); // Uso da rota de notificações
 
+
+function isAdmin(req, res, next) {
+    if (req.user && req.user.role === Role.ADMIN) {
+        return next();
+    }
+    // Para utilizadores normais, apenas redireciona para a página inicial
+    return res.redirect('/'); 
+}
 
 function isAuthenticated(req, res, next) {
-    if (req.isAuthenticated()) return next();
+    if (req.isAuthenticated()) {
+        return next();
+    }
     res.redirect('/login.html');
 }
 
-app.get('/api/user/status', (req, res) => {
-    if (req.isAuthenticated()) {
-        // Incluído o userId, necessário para o frontend do perfil
-        res.json({ loggedIn: true, nickname: req.user.nickname, userId: req.user.id });
-    } else {
-        res.json({ loggedIn: false });
-    }
+app.get('/chat.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'chat.html'));
 });
 
 app.get('/stop-lobby.html', isAuthenticated, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'stop-lobby.html'));
 });
 
-app.get('/profile.html', isAuthenticated, (req, res) => {
+// --- ROTA MODIFICADA: Perfil agora é público ---
+app.get('/profile.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'profile.html'));
+});
+
+app.get('/admin.html', isAuthenticated, isAdmin, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
 
@@ -136,7 +155,7 @@ io.on('connection', (socket) => {
     socket.on('updateStatus', (newStatus) => {
         if (socket.sala && chatRooms[socket.sala].users[socket.id]) {
             chatRooms[socket.sala].users[socket.id].status = newStatus;
-            io.to(socket.sala).emit('userList', Object.values(chatRooms[socket.sala].users));
+            io.to(socket.sala).emit('userList', Object.values(chatRooms[sala].users));
         }
     });
 

@@ -9,60 +9,123 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// --- NOVO: Define os tipos de utilizador ---
+enum Role {
+  USER
+  ADMIN
+}
+
+// --- NOVO: Define os tipos de notificação ---
+enum NotificationType {
+  CONNECTION_REQUEST
+  SYSTEM_MESSAGE
+}
+
 model User {
   id        String    @id @default(uuid())
   nickname  String    @db.VarChar(10)
   email     String    @unique
-  password  String?   // Mantido como opcional para logins sociais
+  password  String?   
 
-  // Seus campos de login social e consentimento (MANTIDOS)
   googleId   String?   @unique
   facebookId String?   @unique
   emailConsent Boolean @default(false)
 
-  // Seus campos de recuperação de senha (MANTIDOS)
   passwordResetToken   String?   @unique
   passwordResetExpires DateTime?
 
-  // Novos campos de status de sessão
   isOnline  Boolean   @default(false)
   lastSeen  DateTime  @default(now())
+  credits   Int       @default(10)
+
+  // --- ADICIONADO: Campo para a role de admin ---
+  role      Role      @default(USER)
   
-  // Relação com o perfil
   profile   Profile?
 
+  sentConnections     Connection[]     @relation("sentConnections")
+  receivedConnections Connection[]     @relation("receivedConnections")
+  
+  // --- As mensagens privadas e notificações agora são geridas pelo novo modelo ---
+  sentMessages        PrivateMessage[] @relation("sentMessages")
+  receivedMessages    PrivateMessage[] @relation("receivedMessages")
+  notifications       Notification[]
+  
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  
+  isVerified                    Boolean   @default(false)
+  emailConfirmationToken        String?   @unique
+  emailConfirmationTokenExpires DateTime?
+  
+
+  @@index([email])
 }
 
-// NOVO MODELO para os dados do perfil do usuário
 model Profile {
   id                String    @id @default(uuid())
   userId            String    @unique
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Campos movidos de User para Profile
   firstName         String?
   lastName          String?
-  dateOfBirth       DateTime? // Substitui o antigo campo 'age'
-
-  // Novos campos de perfil
+  dateOfBirth       DateTime?
   phone             String?
   country           String?
-  profilePicture    String?   // Armazenará a imagem em Base64
-
+  profilePicture    String?   
   languagesSpoken   Json      @default("[]") 
   languagesLearning String[]  @default([])
-
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+  @@index([userId])
 }
 
-// Seu modelo de sessão (MANTIDO EXATAMENTE COMO VOCÊ ENVIOU)
 model Session {
   sid    String   @id
   sess   Json
   expire DateTime
-
   @@map("session")
+}
+
+enum ConnectionStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
+
+model Connection {
+  id          String           @id @default(uuid())
+  requesterId String
+  addresseeId String
+  status      ConnectionStatus @default(PENDING)
+  requester   User             @relation("sentConnections", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee   User             @relation("receivedConnections", fields: [addresseeId], references: [id], onDelete: Cascade)
+  createdAt   DateTime         @default(now())
+  @@unique([requesterId, addresseeId])
+  @@index([requesterId])
+  @@index([addresseeId])
+}
+
+// --- NOVO: Modelo unificado para notificações ---
+model Notification {
+  id         String           @id @default(uuid())
+  userId     String           // ID do utilizador que recebe a notificação
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       NotificationType
+  content    String           // Mensagem da notificação
+  relatedId  String?          // ID relacionado (ex: ID da conexão, ID do utilizador que enviou, etc.)
+  read       Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+
+  @@index([userId])
+}
+
+model PrivateMessage {
+  id         String   @id @default(uuid())
+  content    String
+  senderId   String
+  receiverId String
+  sender     User     @relation("sentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User     @relation("receivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  readAt     DateTime?
 }

@@ -15,13 +15,17 @@
         button:hover { background-color: #0056b3; }
         .links { text-align: center; margin-top: 20px; }
         .links a { color: #007bff; text-decoration: none; font-size: 0.9em; }
-        .error-message { color: #dc3545; text-align: center; margin-bottom: 15px; }
+        .message { margin-bottom: 15px; font-weight: 600; text-align: center; min-height: 1.2em;}
+        .error-message { color: #dc3545; }
+        .success-message { color: #28a745; }
+        .resend-link { font-size: 0.9em; text-align: center; margin-top: -10px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
     <div class="form-wrapper">
         <h2>Login</h2>
-        <div id="errorMessage" class="error-message"></div>
+        <div id="messageDiv" class="message"></div>
+        <div id="resendContainer"></div>
         <form action="/login" method="POST">
             <div class="form-group">
                 <label for="email">E-mail:</label>
@@ -41,12 +45,48 @@
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
-        const errorMessageDiv = document.getElementById('errorMessage');
-        if (urlParams.get('error')) {
-            errorMessageDiv.textContent = 'E-mail ou senha inválidos. Tente novamente.';
+        const messageDiv = document.getElementById('messageDiv');
+        const resendContainer = document.getElementById('resendContainer');
+        const error = urlParams.get('error');
+        const status = urlParams.get('status');
+
+        if (error === 'true') {
+            messageDiv.textContent = 'E-mail ou senha inválidos. Tente novamente.';
+            messageDiv.className = 'message error-message';
+        } else if (error === 'not_verified') {
+            messageDiv.textContent = 'Sua conta não foi verificada. Por favor, cheque seu e-mail.';
+            messageDiv.className = 'message error-message';
+            
+            // --- LÓGICA PARA EXIBIR O LINK DE REENVIO ---
+            const emailForResend = urlParams.get('email');
+            if (emailForResend) {
+                const resendLink = document.createElement('a');
+                resendLink.href = `/resend-verification?email=${encodeURIComponent(emailForResend)}`;
+                resendLink.textContent = 'Reenviar e-mail de verificação';
+                
+                const p = document.createElement('p');
+                p.className = 'resend-link';
+                p.appendChild(resendLink);
+                resendContainer.appendChild(p);
+            }
+        } else if (error === 'invalid_token') {
+            messageDiv.textContent = 'O link de verificação é inválido ou expirou.';
+            messageDiv.className = 'message error-message';
+        } else if (urlParams.get('verified') === 'success') {
+            messageDiv.textContent = 'E-mail verificado com sucesso! Você já pode fazer o login.';
+            messageDiv.className = 'message success-message';
         } else if (urlParams.get('reset') === 'success') {
-            errorMessageDiv.textContent = 'Senha redefinida com sucesso! Você já pode fazer o login.';
-            errorMessageDiv.style.color = '#28a745';
+            messageDiv.textContent = 'Senha redefinida com sucesso! Você já pode fazer o login.';
+            messageDiv.className = 'message success-message';
+        } else if (status === 'resent') {
+            messageDiv.textContent = 'Um novo e-mail de confirmação foi enviado com sucesso.';
+            messageDiv.className = 'message success-message';
+        }
+
+        // Preenche o campo de e-mail se ele veio no URL, para conveniência do usuário
+        const emailFromUrl = urlParams.get('email');
+        if (emailFromUrl) {
+            document.getElementById('email').value = emailFromUrl;
         }
     </script>
 </body>
