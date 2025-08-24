@@ -15,7 +15,7 @@
         #error-message { text-align: center; margin-top: 50px; color: #e63946; }
     </style>
     <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.2.js"></script>
-</head>
+    <script src="/socket.io/socket.io.js"></script> </head>
 <body>
     <div id="error-message"></div>
     <div id="video-grid">
@@ -30,64 +30,14 @@
     <script>
         const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
         let localTracks = { audioTrack: null, videoTrack: null };
-        let remoteUsers = {};
-        
         const urlParams = new URLSearchParams(window.location.search);
         const APP_ID = urlParams.get('appId');
         const CHANNEL = urlParams.get('channel');
         const TOKEN = urlParams.get('token');
-        const UID = Math.floor(Math.random() * 100000);
 
         if (!APP_ID || !CHANNEL || !TOKEN) {
             document.body.innerHTML = '<h1>Acesso inválido. Credenciais não encontradas.</h1>';
         }
-
-        const joinAndDisplayLocalStream = async () => {
-            try {
-                client.on("user-published", handleUserJoined);
-                client.on("user-left", handleUserLeft);
-                
-                await client.join(APP_ID, CHANNEL, TOKEN, UID);
-                
-                localTracks.audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
-                localTracks.videoTrack = await AgoraRTC.createCameraVideoTrack();
-                
-                const player = document.getElementById('local-player');
-                player.id = `user-container-${UID}`;
-                localTracks.videoTrack.play(player);
-                
-                await client.publish(Object.values(localTracks));
-
-                // Inicia o temporizador de 120 minutos
-                setTimeout(() => {
-                    alert('A sua sessão de 120 minutos terminou.');
-                    leaveAndRemoveLocalStream();
-                }, 120 * 60 * 1000);
-
-            } catch (error) {
-                console.error("Falha ao iniciar a chamada:", error);
-                document.getElementById('error-message').innerText = `Não foi possível conectar à sala. Verifique suas permissões de câmera/microfone e tente novamente. Erro: ${error.message}`;
-                document.getElementById('controls').style.display = 'none';
-            }
-        };
-
-        const handleUserJoined = async (user, mediaType) => {
-            remoteUsers[user.uid] = user;
-            await client.subscribe(user, mediaType);
-            if (mediaType === 'video') {
-                let player = document.getElementById(`user-container-${user.uid}`) || document.createElement('div');
-                player.id = `user-container-${user.uid}`;
-                player.className = 'video-player';
-                document.getElementById('video-grid').append(player);
-                user.videoTrack.play(player);
-            }
-            if (mediaType === 'audio') user.audioTrack.play();
-        };
-
-        const handleUserLeft = (user) => {
-            delete remoteUsers[user.uid];
-            document.getElementById(`user-container-${user.uid}`)?.remove();
-        };
 
         const leaveAndRemoveLocalStream = async () => {
             for (let trackName in localTracks) {
@@ -101,20 +51,48 @@
             await client.leave();
             window.close();
         };
-
-        document.getElementById('leave-btn').addEventListener('click', leaveAndRemoveLocalStream);
-
-        document.getElementById('mic-btn').addEventListener('click', async () => {
-            if (localTracks.audioTrack) {
-                await localTracks.audioTrack.setMuted(!localTracks.audioTrack.muted);
-                document.getElementById('mic-btn').innerText = localTracks.audioTrack.muted ? '🔇' : '🎤';
+        
+        const joinAndDisplayLocalStream = async () => {
+            try {
+                const UID = await client.join(APP_ID, CHANNEL, TOKEN, null);
+                localTracks.audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+                localTracks.videoTrack = await AgoraRTC.createCameraVideoTrack();
+                const player = document.getElementById('local-player');
+                player.id = `user-container-${UID}`;
+                localTracks.videoTrack.play(player);
+                await client.publish(Object.values(localTracks));
+            } catch (error) {
+                console.error("Falha ao iniciar a chamada:", error);
+                document.getElementById('error-message').innerText = `Não foi possível conectar. Erro: ${error.message}`;
             }
+        };
+
+        client.on("user-published", async (user, mediaType) => {
+            await client.subscribe(user, mediaType);
+            if (mediaType === 'video') {
+                let player = document.getElementById(`user-container-${user.uid}`) || document.createElement('div');
+                player.id = `user-container-${user.uid}`;
+                player.className = 'video-player';
+                document.getElementById('video-grid').append(player);
+                user.videoTrack.play(player);
+            }
+            if (mediaType === 'audio') user.audioTrack.play();
         });
 
-        document.getElementById('cam-btn').addEventListener('click', async () => {
-            if (localTracks.videoTrack) {
-                await localTracks.videoTrack.setMuted(!localTracks.videoTrack.muted);
-                document.getElementById('cam-btn').innerText = localTracks.videoTrack.muted ? '📸' : '📹';
+        client.on("user-left", (user) => {
+            document.getElementById(`user-container-${user.uid}`)?.remove();
+        });
+
+        document.getElementById('leave-btn').addEventListener('click', leaveAndRemoveLocalStream);
+        document.getElementById('mic-btn').addEventListener('click', async () => { if (localTracks.audioTrack) { await localTracks.audioTrack.setMuted(!localTracks.audioTrack.muted); document.getElementById('mic-btn').innerText = localTracks.audioTrack.muted ? '🔇' : '🎤'; }});
+        document.getElementById('cam-btn').addEventListener('click', async () => { if (localTracks.videoTrack) { await localTracks.videoTrack.setMuted(!localTracks.videoTrack.muted); document.getElementById('cam-btn').innerText = localTracks.videoTrack.muted ? '📸' : '📹'; }});
+
+        // Conecta ao Socket.IO para ouvir eventos do servidor
+        const socket = io();
+        socket.on('video:force_disconnect', (data) => {
+            if (data.channel === CHANNEL) {
+                alert('A sala de vídeo expirou ou foi encerrada.');
+                leaveAndRemoveLocalStream();
             }
         });
 
