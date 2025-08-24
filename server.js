@@ -362,7 +362,7 @@ function getLobbyRooms() {
     return Object.values(stopRooms).map(room => ({
         id: room.id,
         name: room.name,
-        participants: room.participants.size,
+        participants: room.players.size, // Modificado para usar o tamanho do Map
         maxParticipants: room.maxParticipants,
         isPrivate: room.isPrivate,
         status: room.status
@@ -384,12 +384,19 @@ stopNamespace.on('connection', (socket) => {
             name: data.name,
             ownerId: ownerId,
             ownerNickname: socket.request.user.nickname,
-            participants: new Set(),
+            players: new Map(),
             maxParticipants: data.maxParticipants,
             isPrivate: data.isPrivate,
             password: data.password,
             categories: data.categories,
             status: 'Aguardando',
+            gameState: {
+                currentRound: 0,
+                currentLetter: '',
+                answers: {},
+                scores: {}
+            },
+            chatHistory: []
         };
 
         stopNamespace.emit('updateRoomList', getLobbyRooms());
@@ -401,7 +408,7 @@ stopNamespace.on('connection', (socket) => {
         if (!room) {
             return socket.emit('error', 'A sala não existe.');
         }
-        if (room.participants.size >= room.maxParticipants) {
+        if (room.players.size >= room.maxParticipants) {
             return socket.emit('error', 'A sala está cheia.');
         }
         if (room.isPrivate && room.password !== data.password) {
@@ -409,7 +416,76 @@ stopNamespace.on('connection', (socket) => {
         }
         socket.emit('joinSuccess', data.roomId);
     });
+
+    socket.on('playerReady', (data) => {
+        const user = socket.request.user;
+        if (!user) {
+            return socket.emit('error', 'Usuário não autenticado.');
+        }
+
+        const { roomId } = data;
+        const room = stopRooms[roomId];
+        if (!room) {
+            return socket.emit('error', 'A sala não existe mais.');
+        }
+
+        socket.join(roomId);
+        socket.roomId = roomId;
+
+        const isOwner = user.id === room.ownerId;
+        const player = {
+            id: user.id,
+            nickname: user.nickname,
+            isOwner: isOwner,
+            isReady: isOwner,
+            score: 0,
+            wins: 0
+        };
+
+        room.players.set(user.id, player);
+
+        socket.emit('roomInfo', {
+            name: room.name,
+            isOwner: isOwner,
+            categories: room.categories,
+            maxParticipants: room.maxParticipants,
+            totalRounds: room.totalRounds || 5,
+            isPrivate: room.isPrivate,
+            ownerNickname: room.ownerNickname,
+            currentRound: room.gameState.currentRound
+        });
+        
+        socket.emit('stopChatHistory', room.chatHistory);
+
+        const playerList = Array.from(room.players.values());
+        stopNamespace.to(roomId).emit('updatePlayerList', playerList);
+        stopNamespace.emit('updateRoomList', getLobbyRooms());
+    });
+
+    socket.on('disconnect', () => {
+        const user = socket.request.user;
+        const roomId = socket.roomId;
+
+        if (user && roomId && stopRooms[roomId]) {
+            const room = stopRooms[roomId];
+            room.players.delete(user.id);
+
+            console.log(`[STOP!] Jogador ${user.nickname} desconectado da sala ${roomId}`);
+
+            if (room.players.size === 0 || user.id === room.ownerId) {
+                delete stopRooms[roomId];
+                console.log(`[STOP!] Sala ${roomId} destruída.`);
+                stopNamespace.emit('updateRoomList', getLobbyRooms());
+                stopNamespace.to(roomId).emit('ownerDestroyedRoom');
+            } else {
+                const playerList = Array.from(room.players.values());
+                stopNamespace.to(roomId).emit('updatePlayerList', playerList);
+                stopNamespace.emit('updateRoomList', getLobbyRooms());
+            }
+        }
+    });
 });
+
 
 // --- INICIALIZAÇÃO DO SERVIDOR ---
 const PORT = process.env.PORT || 3000;
