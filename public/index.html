@@ -352,7 +352,9 @@ async function createVideoRoom(nickname) {
     }
 
     try {
-        const response = await fetch('/api/video/generate-token', { method: 'POST' });
+         const backendUrl = 'https://chat-idiomas-production.up.railway.app'; // Exemplo de URL
+        const response = await fetch(`${backendUrl}/api/video/generate-token`, { method: 'POST' });
+        
         const data = await response.json();
 
         if (!response.ok) {

@@ -10,6 +10,12 @@ const http = require('http');
 const { Server } = require('socket.io');
 const PgSimple = require('connect-pg-simple')(session);
 const { PrismaClient, Role } = require('@prisma/client');
+const corsOptions = {
+    origin: 'https://www.verbi.com.br', 
+    optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
+
 
 
 // --- INICIALIZAÇÃO E CONFIGURAÇÃO ---
