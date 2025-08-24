@@ -7,18 +7,20 @@ const prisma = new PrismaClient();
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
-// Configuração do Nodemailer (existente)
+// --- CONFIGURAÇÃO CORRIGIDA E OTIMIZADA PARA PRODUÇÃO ---
+// Usando a porta 465 com `secure: true` é a forma mais direta e estável
+// de estabelecer uma conexão segura com o SendGrid.
 const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
-    port: process.env.EMAIL_PORT,
-    secure: false,
+    port: process.env.EMAIL_PORT, // No Railway, garanta que esta variável seja 465
+    secure: true, // `true` para a porta 465
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
     }
 });
 
-// Função para enviar e-mail de verificação (existente)
+// Função para enviar e-mail de verificação
 async function sendVerificationEmail(user, req) {
     const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 3600000 * 24); // Token expira em 24 horas
@@ -35,7 +37,7 @@ async function sendVerificationEmail(user, req) {
 
     await transporter.sendMail({
         to: user.email,
-        from: `"Verbi" <${process.env.SENDER_EMAIL}>`, // <-- MUDANÇA IMPORTANTE AQUI
+        from: `"Verbi" <${process.env.SENDER_EMAIL}>`, // CORRETO
         subject: 'Confirme seu E-mail no Verbi',
         html: `
             <p>Olá ${user.profile.firstName},</p>
@@ -47,7 +49,7 @@ async function sendVerificationEmail(user, req) {
 }
 
 
-// Rota de Registro (sem alterações)
+// Rota de Registro
 router.post('/register', async (req, res) => {
     try {
         const { firstName, lastName, dateOfBirth, nickname, email, password, emailConsent } = req.body;
@@ -93,7 +95,7 @@ router.post('/register', async (req, res) => {
     }
 });
 
-// Rota de Login (sem alterações)
+// Rota de Login
 router.post('/login', (req, res, next) => {
     passport.authenticate('local', (err, user, info) => {
         if (err) {
@@ -118,7 +120,7 @@ router.post('/login', (req, res, next) => {
 });
 
 
-// Rota para reenviar o e-mail de verificação (sem alterações)
+// Rota para reenviar o e-mail de verificação
 router.get('/resend-verification', async (req, res) => {
     try {
         const email = req.query.email;
@@ -145,7 +147,7 @@ router.get('/resend-verification', async (req, res) => {
 });
 
 
-// --- ALTERAÇÃO ---: Rota de verificação de e-mail foi modificada para adicionar a notificação
+// Rota de verificação de e-mail
 router.get('/verify-email', async (req, res) => {
     const { token } = req.query;
 
@@ -161,9 +163,7 @@ router.get('/verify-email', async (req, res) => {
             return res.redirect('/login.html?error=invalid_token');
         }
 
-        // Usando uma transação para garantir que ambas as operações funcionem
         await prisma.$transaction([
-            // 1. Atualiza o usuário para o status verificado
             prisma.user.update({
                 where: { id: user.id },
                 data: {
@@ -172,7 +172,6 @@ router.get('/verify-email', async (req, res) => {
                     emailConfirmationTokenExpires: null,
                 },
             }),
-            // 2. --- NOVO: Cria a notificação de boas-vindas ---
             prisma.notification.create({
                 data: {
                     userId: user.id,
@@ -191,7 +190,7 @@ router.get('/verify-email', async (req, res) => {
 });
 
 
-// Rota de Logout (sem alterações)
+// Rota de Logout
 router.get('/logout', (req, res, next) => {
     req.logout((err) => {
         if (err) { return next(err); }
@@ -202,7 +201,7 @@ router.get('/logout', (req, res, next) => {
     });
 });
 
-// Rota para verificar status de login (sem alterações)
+// Rota para verificar status de login
 router.get('/api/user/status', async (req, res) => {
     if (req.isAuthenticated()) {
         try {
@@ -227,7 +226,7 @@ router.get('/api/user/status', async (req, res) => {
 });
 
 
-// Rotas de Recuperação de Senha (sem alterações)
+// --- ROTA DE RECUPERAÇÃO DE SENHA CORRIGIDA ---
 router.post('/forgot-password', async (req, res) => {
     try {
         const user = await prisma.user.findUnique({ where: { email: req.body.email.toLowerCase() } });
@@ -241,10 +240,10 @@ router.post('/forgot-password', async (req, res) => {
             data: { passwordResetToken: token, passwordResetExpires: expires, },
         });
         const resetURL = `${req.protocol}://${req.get('host')}/reset-password.html?token=${token}`;
-		console.log("Tentando enviar e-mail DE:", process.env.SENDER_EMAIL); // <-- ADICIONE ESTA LINHA
+
         await transporter.sendMail({
             to: user.email,
-            from: `Verbi <${process.env.EMAIL_USER}>`,
+            from: `"Verbi" <${process.env.SENDER_EMAIL}>`, // <-- CORRIGIDO AQUI
             subject: 'Redefinição de Senha - Verbi',
             html: `Você está recebendo este e-mail porque solicitou a redefinição de senha para sua conta no Verbi.<br><br>
                    Por favor, clique no link a seguir ou cole-o em seu navegador para concluir o processo:<br><br>
