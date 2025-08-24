@@ -31,11 +31,11 @@ async function sendVerificationEmail(user, req) {
         },
     });
 
-    const verificationURL = `${req.protocol}://${req.get('host')}/verify-email?token=${token}`;
-    
+   const verificationURL = `${req.protocol}://${req.get('host')}/verify-email?token=${token}`;
+
     await transporter.sendMail({
         to: user.email,
-        from: `Verbi <${process.env.EMAIL_USER}>`,
+        from: `"Verbi" <${process.env.SENDER_EMAIL}>`, // <-- MUDANÇA IMPORTANTE AQUI
         subject: 'Confirme seu E-mail no Verbi',
         html: `
             <p>Olá ${user.profile.firstName},</p>
