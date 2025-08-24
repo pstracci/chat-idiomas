@@ -102,12 +102,14 @@ app.use('/api/notifications', notificationRoutes);
 function isAuthenticated(req, res, next) { if (req.isAuthenticated()) { return next(); } res.redirect('/login.html'); }
 app.get('/chat.html', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'chat.html')); });
 app.get('/stop-lobby.html', isAuthenticated, (req, res) => { res.sendFile(path.join(__dirname, 'public', 'stop-lobby.html')); });
+app.get('/stop-game.html', isAuthenticated, (req, res) => { res.sendFile(path.join(__dirname, 'public', 'stop-game.html')); });
 app.get('/profile.html', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'profile.html')); });
 app.get('/admin.html', isAuthenticated, (req, res) => { res.sendFile(path.join(__dirname, 'public', 'admin.html')); });
 
 // --- LÓGICA DO SOCKET.IO ---
 const userSocketMap = {}; 
 const videoCallState = {};
+const chatRooms = {}; // Objeto para gerenciar as salas de chat de idiomas
 
 const wrap = middleware => (socket, next) => middleware(socket.request, {}, next);
 io.use(wrap(sessionMiddleware));
@@ -115,6 +117,7 @@ io.use(wrap(passport.initialize()));
 io.use(wrap(passport.session()));
 
 io.on('connection', (socket) => {
+    // Lógica de login e status online (já existente)
     if (socket.request.user) {
         const userId = socket.request.user.id;
         userSocketMap[userId] = socket.id;
@@ -122,6 +125,70 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('user_status_change', { userId, isOnline: true });
     }
 
+    // =======================================================
+    // === LÓGICA DO CHAT DE IDIOMAS (REINTEGRADA) ===
+    // =======================================================
+    socket.on('joinRoom', (data) => {
+        const { sala, nickname, idade, color } = data;
+
+        if (!nickname || nickname.length > 20 || !idade || idade < 18) {
+            return socket.emit('invalidData', { message: 'Dados inválidos.' });
+        }
+
+        if (!chatRooms[sala]) {
+            chatRooms[sala] = { users: {}, history: [] };
+        }
+
+        if (Object.keys(chatRooms[sala].users).length >= 20) {
+            return socket.emit('roomFull');
+        }
+
+        if (Object.values(chatRooms[sala].users).some(u => u.nickname === nickname)) {
+            return socket.emit('nicknameTaken', { nickname });
+        }
+        
+        socket.join(sala);
+        socket.room = sala;
+        socket.nickname = nickname;
+
+        chatRooms[sala].users[socket.id] = { nickname, idade, color, status: 'online' };
+
+        socket.emit('chatHistory', chatRooms[sala].history);
+        io.to(sala).emit('userList', Object.values(chatRooms[sala].users));
+    });
+
+    socket.on('message', (msg) => {
+        if (!socket.room || !socket.nickname) return;
+        
+        const room = chatRooms[socket.room];
+        const user = room.users[socket.id];
+
+        if (room && user) {
+            const messageData = {
+                nickname: socket.nickname,
+                color: user.color,
+                text: msg.text,
+                mentions: msg.mentions,
+                imageData: msg.imageData
+            };
+            room.history.push(messageData);
+            if (room.history.length > 100) {
+                room.history.shift();
+            }
+            io.to(socket.room).emit('message', messageData);
+        }
+    });
+
+    socket.on('updateStatus', (newStatus) => {
+        if (socket.room && chatRooms[socket.room] && chatRooms[socket.room].users[socket.id]) {
+            chatRooms[socket.room].users[socket.id].status = newStatus;
+            io.to(socket.room).emit('userList', Object.values(chatRooms[socket.room].users));
+        }
+    });
+
+    // =======================================================
+    // === LÓGICA DE CHAMADA DE VÍDEO (JÁ EXISTENTE) ===
+    // =======================================================
     socket.on('video:invite', async (data) => {
         const { recipientId } = data;
         const requester = socket.request.user;
@@ -232,10 +299,19 @@ io.on('connection', (socket) => {
         }
     });
     
+    // =======================================================
+    // === LÓGICA DE DESCONEXÃO (UNIFICADA) ===
+    // =======================================================
     socket.on('disconnect', () => {
+        // Lógica de desconexão para o chat de idiomas
+        if (socket.room && chatRooms[socket.room] && chatRooms[socket.room].users[socket.id]) {
+            delete chatRooms[socket.room].users[socket.id];
+            io.to(socket.room).emit('userList', Object.values(chatRooms[socket.room].users));
+        }
+
+        // Lógica de desconexão para status online e chamadas de vídeo
         const userId = socket.request.user?.id;
         if (userId) {
-            // Apenas remove o mapeamento se o socket ID for o mesmo
             if(userSocketMap[userId] === socket.id) {
                 delete userSocketMap[userId];
                 console.log(`[Socket.IO] Usuário ${userId} desconectado.`);
@@ -275,10 +351,9 @@ io.on('connection', (socket) => {
 // =======================================================
 // === LÓGICA DO JOGO STOP! (NAMESPACE /stop) ===
 // =======================================================
-const stopRooms = {}; // Objeto para armazenar as salas em memória
+const stopRooms = {}; 
 const stopNamespace = io.of('/stop');
 
-// Middleware para compartilhar a sessão com o namespace do STOP!
 stopNamespace.use(wrap(sessionMiddleware));
 stopNamespace.use(wrap(passport.initialize()));
 stopNamespace.use(wrap(passport.session()));
@@ -295,7 +370,6 @@ function getLobbyRooms() {
 }
 
 stopNamespace.on('connection', (socket) => {
-    // Envia a lista de salas para o usuário que acabou de conectar
     socket.emit('updateRoomList', getLobbyRooms());
 
     socket.on('createRoom', (data) => {
@@ -316,13 +390,9 @@ stopNamespace.on('connection', (socket) => {
             password: data.password,
             categories: data.categories,
             status: 'Aguardando',
-            // Adicione outros estados do jogo conforme necessário
         };
 
-        // Envia a lista de salas atualizada para TODOS no lobby
         stopNamespace.emit('updateRoomList', getLobbyRooms());
-
-        // Envia o evento de sucesso APENAS para o criador da sala
         socket.emit('joinSuccess', roomId);
     });
     
@@ -337,14 +407,9 @@ stopNamespace.on('connection', (socket) => {
         if (room.isPrivate && room.password !== data.password) {
             return socket.emit('error', 'Senha incorreta.');
         }
-
-        // Se tudo estiver OK, envia o sucesso para o usuário entrar na sala
         socket.emit('joinSuccess', data.roomId);
     });
-
-    // Lembre-se de adicionar aqui os outros listeners do jogo (startGame, submitAnswers, etc.)
 });
-
 
 // --- INICIALIZAÇÃO DO SERVIDOR ---
 const PORT = process.env.PORT || 3000;
