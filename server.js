@@ -223,9 +223,38 @@ io.on('connection', (socket) => {
             io.to(requesterSocketId).emit('video:invite_declined', { message: `${recipientNickname} recusou a chamada.`, channel: channel });
         }
     });
-    // ===== FIM DO CÓDIGO RESTAURADO =====
-    
-    // ===== LÓGICA DE DESCONEXÃO UNIFICADA (RESTAURADA E COMPLETA) =====
+ 
+  // --- NOVO BLOCO DE CÓDIGO ADICIONADO ---
+    socket.on('video:leave', (data) => {
+        const userId = socket.request.user?.id;
+        const { channel } = data;
+
+        if (!userId || !channel || !videoCallState[channel]) return;
+
+        const room = videoCallState[channel];
+        room.participants.delete(userId);
+
+        // Notifica o usuário que saiu que a chamada terminou para ele
+        socket.emit('video:call_ended', { channel });
+
+        // Se ainda houver alguém na sala, notifica essa pessoa
+        if (room.participants.size === 1) {
+            const remainingUserId = [...room.participants][0];
+            const remainingSocketId = userSocketMap[remainingUserId];
+            if (remainingSocketId) {
+                io.to(remainingSocketId).emit('video:call_ended', { channel });
+            }
+        }
+        
+        // Se a sala estiver vazia, limpa os timers e remove o estado da chamada
+        if (room.participants.size === 0) {
+            clearTimeout(room.warningTimer);
+            clearTimeout(room.endTimer);
+            delete videoCallState[channel];
+        }
+    });
+    // --- FIM DO NOVO BLOCO ---
+ 
 socket.on('disconnect', () => {
     // Primeiro, lida com a saída de salas de chat anônimas
     if (socket.room && chatRooms[socket.room] && chatRooms[socket.room].users[socket.id]) {

@@ -44,7 +44,12 @@
         document.body.innerHTML = '<h1>Acesso inválido. Credenciais não encontradas ou UID ausente.</h1>';
     }
 
-    const leaveAndRemoveLocalStream = async () => {
+ const leaveAndRemoveLocalStream = async () => {
+        // Envia o evento para o servidor ANTES de fechar as tracks
+        if (socket && CHANNEL) {
+            socket.emit('video:leave', { channel: CHANNEL });
+        }
+
         for (let trackName in localTracks) {
             let track = localTracks[trackName];
             if(track) { track.stop(); track.close(); localTracks[trackName] = null; }
