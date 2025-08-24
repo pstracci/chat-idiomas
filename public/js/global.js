@@ -83,22 +83,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         notificationCount.textContent = unreadNotifications.length;
         notificationCount.style.display = 'flex';
-        unreadNotifications.forEach(notif => {
-            const li = document.createElement('li');
-            li.className = 'request-item';
-            if (notif.type === 'CONNECTION_REQUEST' && notif.requester) {
-                li.innerHTML = `
-                    <img src="${notif.requester.profilePicture || '/default-avatar.png'}" alt="Avatar">
-                    <div class="info"><strong>${notif.requester.nickname}</strong> quer se conectar.</div>
-                    <div class="actions">
-                        <button class="btn-accept" data-id="${notif.relatedId}">Aceitar</button>
-                        <button class="btn-reject" data-id="${notif.relatedId}">Recusar</button>
-                    </div>
-                `;
-            }
-            // Adicione outros tipos de notificação aqui se necessário
-            requestsList.appendChild(li);
-        });
+		
+		
+      unreadNotifications.forEach(notif => {
+    const li = document.createElement('li');
+    li.className = 'request-item';
+    let notificationAdded = false; // Variável de controle
+
+    if (notif.type === 'CONNECTION_REQUEST' && notif.requester) {
+        li.innerHTML = `
+            <img src="${notif.requester.profilePicture || '/default-avatar.png'}" alt="Avatar">
+            <div class="info"><strong>${notif.requester.nickname}</strong> quer se conectar.</div>
+            <div class="actions">
+                <button class="btn-accept" data-id="${notif.relatedId}">Aceitar</button>
+                <button class="btn-reject" data-id="${notif.relatedId}">Recusar</button>
+            </div>
+        `;
+        notificationAdded = true;
+    } 
+    // ADICIONE ESTE BLOCO PARA EXIBIR MENSAGENS DO SISTEMA
+    else if (notif.type === 'SYSTEM_MESSAGE') {
+        li.innerHTML = `
+            <img src="/default-avatar.png" alt="Avatar do Sistema" style="filter: grayscale(1);">
+            <div class="info">${notif.content}</div>
+        `;
+        notificationAdded = true;
+    }
+    // Você pode adicionar mais 'else if' para outros tipos de notificação aqui
+
+    // Apenas adiciona o 'li' à lista se ele tiver conteúdo
+    if (notificationAdded) {
+        requestsList.appendChild(li);
+    }
+});
+		
+		
+		
     }
     
     async function loadAndDisplayNotifications() {
