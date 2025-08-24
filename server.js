@@ -11,6 +11,7 @@ const { Server } = require('socket.io');
 const PgSimple = require('connect-pg-simple')(session);
 const { PrismaClient, Role } = require('@prisma/client');
 const cors = require('cors');
+const { randomUUID } = require('crypto');
 
 
 // --- INICIALIZAÇÃO E CONFIGURAÇÃO ---
@@ -183,34 +184,38 @@ io.on('connection', (socket) => {
     });
     
     // --- LÓGICA DE CONVITE DE VÍDEO ---
-    socket.on('video:invite', (data) => {
-        const { recipientId } = data;
-        const requester = socket.request.user;
+   socket.on('video:invite', (data) => {
+    const { recipientId } = data;
+    const requester = socket.request.user;
 
-        if (!requester) {
-            console.error("[Vídeo Convite] Erro: Usuário requisitante não está logado.");
-            return;
-        }
+    if (!requester) return;
 
-        console.log(`[Vídeo Convite] ${requester.nickname} (ID: ${requester.id}) está convidando o usuário com ID: ${recipientId}`);
-        const recipientSocketId = userSocketMap[recipientId];
+    console.log(`[Vídeo Convite] ${requester.nickname} convida usuário ID: ${recipientId}`);
+    const recipientSocketId = userSocketMap[recipientId];
 
-        if (recipientSocketId) {
-            console.log(`[Vídeo Convite] Destinatário (ID: ${recipientId}) encontrado online com socket ID: ${recipientSocketId}. Enviando convite...`);
-            const channel = `video_${requester.id}_${recipientId}_${Date.now()}`;
-            io.to(recipientSocketId).emit('video:incoming_invite', {
-                requester: {
-                    id: requester.id,
-                    nickname: requester.nickname,
-                    profilePicture: requester.profile?.profilePicture
-                },
-                channel: channel
-            });
-        } else {
-            console.warn(`[Vídeo Convite] Destinatário (ID: ${recipientId}) não encontrado no mapa de sockets. Usuário pode estar offline.`);
-            socket.emit('video:recipient_offline', { message: 'Este usuário não está online no momento.' });
-        }
-    });
+    if (recipientSocketId) {
+        const channel = randomUUID(); // Gera um canal único e válido
+        
+        // 1. Envia o convite para o destinatário (Participante B)
+        io.to(recipientSocketId).emit('video:incoming_invite', {
+            requester: {
+                id: requester.id,
+                nickname: requester.nickname,
+                profilePicture: requester.profile?.profilePicture
+            },
+            channel: channel
+        });
+
+        // 2. Avisa o requisitante (Participante A) que o convite foi enviado e qual é o canal
+        socket.emit('video:invite_sent', { 
+            channel: channel,
+            recipientId: recipientId
+        });
+
+    } else {
+        socket.emit('video:recipient_offline', { message: 'Este usuário não está online.' });
+    }
+});
 
     socket.on('video:accept', (data) => {
         const { requesterId, channel } = data;

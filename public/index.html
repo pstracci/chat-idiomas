@@ -96,8 +96,10 @@
         .connection-item:hover { background-color: #f1f1f1; }
         .connection-item img { width: 35px; height: 35px; border-radius: 50%; margin-right: 10px; object-fit: cover; }
         .connection-item .action-buttons { margin-left: auto; display: flex; align-items: center;}
-        .btn-video { background: none; border: none; font-size: 1.2em; cursor: pointer; color: #28a745; padding: 5px; }
+        .btn-video { background: none; border: none; font-size: 1.2em; cursor: pointer; padding: 5px; transition: color 0.3s; color: #28a745;}
         .btn-video:hover { opacity: 0.7; }
+        .btn-video.pending { color: #ffc107; }
+        .btn-video.active { color: #dc3545; }
         .btn-chat { background: none; border: none; font-size: 1.2em; cursor: pointer; color: #007bff; padding: 5px; }
         .btn-chat:hover { opacity: 0.7; }
         .btn-disconnect { background: none; border: none; font-size: 1.2em; cursor: pointer; color: #dc3545; padding: 5px; }
@@ -159,8 +161,8 @@
         .request-item .actions button { margin-left: 5px; padding: 5px 10px; border-radius: 5px; cursor: pointer; border: none; color: white; }
         .btn-accept { background-color: #28a745; }
         .btn-reject { background-color: #6c757d; }
-        .btn-accept-video { background-color: #28a745; } /* Estilo para o botão de aceitar vídeo */
-        .btn-reject-video { background-color: #6c757d; } /* Estilo para o botão de rejeitar vídeo */
+        .btn-accept-video { background-color: #28a745; }
+        .btn-reject-video { background-color: #6c757d; }
         .btn-read { background-color: #007bff; }
         .connections-widget, .hero, header, main, footer { z-index: 1; }
     </style>
@@ -292,7 +294,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // ELEMENTOS DA UI
-			const adminLinkContainer = document.getElementById('admin-link-container');
+            const adminLinkContainer = document.getElementById('admin-link-container');
             const loggedOutView = document.getElementById('logged-out-view');
             const loggedInView = document.getElementById('logged-in-view');
             const welcomeMessage = document.getElementById('welcome-message');
@@ -318,8 +320,9 @@
             const requestsList = document.getElementById('requests-list');
             const notificationContainer = document.querySelector('.notification-container');
 
-            // SOCKET.IO
+            // SOCKET.IO E ESTADO DA APLICAÇÃO
             const socket = io();
+            let activeVideoCalls = {}; // Armazena chamadas ativas: { userId: channel }
 
             // FUNÇÕES
             function calculateAge(dateString) { if (!dateString) return ''; const birthday = new Date(dateString); const today = new Date(); let age = today.getFullYear() - birthday.getFullYear(); const m = today.getMonth() - birthday.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birthday.getDate())) { age--; } return age; }
@@ -426,16 +429,12 @@
                 try {
                     const response = await fetch('/api/notifications');
                     if (!response.ok) {
-                        if (response.status !== 401) {
-                            console.error('Falha ao buscar notificações');
-                        }
+                        if (response.status !== 401) { console.error('Falha ao buscar notificações'); }
                         return;
                     }
                     const notifications = await response.json();
                     renderNotifications(notifications);
-                } catch (error) {
-                    console.error('Erro ao carregar notificações:', error);
-                }
+                } catch (error) { console.error('Erro ao carregar notificações:', error); }
             }
 
             async function handleRequestAction(connectionId, action) { 
@@ -451,24 +450,15 @@
                         populateConnectionsWidget(data.connections);
                     }
                     loadAndDisplayNotifications();
-                } catch (error) { 
-                    alert(error.message); 
-                } 
+                } catch (error) { alert(error.message); } 
             }
 
             async function handleMarkAsRead(notificationId) {
                 try {
-                    const response = await fetch(`/api/notifications/${notificationId}/read`, {
-                        method: 'PUT'
-                    });
-                    if (!response.ok) {
-                        throw new Error('Falha ao marcar notificação como lida.');
-                    }
+                    const response = await fetch(`/api/notifications/${notificationId}/read`, { method: 'PUT' });
+                    if (!response.ok) { throw new Error('Falha ao marcar notificação como lida.'); }
                     loadAndDisplayNotifications();
-                } catch (error) {
-                    console.error(error);
-                    alert(error.message);
-                }
+                } catch (error) { console.error(error); alert(error.message); }
             }
             
             // INICIALIZAÇÃO DA PÁGINA
@@ -480,26 +470,19 @@
                     if (data.loggedIn) {
                         loggedInView.style.display = 'flex';
                         loggedOutView.style.display = 'none';
-                        
                         welcomeMessage.textContent = `Olá, ${data.user.nickname}!`;
-                        
                         if (stopGameCard) { stopGameCard.onclick = () => { location.href='stop-lobby.html'; }; }
                         if (nicknameInput && data.user.nickname) { nicknameInput.value = data.user.nickname; }
-                        
                         if (ageInput && data.user.profile && data.user.profile.dateOfBirth) {
                             const age = calculateAge(data.user.profile.dateOfBirth);
                             if (age) ageInput.value = age;
                         }
-                        
                         populateConnectionsWidget(data.connections);
                         connectionsWidget.style.display = 'flex';
-
                         loadAndDisplayNotifications();
-						
 						if (data.user.role === 'ADMIN') {
                             adminLinkContainer.innerHTML = `<a href="/admin.html">Admin</a>`;
                         }
-
                     } else {
                         loggedOutView.style.display = 'block';
                         loggedInView.style.display = 'none';
@@ -552,7 +535,6 @@
                 window.location.href = `chat.html?sala=${salaLimpa}&nick=${nick}&idade=${age}&color=${encodeURIComponent(color)}`;
             });
 
-            // LISTENERS DE SOCKET.IO GERAIS
             socket.on('roomCounts', (counts) => {
                 for (const room in counts) {
                     const roomLimpa = limparNomeSala(room);
@@ -560,12 +542,8 @@
                     if (countElement) countElement.textContent = counts[room];
                 }
             });
-            socket.on('stopPlayerCountUpdate', (count) => {
-                const countElement = document.getElementById('stop-player-count');
-                if (countElement) { countElement.textContent = count; }
-            });
+            socket.on('stopPlayerCountUpdate', (count) => { document.getElementById('stop-player-count').textContent = count; });
 
-            // LÓGICA DE BUSCA
             let searchTimeout;
             userSearchInput.addEventListener('input', () => {
                 clearTimeout(searchTimeout);
@@ -599,33 +577,34 @@
                 if (!userSearchInput.contains(e.target)) { searchResultsDiv.style.display = 'none'; }
             });
 
-            // EVENTOS DE UI GERAIS
             toggleWidget.addEventListener('click', () => {
                 const isVisible = widgetBody.style.display !== 'none';
                 widgetBody.style.display = isVisible ? 'none' : 'block';
                 toggleWidget.textContent = isVisible ? '+' : '-';
             });
 
+            // --- LISTENER DO WIDGET DE CONEXÕES (LÓGICA ATUALIZADA) ---
             connectionsList.addEventListener('click', (e) => {
                 const videoButton = e.target.closest('.btn-video');
                 const chatButton = e.target.closest('.btn-chat');
                 
-              // --- INÍCIO DA CORREÇÃO ---
-			if (videoButton) {
-				const connectionItem = videoButton.closest('.connection-item');
-				
-				// Verificação de segurança: garantir que encontramos o item e o ID do amigo
-				if (connectionItem && connectionItem.dataset.userId) {
-					const friendId = connectionItem.dataset.userId;
-					socket.emit('video:invite', { recipientId: friendId });
-					alert('Convite para chamada de vídeo enviado!');
-				} else {
-					// Se não encontrarmos, avisamos no console e para o usuário
-					console.error("Erro Crítico: Não foi possível encontrar o 'data-user-id' no elemento .connection-item. Verifique a função populateConnectionsWidget.");
-					alert("Ocorreu um erro ao tentar iniciar a chamada. Verifique o console para mais detalhes.");
-				}
-			}
-    // --- FIM DA CORREÇÃO ---
+                if (videoButton) {
+                    const connectionItem = videoButton.closest('.connection-item');
+                    if (!connectionItem || !connectionItem.dataset.userId) {
+                        console.error("Erro: não foi possível encontrar o ID do usuário para a chamada.");
+                        return;
+                    }
+                    const friendId = connectionItem.dataset.userId;
+
+                    // Se já existe uma chamada ativa ou pendente, entra nela
+                    if (activeVideoCalls[friendId]) {
+                        joinVideoRoom(activeVideoCalls[friendId]);
+                        return;
+                    }
+                    
+                    // Caso contrário, inicia um novo convite
+                    socket.emit('video:invite', { recipientId: friendId });
+                }
                 
                 if (chatButton) {
                     const userId = chatButton.dataset.id;
@@ -634,27 +613,14 @@
                 }
             });
 
-            notificationBell.addEventListener('click', (e) => {
-                e.stopPropagation();
-                notificationsDropdown.classList.toggle('active');
-            });
-            window.addEventListener('click', (e) => {
-                if (notificationContainer && !notificationContainer.contains(e.target)) {
-                    notificationsDropdown.classList.remove('active');
-                }
-            });
+            notificationBell.addEventListener('click', (e) => { e.stopPropagation(); notificationsDropdown.classList.toggle('active'); });
+            window.addEventListener('click', (e) => { if (notificationContainer && !notificationContainer.contains(e.target)) { notificationsDropdown.classList.remove('active'); } });
 
             requestsList.addEventListener('click', (e) => {
-                // Ações para pedidos de conexão
-                if (e.target.matches('.btn-accept')) {
-                    handleRequestAction(e.target.dataset.id, 'accept');
-                } else if (e.target.matches('.btn-reject')) {
-                    handleRequestAction(e.target.dataset.id, 'reject');
-                } else if (e.target.matches('.btn-read')) {
-                    handleMarkAsRead(e.target.dataset.id);
-                }
+                if (e.target.matches('.btn-accept')) handleRequestAction(e.target.dataset.id, 'accept');
+                else if (e.target.matches('.btn-reject')) handleRequestAction(e.target.dataset.id, 'reject');
+                else if (e.target.matches('.btn-read')) handleMarkAsRead(e.target.dataset.id);
 
-                // Ações para convites de vídeo
                 const acceptVideoButton = e.target.closest('.btn-accept-video');
                 const rejectVideoButton = e.target.closest('.btn-reject-video');
 
@@ -664,15 +630,28 @@
                     joinVideoRoom(channel);
                     acceptVideoButton.closest('.request-item').remove();
                 }
-
                 if (rejectVideoButton) {
-                    const { requesterId } = rejectVideoButton.dataset;
-                    socket.emit('video:decline', { requesterId });
+                    const { requesterId, channel } = rejectVideoButton.dataset;
+                    socket.emit('video:decline', { requesterId, channel });
                     rejectVideoButton.closest('.request-item').remove();
                 }
             });
 
-            // LISTENERS DE SOCKET PARA VÍDEO
+            // --- LISTENERS DE SOCKET PARA VÍDEO (ATUALIZADOS) ---
+            socket.on('video:invite_sent', (data) => {
+                const { channel, recipientId } = data;
+                activeVideoCalls[recipientId] = channel;
+
+                const connectionItem = document.querySelector(`.connection-item[data-user-id='${recipientId}']`);
+                if (connectionItem) {
+                    const videoButton = connectionItem.querySelector('.btn-video');
+                    videoButton.innerHTML = '🕒';
+                    videoButton.title = 'Aguardando resposta...';
+                    videoButton.classList.add('pending');
+                }
+                alert('Convite para chamada de vídeo enviado!');
+            });
+
             socket.on('video:incoming_invite', (data) => {
                 const { requester, channel } = data;
                 const li = document.createElement('li');
@@ -682,22 +661,44 @@
                     <div class="info"><strong>${requester.nickname}</strong> quer iniciar uma chamada de vídeo.</div>
                     <div class="actions">
                         <button class="btn-accept-video" data-requester-id="${requester.id}" data-channel="${channel}">Reunir Agora</button>
-                        <button class="btn-reject-video" data-requester-id="${requester.id}">Recusar</button>
+                        <button class="btn-reject-video" data-requester-id="${requester.id}" data-channel="${channel}">Recusar</button>
                     </div>
                 `;
                 requestsList.prepend(li);
                 
-                notificationCount.textContent = parseInt(notificationCount.textContent || 0) + 1;
+                const currentCount = parseInt(notificationCount.textContent || '0');
+                notificationCount.textContent = currentCount + 1;
                 notificationCount.style.display = 'flex';
             });
 
             socket.on('video:invite_accepted', (data) => {
-                alert('Convite aceito! Entrando na sala...');
-                joinVideoRoom(data.channel);
+                alert('Convite aceito! A sala está pronta.');
+                const recipientId = Object.keys(activeVideoCalls).find(key => activeVideoCalls[key] === data.channel);
+                if (recipientId) {
+                    const connectionItem = document.querySelector(`.connection-item[data-user-id='${recipientId}']`);
+                    if (connectionItem) {
+                        const videoButton = connectionItem.querySelector('.btn-video');
+                        videoButton.innerHTML = '🔴';
+                        videoButton.title = 'Reunião em andamento. Clique para entrar.';
+                        videoButton.classList.remove('pending');
+                        videoButton.classList.add('active');
+                    }
+                }
             });
 
             socket.on('video:invite_declined', (data) => {
                 alert(data.message);
+                const recipientId = Object.keys(activeVideoCalls).find(key => activeVideoCalls[key] === data.channel);
+                if (recipientId) {
+                    const connectionItem = document.querySelector(`.connection-item[data-user-id='${recipientId}']`);
+                    if (connectionItem) {
+                        const videoButton = connectionItem.querySelector('.btn-video');
+                        videoButton.innerHTML = '🎥';
+                        videoButton.title = 'Iniciar chamada de vídeo';
+                        videoButton.classList.remove('pending', 'active');
+                    }
+                    delete activeVideoCalls[recipientId];
+                }
             });
             
             socket.on('video:recipient_offline', (data) => {
