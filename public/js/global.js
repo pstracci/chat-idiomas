@@ -25,25 +25,22 @@ document.addEventListener('DOMContentLoaded', () => {
     let loggedInUserId = null;
 
     // --- FUNÇÕES GLOBAIS ---
-	async function joinVideoRoom(channel) {
-		try {
-			const backendUrl = window.location.origin;
-			const response = await fetch(`${backendUrl}/api/video/generate-token`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ channel: channel })
-			});
-			const data = await response.json();
-			if (!response.ok) throw new Error(data.error || 'Falha ao entrar na sala.');
-	
-			// --- ALTERAÇÃO PRINCIPAL: Adicionar o UID à URL ---
-			const joinUrl = `/videocall.html?appId=${encodeURIComponent(data.appId)}&channel=${encodeURIComponent(data.channel)}&token=${encodeURIComponent(data.token)}&uid=${encodeURIComponent(data.uid)}`;
-	
-			window.open(joinUrl, '_blank');
-		} catch (error) {
-			alert(error.message);
-		}
-	}
+    async function joinVideoRoom(channel) {
+        try {
+            const backendUrl = window.location.origin;
+            const response = await fetch(`${backendUrl}/api/video/generate-token`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ channel: channel })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Falha ao entrar na sala.');
+            const joinUrl = `/videocall.html?appId=${encodeURIComponent(data.appId)}&channel=${encodeURIComponent(data.channel)}&token=${encodeURIComponent(data.token)}&uid=${encodeURIComponent(data.uid)}`;
+            window.open(joinUrl, '_blank');
+        } catch (error) {
+            alert(error.message);
+        }
+    }
 
     function populateConnectionsWidget(connections) {
         if (!connectionsList) return;
@@ -198,14 +195,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (connectionsList) {
         connectionsList.addEventListener('click', (e) => {
             const videoButton = e.target.closest('.btn-video');
-            if (videoButton && !videoButton.classList.contains('pending') && !videoButton.classList.contains('active')) {
+            if (videoButton) { // Simplificado: sempre tenta iniciar a chamada
                 const friendId = videoButton.closest('.connection-item')?.dataset.userId;
                 if (!friendId) return;
+                // Opcional: manter a confirmação do crédito
                 if (confirm("Iniciar uma chamada de vídeo custará 1 crédito. Deseja prosseguir?")) {
                     socket.emit('video:invite', { recipientId: friendId });
                 }
-            } else if (videoButton) {
-                alert("Esta chamada já está em andamento ou aguardando resposta.");
             }
         });
     }
@@ -288,17 +284,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    socket.on('video:invite_sent', (data) => {
-        const { recipientId } = data;
-        const connectionItem = document.querySelector(`.connection-item[data-user-id='${recipientId}']`);
-        if (connectionItem) {
-            const videoButton = connectionItem.querySelector('.btn-video');
-            videoButton.innerHTML = '🕒';
-            videoButton.title = 'Aguardando resposta...';
-            videoButton.classList.add('pending');
-        }
-    });
-
     socket.on('video:incoming_invite', (data) => {
         if (callerAvatar) callerAvatar.src = data.requester.profilePicture || '/default-avatar.png';
         if (callerName) callerName.innerText = data.requester.nickname;
@@ -319,56 +304,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     socket.on('video:invite_declined', (data) => {
         alert(data.message);
-        const allPendingButtons = document.querySelectorAll('.btn-video.pending');
-        allPendingButtons.forEach(button => {
-            button.innerHTML = '🎥';
-            button.title = 'Iniciar chamada de vídeo';
-            button.classList.remove('pending');
-        });
-    });
-
-    socket.on('video:call_started', (data) => {
-        if (!loggedInUserId) return;
-        const otherParticipantId = data.participants.find(id => id !== loggedInUserId);
-        if (otherParticipantId) {
-            const connectionItem = document.querySelector(`.connection-item[data-user-id='${otherParticipantId}']`);
-            if (connectionItem) {
-                const videoButton = connectionItem.querySelector('.btn-video');
-                videoButton.innerHTML = '🔴';
-                videoButton.title = 'Chamada em andamento';
-                videoButton.classList.remove('pending');
-                videoButton.classList.add('active');
-            }
-        }
-    });
-
-    socket.on('video:call_ended', () => {
-        const allActiveButtons = document.querySelectorAll('.btn-video.active, .btn-video.pending');
-        allActiveButtons.forEach(button => {
-            button.innerHTML = '🎥';
-            button.title = 'Iniciar chamada de vídeo';
-            button.classList.remove('pending', 'active');
-        });
     });
     
     socket.on('video:recipient_offline', (data) => {
         alert(data.message);
-        const pendingButton = document.querySelector('.btn-video.pending');
-        if (pendingButton) {
-            pendingButton.innerHTML = '🎥';
-            pendingButton.title = 'Iniciar chamada de vídeo';
-            pendingButton.classList.remove('pending');
-        }
     });
     
     socket.on('video:error', (data) => {
         alert(`Erro: ${data.message}`);
-        const pendingButton = document.querySelector('.btn-video.pending');
-        if (pendingButton) {
-            pendingButton.innerHTML = '🎥';
-            pendingButton.title = 'Iniciar chamada de vídeo';
-            pendingButton.classList.remove('pending');
-        }
     });
     
     // LISTENERS QUE ANTES ESTAVAM NO INDEX.HTML
@@ -383,4 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const countElement = document.getElementById('stop-player-count');
         if (countElement) countElement.textContent = count;
     });
+
+    // REMOVIDO: Listeners que alteravam o ícone (video:invite_sent, video:call_started, video:call_ended)
+    // Agora o ícone permanecerá sempre '🎥'.
 });
