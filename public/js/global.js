@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const notificationContainer = document.querySelector('.notification-container');
 
     // --- ESTADO DA APLICAÇÃO ---
-    const socket = io();
+    const socket = io(); // ÚNICA CONEXÃO GLOBAL
     let loggedInUserId = null;
 
     // --- FUNÇÕES GLOBAIS ---
@@ -78,13 +78,10 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (response.ok) {
-                // Remove a notificação da UI
                 const notificationElement = document.querySelector(`.request-item[data-notification-id="${notificationId}"]`);
                 if (notificationElement) {
                     notificationElement.remove();
                 }
-
-                // Decrementa o contador
                 const currentCount = parseInt(notificationCount.textContent);
                 if (!isNaN(currentCount) && currentCount > 0) {
                     const newCount = currentCount - 1;
@@ -93,8 +90,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         notificationCount.style.display = 'none';
                     }
                 }
-                
-                // Verifica se a lista está vazia
                 if (requestsList.children.length === 0) {
                     requestsList.innerHTML = '<li style="padding: 15px; text-align: center; color: #6c757d;">Nenhuma notificação nova.</li>';
                 }
@@ -106,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // --- LÓGICA DE NOTIFICAÇÕES (ATUALIZADA) ---
+    // --- LÓGICA DE NOTIFICAÇÕES ---
     function renderNotifications(notifications) {
         if (!requestsList || !notificationBell || !notificationCount) return;
         requestsList.innerHTML = '';
@@ -137,8 +132,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
             } else if (notif.type === 'SYSTEM_MESSAGE') {
-                // *** ALTERAÇÃO APLICADA AQUI ***
-                // Substituído <img> por um <span> com o emoji de carta
                 contentHTML = `
                      <span class="notification-icon">✉️</span>
                      <div class="info">${notif.content}</div>
@@ -261,8 +254,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // --- CSS ADICIONADO DINAMICAMENTE ---
-    // Adiciona CSS para o botão de "lida" e para o novo ícone de notificação
     const style = document.createElement('style');
     style.innerHTML = `
         .request-item { position: relative; }
@@ -272,26 +263,16 @@ document.addEventListener('DOMContentLoaded', () => {
             cursor: pointer; color: #aaa; line-height: 1; padding: 5px;
         }
         .btn-mark-read:hover { color: #333; }
-
-        /* *** CSS PARA O NOVO ÍCONE DE CARTA *** */
         .notification-icon {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 40px;
-            height: 40px;
-            min-width: 40px;
-            background-color: #e9ecef;
-            border-radius: 50%;
-            margin-right: 15px;
-            font-size: 1.4em;
-            color: #495057;
+            display: flex; align-items: center; justify-content: center;
+            width: 40px; height: 40px; min-width: 40px;
+            background-color: #e9ecef; border-radius: 50%;
+            margin-right: 15px; font-size: 1.4em; color: #495057;
         }
     `;
     document.head.appendChild(style);
 
     // --- LISTENERS DE SOCKET GLOBAIS ---
-    // (O restante do seu código permanece inalterado)
     socket.on('user_status_change', (data) => {
         const { userId, isOnline } = data;
         const connectionItem = document.querySelector(`.connection-item[data-user-id='${userId}']`);
@@ -385,5 +366,18 @@ document.addEventListener('DOMContentLoaded', () => {
             pendingButton.title = 'Iniciar chamada de vídeo';
             pendingButton.classList.remove('pending');
         }
+    });
+    
+    // LISTENERS QUE ANTES ESTAVAM NO INDEX.HTML
+    socket.on('roomCounts', (counts) => {
+        for (const room in counts) {
+            const countElement = document.getElementById(`count-${room}`);
+            if (countElement) countElement.textContent = counts[room];
+        }
+    });
+
+    socket.on('stopPlayerCountUpdate', (count) => {
+        const countElement = document.getElementById('stop-player-count');
+        if (countElement) countElement.textContent = count;
     });
 });
