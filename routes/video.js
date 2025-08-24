@@ -18,51 +18,44 @@ function uuidToUint32(uuid) {
     return parseInt(hex, 16);
 }
 
-// Endpoint modificado para verificar e descontar créditos
 router.get('/generate-link', isAuthenticated, async (req, res) => {
     try {
-        // 1. Busca o utilizador e o seu saldo de créditos
-        const user = await prisma.user.findUnique({
-            where: { id: req.user.id }
-        });
-
-        // 2. Verifica se o utilizador tem créditos suficientes
+        // --- Lógica de Segurança ---
+        // 1. Verificar se o usuário tem créditos (exemplo)
+        const user = await prisma.user.findUnique({ where: { id: req.user.id } });
         if (user.credits < 1) {
-            // HTTP Status 402 significa "Pagamento Necessário"
-            return res.status(402).json({ error: 'Créditos insuficientes para criar uma sala. Por favor, adquira mais créditos.' });
+            return res.status(402).json({ error: 'Créditos insuficientes.' });
         }
 
-        // 3. Desconta 1 crédito e gera o link (dentro de uma transação)
-        // A transação garante que o crédito só é descontado se tudo o resto funcionar
-        await prisma.$transaction(async (tx) => {
-            // Desconta o crédito
-            await tx.user.update({
-                where: { id: req.user.id },
-                data: { credits: { decrement: 1 } }
-            });
+        // --- Geração das Credenciais da Sala ---
+        const appId = process.env.AGORA_APP_ID;
+        const appCertificate = process.env.AGORA_APP_CERTIFICATE;
+        const channelName = crypto.randomBytes(16).toString('hex'); // Gera um nome de sala aleatório
+        const uid = req.user.id; // UID pode ser o ID do usuário
+        const role = 1; // 1 para Host, 2 para Audience
+        const expirationTimeInSeconds = 3600; // Token válido por 1 hora
 
-            // Lógica para gerar o link (como antes)
-            const channelName = uuidv4();
-            const uid = uuidToUint32(req.user.id);
-            const userDisplayName = req.user.nickname;
-            const expirationTimeInSeconds = 3600;
-            const currentTimestamp = Math.floor(Date.now() / 1000);
-            const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
-            const appId = process.env.AGORA_APP_ID;
-            const appCertificate = process.env.AGORA_APP_CERTIFICATE;
+        // Gera o token
+        const token = RtcTokenBuilder.buildTokenWithUid(appId, appCertificate, channelName, uid, role, expirationTimeInSeconds);
+        
+        // Pega a URL da aplicação de vídeo das variáveis de ambiente
+        const videoAppUrl = process.env.VIDEO_APP_URL;
 
-            const rtcToken = RtcTokenBuilder.buildTokenWithUid(appId, appCertificate, channelName, uid, RtcRole.PUBLISHER, privilegeExpiredTs);
-            
-            const videoAppUrl = "https://verbi-video-app-production.up.railway.app/"; 
-            const joinUrl = `${videoAppUrl}?channel=${encodeURIComponent(channelName)}&token=${encodeURIComponent(rtcToken)}&user=${encodeURIComponent(userDisplayName)}`;
+        // Monta o link final com as credenciais como parâmetros
+        const joinUrl = `${videoAppUrl}?channel=${channelName}&token=${token}&uid=${uid}`;
 
-            // Envia o URL de volta para o frontend
-            res.json({ joinUrl: joinUrl });
+        // Debita o crédito do usuário
+        await prisma.user.update({
+            where: { id: req.user.id },
+            data: { credits: { decrement: 1 } },
         });
+        
+        // Envia o link completo para o frontend
+        res.json({ joinUrl: joinUrl });
 
     } catch (error) {
-        console.error("Erro ao gerar link de vídeo:", error);
-        res.status(500).json({ error: "Ocorreu um erro ao tentar criar a sala de vídeo." });
+        console.error('Erro ao gerar link de vídeo:', error);
+        res.status(500).json({ error: 'Erro interno ao criar a sala.' });
     }
 });
 
