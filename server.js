@@ -122,18 +122,14 @@ const userSocketMap = {}; // Armazena { userId: socketId }
 // Função 'wrapper' para usar middlewares do Express no Socket.IO
 const wrap = middleware => (socket, next) => middleware(socket.request, {}, next);
 
-// ****** INÍCIO DA CORREÇÃO ******
-// Aplicando o middleware de sessão ao namespace PRINCIPAL do Socket.IO
 io.use(wrap(sessionMiddleware));
 io.use(wrap(passport.initialize()));
 io.use(wrap(passport.session()));
-// ****** FIM DA CORREÇÃO ******
 
 // Namespace Principal (Chat de Idiomas e Notificações)
 io.on('connection', (socket) => {
     console.log(`[Socket.IO] Nova conexão: ${socket.id}`);
 
-    // Mapeia o usuário logado ao seu socket.id
     if (socket.request.user) {
         const userId = socket.request.user.id;
         userSocketMap[userId] = socket.id;
@@ -187,31 +183,19 @@ io.on('connection', (socket) => {
    socket.on('video:invite', (data) => {
     const { recipientId } = data;
     const requester = socket.request.user;
-
     if (!requester) return;
-
-    console.log(`[Vídeo Convite] ${requester.nickname} convida usuário ID: ${recipientId}`);
     const recipientSocketId = userSocketMap[recipientId];
 
     if (recipientSocketId) {
-        const channel = randomUUID(); // Gera um canal único e válido
-        
-        // 1. Envia o convite para o destinatário (Participante B)
+        const channel = randomUUID();
         io.to(recipientSocketId).emit('video:incoming_invite', {
-            requester: {
-                id: requester.id,
-                nickname: requester.nickname,
-                profilePicture: requester.profile?.profilePicture
-            },
+            requester: { id: requester.id, nickname: requester.nickname, profilePicture: requester.profile?.profilePicture },
             channel: channel
         });
-
-        // 2. Avisa o requisitante (Participante A) que o convite foi enviado e qual é o canal
         socket.emit('video:invite_sent', { 
             channel: channel,
             recipientId: recipientId
         });
-
     } else {
         socket.emit('video:recipient_offline', { message: 'Este usuário não está online.' });
     }
@@ -220,26 +204,26 @@ io.on('connection', (socket) => {
     socket.on('video:accept', (data) => {
         const { requesterId, channel } = data;
         const requesterSocketId = userSocketMap[requesterId];
-        console.log(`[Vídeo Convite] Convite aceito pelo destinatário. Notificando o requisitante (ID: ${requesterId})`);
-
         if (requesterSocketId) {
             io.to(requesterSocketId).emit('video:invite_accepted', { channel });
         }
     });
 
+    // --- INÍCIO DA CORREÇÃO ---
     socket.on('video:decline', (data) => {
-        const { requesterId } = data;
+        // 1. Receba o 'channel' junto com o 'requesterId'
+        const { requesterId, channel } = data; 
         const recipientNickname = socket.request.user.nickname;
         const requesterSocketId = userSocketMap[requesterId];
-        console.log(`[Vídeo Convite] Convite recusado pelo destinatário. Notificando o requisitante (ID: ${requesterId})`);
 
         if (requesterSocketId) {
             io.to(requesterSocketId).emit('video:invite_declined', { 
-                message: `${recipientNickname} recusou a chamada.` 
-				channel: channel // <-- ADICIONE ESTA LINHA
+                message: `${recipientNickname} recusou a chamada.`, // 2. Adicione a vírgula aqui
+                channel: channel
             });
         }
     });
+    // --- FIM DA CORREÇÃO ---
 
 
     socket.on('disconnect', () => {
@@ -247,7 +231,6 @@ io.on('connection', (socket) => {
             const userId = socket.request.user.id;
             if (userSocketMap[userId] === socket.id) {
                 delete userSocketMap[userId];
-                console.log(`[Socket.IO] Usuário ${userId} (nickname: ${socket.request.user.nickname}) desconectado e removido do mapa.`);
             }
         }
         clearTimeout(idleTimeout);
@@ -256,7 +239,6 @@ io.on('connection', (socket) => {
             io.to(socket.sala).emit('userList', Object.values(chatRooms[socket.sala].users));
             io.emit('roomCounts', Object.keys(chatRooms).reduce((acc, key) => { acc[key] = Object.keys(chatRooms[key].users).length; return acc; }, {}));
         }
-        console.log(`[Socket.IO] Conexão ${socket.id} encerrada.`);
     });
 });
 
