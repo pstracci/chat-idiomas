@@ -10,28 +10,28 @@ const http = require('http');
 const { Server } = require('socket.io');
 const PgSimple = require('connect-pg-simple')(session);
 const { PrismaClient, Role } = require('@prisma/client');
-const cors = require('cors');  
+const cors = require('cors');
+
 
 // --- INICIALIZAÇÃO E CONFIGURAÇÃO ---
 const prisma = new PrismaClient();
-const app = express(); // A variável 'app' é criada aqui
-
+const app = express();
 const corsOptions = {
     origin: 'https://www.verbi.com.br', 
     optionsSuccessStatus: 200
 };
-
 const server = http.createServer(app);
 const io = new Server(server, {
     maxHttpBufferSize: 5e6 // 5MB
 });
 
 // --- MIDDLEWARES DO EXPRESS ---
-app.use(cors(corsOptions));  
+app.use(cors(corsOptions));
 app.set('trust proxy', 1);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+
 
 // --- AUTENTICAÇÃO E SESSÕES ---
 const sessionMiddleware = session({
@@ -51,13 +51,12 @@ app.use(passport.session());
 const updateUserStatus = async (req, res, next) => {
     if (req.isAuthenticated()) {
         try {
-            // Executa a atualização em segundo plano sem bloquear a resposta do usuário
             prisma.user.update({
                 where: { id: req.user.id },
                 data: { isOnline: true, lastSeen: new Date() },
             }).catch(err => console.error("Falha ao atualizar status do usuário:", err));
         } catch (error) {
-            // Ignora erros para não quebrar a aplicação
+            // Ignora erros
         }
     }
     next();
@@ -72,7 +71,7 @@ const agoraRoutes = require('./routes/agora');
 const videoRoutes = require('./routes/video');
 const connectionsRoutes = require('./routes/connections');
 const adminRoutes = require('./routes/admin');
-const notificationRoutes = require('./routes/notifications'); // Rota de notificações adicionada
+const notificationRoutes = require('./routes/notifications');
 
 app.use('/', authRoutes);
 app.use('/api/profile', profileRoutes);
@@ -80,14 +79,13 @@ app.use('/api/agora', agoraRoutes);
 app.use('/api/video', videoRoutes);
 app.use('/api/connections', connectionsRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/notifications', notificationRoutes); // Uso da rota de notificações
+app.use('/api/notifications', notificationRoutes);
 
 
 function isAdmin(req, res, next) {
     if (req.user && req.user.role === Role.ADMIN) {
         return next();
     }
-    // Para utilizadores normais, apenas redireciona para a página inicial
     return res.redirect('/'); 
 }
 
@@ -106,7 +104,6 @@ app.get('/stop-lobby.html', isAuthenticated, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'stop-lobby.html'));
 });
 
-// --- ROTA MODIFICADA: Perfil agora é público ---
 app.get('/profile.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'profile.html'));
 });
@@ -117,12 +114,32 @@ app.get('/admin.html', isAuthenticated, isAdmin, (req, res) => {
 
 
 // --- LÓGICA DO SOCKET.IO ---
+
 const chatRooms = {};
+const userSocketMap = {}; // Armazena { userId: socketId }
 
-// Namespace Principal (Chat de Idiomas)
+// Função 'wrapper' para usar middlewares do Express no Socket.IO
+const wrap = middleware => (socket, next) => middleware(socket.request, {}, next);
+
+// ****** INÍCIO DA CORREÇÃO ******
+// Aplicando o middleware de sessão ao namespace PRINCIPAL do Socket.IO
+io.use(wrap(sessionMiddleware));
+io.use(wrap(passport.initialize()));
+io.use(wrap(passport.session()));
+// ****** FIM DA CORREÇÃO ******
+
+// Namespace Principal (Chat de Idiomas e Notificações)
 io.on('connection', (socket) => {
-    let idleTimeout;
+    console.log(`[Socket.IO] Nova conexão: ${socket.id}`);
 
+    // Mapeia o usuário logado ao seu socket.id
+    if (socket.request.user) {
+        const userId = socket.request.user.id;
+        userSocketMap[userId] = socket.id;
+        console.log(`[Socket.IO] Usuário ${userId} (nickname: ${socket.request.user.nickname}) mapeado para o socket ${socket.id}`);
+    }
+
+    let idleTimeout;
     const resetIdleTimeout = () => {
         clearTimeout(idleTimeout);
         idleTimeout = setTimeout(() => {
@@ -130,59 +147,6 @@ io.on('connection', (socket) => {
             socket.disconnect(true);
         }, 30 * 60 * 1000);
     };
-	
-	
-// 1. O usuário A (requester) convida o usuário B (recipient)
-socket.on('video:invite', async (data) => {
-    const { recipientId } = data;
-    const requester = socket.request.user;
-
-    if (!requester) return; // Precisa estar logado para convidar
-
-    // Encontra o socket do destinatário
-    const recipientSocketId = userSocketMap[recipientId];
-
-    if (recipientSocketId) {
-        // Se o destinatário estiver online, envia o convite em tempo real
-        const channel = `video_${requester.id}_${recipientId}_${Date.now()}`;
-        io.to(recipientSocketId).emit('video:incoming_invite', {
-            requester: {
-                id: requester.id,
-                nickname: requester.nickname,
-                profilePicture: requester.profile?.profilePicture
-            },
-            channel: channel
-        });
-    } else {
-        // Opcional: Lógica para notificar que o usuário está offline
-        socket.emit('video:recipient_offline', { message: 'Este usuário não está online no momento.' });
-    }
-});
-
-// 2. O usuário B (recipient) aceita o convite
-socket.on('video:accept', (data) => {
-    const { requesterId, channel } = data;
-    const requesterSocketId = userSocketMap[requesterId];
-
-    if (requesterSocketId) {
-        // Avisa o usuário A que o convite foi aceito e envia o nome do canal
-        io.to(requesterSocketId).emit('video:invite_accepted', { channel });
-    }
-});
-
-// 3. O usuário B (recipient) recusa o convite
-socket.on('video:decline', (data) => {
-    const { requesterId } = data;
-    const recipientNickname = socket.request.user.nickname;
-    const requesterSocketId = userSocketMap[requesterId];
-
-    if (requesterSocketId) {
-        // Avisa o usuário A que o convite foi recusado
-        io.to(requesterSocketId).emit('video:invite_declined', { 
-            message: `${recipientNickname} recusou a chamada.` 
-        });
-    }
-});
 
     socket.on('joinRoom', (data) => {
         const { sala, nickname, idade, color } = data;
@@ -217,25 +181,84 @@ socket.on('video:decline', (data) => {
             io.to(socket.sala).emit('userList', Object.values(chatRooms[sala].users));
         }
     });
+    
+    // --- LÓGICA DE CONVITE DE VÍDEO ---
+    socket.on('video:invite', (data) => {
+        const { recipientId } = data;
+        const requester = socket.request.user;
+
+        if (!requester) {
+            console.error("[Vídeo Convite] Erro: Usuário requisitante não está logado.");
+            return;
+        }
+
+        console.log(`[Vídeo Convite] ${requester.nickname} (ID: ${requester.id}) está convidando o usuário com ID: ${recipientId}`);
+        const recipientSocketId = userSocketMap[recipientId];
+
+        if (recipientSocketId) {
+            console.log(`[Vídeo Convite] Destinatário (ID: ${recipientId}) encontrado online com socket ID: ${recipientSocketId}. Enviando convite...`);
+            const channel = `video_${requester.id}_${recipientId}_${Date.now()}`;
+            io.to(recipientSocketId).emit('video:incoming_invite', {
+                requester: {
+                    id: requester.id,
+                    nickname: requester.nickname,
+                    profilePicture: requester.profile?.profilePicture
+                },
+                channel: channel
+            });
+        } else {
+            console.warn(`[Vídeo Convite] Destinatário (ID: ${recipientId}) não encontrado no mapa de sockets. Usuário pode estar offline.`);
+            socket.emit('video:recipient_offline', { message: 'Este usuário não está online no momento.' });
+        }
+    });
+
+    socket.on('video:accept', (data) => {
+        const { requesterId, channel } = data;
+        const requesterSocketId = userSocketMap[requesterId];
+        console.log(`[Vídeo Convite] Convite aceito pelo destinatário. Notificando o requisitante (ID: ${requesterId})`);
+
+        if (requesterSocketId) {
+            io.to(requesterSocketId).emit('video:invite_accepted', { channel });
+        }
+    });
+
+    socket.on('video:decline', (data) => {
+        const { requesterId } = data;
+        const recipientNickname = socket.request.user.nickname;
+        const requesterSocketId = userSocketMap[requesterId];
+        console.log(`[Vídeo Convite] Convite recusado pelo destinatário. Notificando o requisitante (ID: ${requesterId})`);
+
+        if (requesterSocketId) {
+            io.to(requesterSocketId).emit('video:invite_declined', { 
+                message: `${recipientNickname} recusou a chamada.` 
+            });
+        }
+    });
+
 
     socket.on('disconnect', () => {
+        if (socket.request.user) {
+            const userId = socket.request.user.id;
+            if (userSocketMap[userId] === socket.id) {
+                delete userSocketMap[userId];
+                console.log(`[Socket.IO] Usuário ${userId} (nickname: ${socket.request.user.nickname}) desconectado e removido do mapa.`);
+            }
+        }
         clearTimeout(idleTimeout);
         if (socket.sala && chatRooms[socket.sala] && chatRooms[socket.sala].users[socket.id]) {
             delete chatRooms[socket.sala].users[socket.id];
             io.to(socket.sala).emit('userList', Object.values(chatRooms[socket.sala].users));
             io.emit('roomCounts', Object.keys(chatRooms).reduce((acc, key) => { acc[key] = Object.keys(chatRooms[key].users).length; return acc; }, {}));
         }
+        console.log(`[Socket.IO] Conexão ${socket.id} encerrada.`);
     });
 });
 
 // Namespace do Jogo STOP!
 const stopGameNamespace = io.of('/stop');
-const wrap = middleware => (socket, next) => middleware(socket.request, {}, next);
 stopGameNamespace.use(wrap(sessionMiddleware));
 stopGameNamespace.use(wrap(passport.initialize()));
 stopGameNamespace.use(wrap(passport.session()));
-
-// Importa e executa a lógica do jogo refatorada
 const { handleStopGameConnection } = require('./sockets/stopGameSocket');
 handleStopGameConnection(stopGameNamespace, prisma, io);
 

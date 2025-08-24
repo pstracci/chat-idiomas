@@ -610,12 +610,22 @@
                 const videoButton = e.target.closest('.btn-video');
                 const chatButton = e.target.closest('.btn-chat');
                 
-                if (videoButton) {
-                    const connectionItem = videoButton.closest('.connection-item');
-					const friendId = connectionItem.dataset.userId; 
-                    socket.emit('video:invite', { recipientId: friendId });
-                    alert('Convite para chamada de vídeo enviado!');
-                }
+              // --- INÍCIO DA CORREÇÃO ---
+			if (videoButton) {
+				const connectionItem = videoButton.closest('.connection-item');
+				
+				// Verificação de segurança: garantir que encontramos o item e o ID do amigo
+				if (connectionItem && connectionItem.dataset.userId) {
+					const friendId = connectionItem.dataset.userId;
+					socket.emit('video:invite', { recipientId: friendId });
+					alert('Convite para chamada de vídeo enviado!');
+				} else {
+					// Se não encontrarmos, avisamos no console e para o usuário
+					console.error("Erro Crítico: Não foi possível encontrar o 'data-user-id' no elemento .connection-item. Verifique a função populateConnectionsWidget.");
+					alert("Ocorreu um erro ao tentar iniciar a chamada. Verifique o console para mais detalhes.");
+				}
+			}
+    // --- FIM DA CORREÇÃO ---
                 
                 if (chatButton) {
                     const userId = chatButton.dataset.id;
