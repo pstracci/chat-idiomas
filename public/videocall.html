@@ -28,63 +28,109 @@
         <button id="leave-btn">🚪</button>
     </div>
 
-    <script>
-        const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
-        let localTracks = { audioTrack: null, videoTrack: null };
-        const urlParams = new URLSearchParams(window.location.search);
-        const APP_ID = urlParams.get('appId');
-        const CHANNEL = urlParams.get('channel');
-        const TOKEN = urlParams.get('token');
+   <script>
+    const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+    let localTracks = { audioTrack: null, videoTrack: null };
+    const urlParams = new URLSearchParams(window.location.search);
+    const APP_ID = urlParams.get('appId');
+    const CHANNEL = urlParams.get('channel');
+    const TOKEN = urlParams.get('token');
+    // --- ALTERAÇÃO PRINCIPAL: Obter o UID da URL ---
+    const UID_PARAM = urlParams.get('uid'); 
+    // Converte o UID para número, pois ele vem como string da URL
+    const UID = UID_PARAM ? parseInt(UID_PARAM, 10) : null;
 
-        if (!APP_ID || !CHANNEL || !TOKEN) {
-            document.body.innerHTML = '<h1>Acesso inválido. Credenciais não encontradas.</h1>';
+    if (!APP_ID || !CHANNEL || !TOKEN || UID === null) {
+        document.body.innerHTML = '<h1>Acesso inválido. Credenciais não encontradas ou UID ausente.</h1>';
+    }
+
+    const leaveAndRemoveLocalStream = async () => {
+        for (let trackName in localTracks) {
+            let track = localTracks[trackName];
+            if(track) { track.stop(); track.close(); localTracks[trackName] = null; }
         }
+        await client.leave();
+        window.close();
+    };
+    
+    const joinAndDisplayLocalStream = async () => {
+        try {
+            // --- ALTERAÇÃO PRINCIPAL: Usar o UID específico no método join ---
+            await client.join(APP_ID, CHANNEL, TOKEN, UID);
 
-        const leaveAndRemoveLocalStream = async () => {
-            for (let trackName in localTracks) {
-                let track = localTracks[trackName];
-                if(track) { track.stop(); track.close(); localTracks[trackName] = null; }
-            }
-            await client.leave();
-            window.close();
-        };
-        
-        const joinAndDisplayLocalStream = async () => {
-            try {
-                const UID = await client.join(APP_ID, CHANNEL, TOKEN, null);
-                localTracks.audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
-                localTracks.videoTrack = await AgoraRTC.createCameraVideoTrack();
-                const player = document.getElementById('local-player');
-                player.id = `user-container-${UID}`;
-                localTracks.videoTrack.play(player);
-                await client.publish(Object.values(localTracks));
-            } catch (error) { console.error("Falha ao iniciar a chamada:", error); }
-        };
+            localTracks.audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+            localTracks.videoTrack = await AgoraRTC.createCameraVideoTrack();
+            
+            // O ID do container do player agora deve usar o UID que JÁ TEMOS
+            const player = document.getElementById('local-player');
+            player.id = `user-container-${UID}`; 
 
-        client.on("user-published", async (user, mediaType) => { /* ... (código igual) ... */ });
-        client.on("user-left", (user) => { document.getElementById(`user-container-${user.uid}`)?.remove(); });
+            localTracks.videoTrack.play(player);
+            await client.publish(Object.values(localTracks));
+        } catch (error) { console.error("Falha ao iniciar a chamada:", error); }
+    };
 
-        document.getElementById('leave-btn').addEventListener('click', leaveAndRemoveLocalStream);
-        document.getElementById('mic-btn').addEventListener('click', async () => { /* ... (código igual) ... */ });
-        document.getElementById('cam-btn').addEventListener('click', async () => { /* ... (código igual) ... */ });
+    client.on("user-published", async (user, mediaType) => {
+        await client.subscribe(user, mediaType);
+        if (mediaType === "video") {
+            const remoteVideoTrack = user.videoTrack;
+            const playerContainer = document.createElement("div");
+            playerContainer.id = `user-container-${user.uid}`;
+            playerContainer.className = "video-player";
+            document.getElementById("video-grid").append(playerContainer);
+            remoteVideoTrack.play(playerContainer);
+        }
+        if (mediaType === "audio") {
+            user.audioTrack.play();
+        }
+    });
 
-        const socket = io();
-        socket.on('video:force_disconnect', (data) => {
-            if (data.channel === CHANNEL) {
-                alert('A sala de vídeo expirou ou foi encerrada.');
-                leaveAndRemoveLocalStream();
-            }
-        });
-        
-        socket.on('video:warning_10_minutes', (data) => {
-            if (data.channel === CHANNEL) {
-                const warningDiv = document.getElementById('call-warning');
-                warningDiv.innerText = 'A chamada terminará em 10 minutos.';
-                warningDiv.style.display = 'block';
-            }
-        });
+    client.on("user-left", (user) => { 
+        const playerContainer = document.getElementById(`user-container-${user.uid}`);
+        if (playerContainer) {
+            playerContainer.remove();
+        }
+    });
 
-        joinAndDisplayLocalStream();
-    </script>
+    document.getElementById('leave-btn').addEventListener('click', leaveAndRemoveLocalStream);
+    
+    document.getElementById('mic-btn').addEventListener('click', async () => {
+        if (localTracks.audioTrack.muted) {
+            await localTracks.audioTrack.setMuted(false);
+            document.getElementById('mic-btn').innerText = '🎤';
+        } else {
+            await localTracks.audioTrack.setMuted(true);
+            document.getElementById('mic-btn').innerText = '🔇';
+        }
+    });
+    
+    document.getElementById('cam-btn').addEventListener('click', async () => {
+        if (localTracks.videoTrack.muted) {
+            await localTracks.videoTrack.setMuted(false);
+            document.getElementById('cam-btn').innerText = '📹';
+        } else {
+            await localTracks.videoTrack.setMuted(true);
+            document.getElementById('cam-btn').innerText = '📸';
+        }
+    });
+
+    const socket = io();
+    socket.on('video:force_disconnect', (data) => {
+        if (data.channel === CHANNEL) {
+            alert('A sala de vídeo expirou ou foi encerrada.');
+            leaveAndRemoveLocalStream();
+        }
+    });
+    
+    socket.on('video:warning_10_minutes', (data) => {
+        if (data.channel === CHANNEL) {
+            const warningDiv = document.getElementById('call-warning');
+            warningDiv.innerText = 'A chamada terminará em 10 minutos.';
+            warningDiv.style.display = 'block';
+        }
+    });
+
+    joinAndDisplayLocalStream();
+</script>
 </body>
 </html>

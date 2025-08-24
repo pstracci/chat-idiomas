@@ -4,14 +4,27 @@ const { RtcTokenBuilder, RtcRole } = require('agora-token');
 
 const router = express.Router();
 
-// Função para gerar o token do Agora (CORRIGIDA)
+// Função para converter UUID para um inteiro de 32 bits
+// (Copiado de agora.js para consistência)
+function uuidToUint32(uuid) {
+    const hex = uuid.replace(/-/g, '').substring(0, 8);
+    return parseInt(hex, 16);
+}
+
+// Middleware de autenticação
+function isAuthenticated(req, res, next) {
+    if (req.isAuthenticated()) {
+        return next();
+    }
+    res.status(401).json({ error: 'Não autorizado' });
+}
+
+// Função para gerar o token do Agora (CORRIGIDA E MELHORADA)
 const generateAgoraToken = (req, res) => {
-    // Defina o tempo de expiração do token (ex: 24 horas para chamadas mais longas)
-    const expirationTimeInSeconds = 86400;
+    const expirationTimeInSeconds = 3600; // 1 hora
     const currentTimestamp = Math.floor(Date.now() / 1000);
     const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
 
-    // Pegue suas credenciais das variáveis de ambiente
     const APP_ID = process.env.AGORA_APP_ID;
     const APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE;
 
@@ -19,31 +32,27 @@ const generateAgoraToken = (req, res) => {
         return res.status(500).json({ error: 'Credenciais do Agora não configuradas no servidor.' });
     }
 
-    // --- LÓGICA DE VALIDAÇÃO REFORÇADA ---
-    // 1. Pega o nome do canal EXCLUSIVAMENTE do corpo da requisição.
     const channelName = req.body.channel;
-    
-    // 2. Se o nome do canal não for fornecido, retorna um erro. Não gera mais nomes aleatórios.
     if (!channelName) {
-        return res.status(400).json({ error: 'O nome do canal (channelName) é obrigatório para gerar o token.' });
+        return res.status(400).json({ error: 'O nome do canal (channelName) é obrigatório.' });
     }
     
-    // O UID pode ser 0 para permitir que qualquer usuário entre (ou você pode passar um UID específico do usuário)
-    const uid = 0; 
+    // --- ALTERAÇÃO PRINCIPAL: Usar um UID específico do usuário ---
+    // O usuário agora está autenticado, então podemos usar o ID dele.
+    const uid = uuidToUint32(req.user.id); 
     const role = RtcRole.PUBLISHER;
 
-    // Construa o token usando o channelName validado
     const token = RtcTokenBuilder.buildTokenWithUid(APP_ID, APP_CERTIFICATE, channelName, uid, role, privilegeExpiredTs);
 
-    // Envie as informações de volta para o front-end
     res.json({
         appId: APP_ID,
         channel: channelName,
-        token: token
+        token: token,
+        uid: uid // Retorna o UID para o cliente usar
     });
 };
 
-// Defina a rota que o front-end está chamando
-router.post('/generate-token', generateAgoraToken);
+// Adiciona o middleware isAuthenticated à rota
+router.post('/generate-token', isAuthenticated, generateAgoraToken);
 
 module.exports = router;

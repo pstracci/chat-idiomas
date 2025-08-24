@@ -25,22 +25,25 @@ document.addEventListener('DOMContentLoaded', () => {
     let loggedInUserId = null;
 
     // --- FUNÇÕES GLOBAIS ---
-    async function joinVideoRoom(channel) {
-        try {
-            const backendUrl = window.location.origin;
-            const response = await fetch(`${backendUrl}/api/video/generate-token`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ channel: channel })
-            });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'Falha ao entrar na sala.');
-            const joinUrl = `/videocall.html?appId=${encodeURIComponent(data.appId)}&channel=${encodeURIComponent(data.channel)}&token=${encodeURIComponent(data.token)}`;
-            window.open(joinUrl, '_blank');
-        } catch (error) {
-            alert(error.message);
-        }
-    }
+	async function joinVideoRoom(channel) {
+		try {
+			const backendUrl = window.location.origin;
+			const response = await fetch(`${backendUrl}/api/video/generate-token`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ channel: channel })
+			});
+			const data = await response.json();
+			if (!response.ok) throw new Error(data.error || 'Falha ao entrar na sala.');
+	
+			// --- ALTERAÇÃO PRINCIPAL: Adicionar o UID à URL ---
+			const joinUrl = `/videocall.html?appId=${encodeURIComponent(data.appId)}&channel=${encodeURIComponent(data.channel)}&token=${encodeURIComponent(data.token)}&uid=${encodeURIComponent(data.uid)}`;
+	
+			window.open(joinUrl, '_blank');
+		} catch (error) {
+			alert(error.message);
+		}
+	}
 
     function populateConnectionsWidget(connections) {
         if (!connectionsList) return;
