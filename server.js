@@ -41,7 +41,6 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // --- ROTAS E MIDDLEWARES DE AUTENTICAÇÃO ---
-// (O código das rotas e middlewares de autenticação continua o mesmo...)
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profile');
 const agoraRoutes = require('./routes/agora'); 
@@ -59,11 +58,12 @@ app.use('/api/notifications', notificationRoutes);
 function isAuthenticated(req, res, next) { if (req.isAuthenticated()) { return next(); } res.redirect('/login.html'); }
 app.get('/chat.html', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'chat.html')); });
 app.get('/stop-lobby.html', isAuthenticated, (req, res) => { res.sendFile(path.join(__dirname, 'public', 'stop-lobby.html')); });
-// ... (outras rotas GET continuam as mesmas)
+app.get('/profile.html', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'profile.html')); });
+app.get('/admin.html', isAuthenticated, (req, res) => { res.sendFile(path.join(__dirname, 'public', 'admin.html')); });
 
 // --- LÓGICA DO SOCKET.IO ---
 const userSocketMap = {}; // { userId: socketId }
-const videoCallState = {}; // { channel: { participants: Set<userId>, timeoutId: NodeJS.Timeout } }
+const videoCallState = {}; // { channel: { participants: Set<userId>, timeoutId: NodeJS.Timeout, initiator: userId } }
 
 const wrap = middleware => (socket, next) => middleware(socket.request, {}, next);
 io.use(wrap(sessionMiddleware));
@@ -77,32 +77,55 @@ io.on('connection', (socket) => {
         console.log(`[Socket.IO] Usuário ${userId} mapeado para o socket ${socket.id}`);
     }
 
-    // --- LÓGICA DE CONVITE DE VÍDEO (ATUALIZADA) ---
+    // --- LÓGICA DE CONVITE DE VÍDEO (CORRIGIDA) ---
     socket.on('video:invite', async (data) => {
         const { recipientId } = data;
         const requester = socket.request.user;
         if (!requester) return;
+        
+        try {
+            // 1. Busca o usuário para verificar os créditos.
+            const user = await prisma.user.findUnique({ where: { id: requester.id } });
 
-        // Lógica de dedução de crédito (exemplo)
-        const userProfile = await prisma.profile.findUnique({ where: { userId: requester.id } });
-        if (!userProfile || userProfile.credits < 1) {
-            return socket.emit('video:error', { message: 'Você não tem créditos suficientes.' });
-        }
-        await prisma.profile.update({
-            where: { userId: requester.id },
-            data: { credits: { decrement: 1 } }
-        });
+            // 2. Verifica se o usuário tem créditos suficientes.
+            if (!user || user.credits < 1) {
+                return socket.emit('video:error', { message: 'Você não tem créditos suficientes para iniciar uma chamada.' });
+            }
 
-        const recipientSocketId = userSocketMap[recipientId];
-        if (recipientSocketId) {
-            const channel = randomUUID();
-            io.to(recipientSocketId).emit('video:incoming_invite', {
-                requester: { id: requester.id, nickname: requester.nickname, profilePicture: requester.profile?.profilePicture },
-                channel: channel
+            // 3. Desconta o crédito do modelo User.
+            await prisma.user.update({
+                where: { id: requester.id },
+                data: { credits: { decrement: 1 } }
             });
-            socket.emit('video:invite_sent', { channel: channel, recipientId: recipientId });
-        } else {
-            socket.emit('video:recipient_offline', { message: 'Este usuário não está online.' });
+            
+            // Lógica de envio do convite
+            const recipientSocketId = userSocketMap[recipientId];
+            if (recipientSocketId) {
+                const channel = randomUUID();
+                io.to(recipientSocketId).emit('video:incoming_invite', {
+                    requester: { id: requester.id, nickname: requester.nickname, profilePicture: user.profile?.profilePicture },
+                    channel: channel
+                });
+                socket.emit('video:invite_sent', { 
+                    channel: channel,
+                    recipientId: recipientId
+                });
+            } else {
+                // Se o outro usuário não for encontrado, o crédito é devolvido.
+                await prisma.user.update({
+                    where: { id: requester.id },
+                    data: { credits: { increment: 1 } }
+                });
+                socket.emit('video:recipient_offline', { message: 'Este usuário não está online. Seu crédito foi devolvido.' });
+            }
+        } catch (error) {
+            console.error("Erro ao processar convite de vídeo:", error);
+            // Devolve o crédito em caso de erro no processo.
+            await prisma.user.update({
+                where: { id: requester.id },
+                data: { credits: { increment: 1 } }
+            }).catch(refundError => console.error("Erro ao devolver crédito:", refundError));
+            socket.emit('video:error', { message: 'Ocorreu um erro interno. Seu crédito foi devolvido.' });
         }
     });
 
@@ -115,12 +138,12 @@ io.on('connection', (socket) => {
         if (requesterSocketId) {
             console.log(`[Vídeo Sala] Sala ${channel} criada entre ${requesterId} e ${recipient.id}`);
             
-            // Inicia o timer de 120 minutos no servidor
             const timeoutId = setTimeout(() => {
                 console.log(`[Vídeo Sala] Sala ${channel} expirou.`);
                 const room = videoCallState[channel];
                 if (room) {
-                    room.participants.forEach(participantId => {
+                    const allParticipants = [requesterId, recipient.id];
+                    allParticipants.forEach(participantId => {
                         const participantSocketId = userSocketMap[participantId];
                         if (participantSocketId) {
                             io.to(participantSocketId).emit('video:force_disconnect', { channel });
@@ -130,10 +153,10 @@ io.on('connection', (socket) => {
                 delete videoCallState[channel];
             }, 120 * 60 * 1000);
 
-            // Armazena o estado da sala
             videoCallState[channel] = {
                 participants: new Set([requesterId, recipient.id]),
-                timeoutId: timeoutId
+                timeoutId: timeoutId,
+                initiator: requesterId // Guarda quem iniciou
             };
             
             io.to(requesterSocketId).emit('video:invite_accepted', { channel });
@@ -158,27 +181,26 @@ io.on('connection', (socket) => {
             delete userSocketMap[userId];
             console.log(`[Socket.IO] Usuário ${userId} desconectado.`);
 
-            // Verifica se o usuário estava em uma chamada de vídeo
             for (const channel in videoCallState) {
                 const room = videoCallState[channel];
                 if (room.participants.has(userId)) {
-                    room.participants.delete(userId); // Remove o usuário da sala
+                    room.participants.delete(userId);
                     console.log(`[Vídeo Sala] Usuário ${userId} saiu da sala ${channel}. Restantes: ${room.participants.size}`);
 
-                    // Se a sala ficar vazia, destrói e notifica o outro participante
                     if (room.participants.size === 0) {
                         console.log(`[Vídeo Sala] Sala ${channel} ficou vazia e foi destruída.`);
-                        clearTimeout(room.timeoutId); // Cancela o timer de 120 minutos
-                        delete videoCallState[channel];
+                        clearTimeout(room.timeoutId);
 
-                        // Notifica ambos os usuários originais para resetar a UI
-                        const originalParticipants = Array.from(new Set([room.initiator, ...room.participants, userId]));
-                        originalParticipants.forEach(participantId => {
-                            const socketId = userSocketMap[participantId];
-                            if (socketId) {
-                                io.to(socketId).emit('video:call_ended', { channel });
-                            }
-                        });
+                        const otherParticipantId = room.initiator === userId ? [...room.participants][0] : room.initiator;
+                        const otherParticipantSocketId = userSocketMap[otherParticipantId];
+                        
+                        if(otherParticipantSocketId) {
+                             io.to(otherParticipantSocketId).emit('video:call_ended', { channel });
+                        }
+                        // Notifica o próprio usuário que desconectou para o caso de ele estar em outra aba
+                        socket.emit('video:call_ended', { channel });
+
+                        delete videoCallState[channel];
                     }
                 }
             }
