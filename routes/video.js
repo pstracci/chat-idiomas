@@ -19,8 +19,7 @@ const generateAgoraToken = (req, res) => {
         return res.status(500).json({ error: 'Credenciais do Agora não configuradas no servidor.' });
     }
 
-    // Crie um nome de canal aleatório para a sala
-    const channelName = Math.random().toString(36).substring(7);
+    const channelName = req.body.channel || Math.random().toString(36).substring(7);
     
     // O UID pode ser 0 para permitir que qualquer usuário entre
     const uid = 0; 

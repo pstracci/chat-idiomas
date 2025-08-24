@@ -130,6 +130,59 @@ io.on('connection', (socket) => {
             socket.disconnect(true);
         }, 30 * 60 * 1000);
     };
+	
+	
+// 1. O usuário A (requester) convida o usuário B (recipient)
+socket.on('video:invite', async (data) => {
+    const { recipientId } = data;
+    const requester = socket.request.user;
+
+    if (!requester) return; // Precisa estar logado para convidar
+
+    // Encontra o socket do destinatário
+    const recipientSocketId = userSocketMap[recipientId];
+
+    if (recipientSocketId) {
+        // Se o destinatário estiver online, envia o convite em tempo real
+        const channel = `video_${requester.id}_${recipientId}_${Date.now()}`;
+        io.to(recipientSocketId).emit('video:incoming_invite', {
+            requester: {
+                id: requester.id,
+                nickname: requester.nickname,
+                profilePicture: requester.profile?.profilePicture
+            },
+            channel: channel
+        });
+    } else {
+        // Opcional: Lógica para notificar que o usuário está offline
+        socket.emit('video:recipient_offline', { message: 'Este usuário não está online no momento.' });
+    }
+});
+
+// 2. O usuário B (recipient) aceita o convite
+socket.on('video:accept', (data) => {
+    const { requesterId, channel } = data;
+    const requesterSocketId = userSocketMap[requesterId];
+
+    if (requesterSocketId) {
+        // Avisa o usuário A que o convite foi aceito e envia o nome do canal
+        io.to(requesterSocketId).emit('video:invite_accepted', { channel });
+    }
+});
+
+// 3. O usuário B (recipient) recusa o convite
+socket.on('video:decline', (data) => {
+    const { requesterId } = data;
+    const recipientNickname = socket.request.user.nickname;
+    const requesterSocketId = userSocketMap[requesterId];
+
+    if (requesterSocketId) {
+        // Avisa o usuário A que o convite foi recusado
+        io.to(requesterSocketId).emit('video:invite_declined', { 
+            message: `${recipientNickname} recusou a chamada.` 
+        });
+    }
+});
 
     socket.on('joinRoom', (data) => {
         const { sala, nickname, idade, color } = data;

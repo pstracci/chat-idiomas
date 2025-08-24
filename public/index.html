@@ -159,7 +159,9 @@
         .request-item .actions button { margin-left: 5px; padding: 5px 10px; border-radius: 5px; cursor: pointer; border: none; color: white; }
         .btn-accept { background-color: #28a745; }
         .btn-reject { background-color: #6c757d; }
-        .btn-read { background-color: #007bff; } /* Estilo para o novo botão 'Lido' */
+        .btn-accept-video { background-color: #28a745; } /* Estilo para o botão de aceitar vídeo */
+        .btn-reject-video { background-color: #6c757d; } /* Estilo para o botão de rejeitar vídeo */
+        .btn-read { background-color: #007bff; }
         .connections-widget, .hero, header, main, footer { z-index: 1; }
     </style>
 </head>
@@ -316,10 +318,34 @@
             const requestsList = document.getElementById('requests-list');
             const notificationContainer = document.querySelector('.notification-container');
 
+            // SOCKET.IO
+            const socket = io();
+
             // FUNÇÕES
             function calculateAge(dateString) { if (!dateString) return ''; const birthday = new Date(dateString); const today = new Date(); let age = today.getFullYear() - birthday.getFullYear(); const m = today.getMonth() - birthday.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birthday.getDate())) { age--; } return age; }
+            
             function populateRoomList() { dynamicRoomListContainer.innerHTML = ''; const roomOptions = roomSelect.querySelectorAll('option'); roomOptions.forEach(option => { const roomName = option.textContent; const roomValue = option.value; const roomItem = document.createElement('div'); roomItem.className = 'room-item'; roomItem.dataset.value = roomValue; roomItem.innerHTML = `<span class="room-name">${roomName}</span><span class="room-count">Participantes: <span id="count-${roomValue}">0</span> / 20</span>`; roomItem.addEventListener('click', () => { roomSelect.value = roomValue; form.scrollIntoView({ behavior: 'smooth', block: 'center' }); }); dynamicRoomListContainer.appendChild(roomItem); }); }
             
+            async function joinVideoRoom(channel) {
+                try {
+                    const backendUrl = 'https://chat-idiomas-production.up.railway.app';
+                    const response = await fetch(`${backendUrl}/api/video/generate-token`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ channel: channel })
+                    });
+
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Falha ao entrar na sala.');
+                    
+                    const joinUrl = `/videocall.html?appId=${encodeURIComponent(data.appId)}&channel=${encodeURIComponent(data.channel)}&token=${encodeURIComponent(data.token)}`;
+                    window.open(joinUrl, '_blank');
+
+                } catch (error) {
+                    alert(error.message);
+                }
+            }
+		
             function populateConnectionsWidget(connections) {
                 connectionsList.innerHTML = '';
                 if (!connections || connections.length === 0) {
@@ -331,6 +357,7 @@
                     const li = document.createElement('li');
                     li.className = 'connection-item';
                     li.id = `connection-${conn.connectionId}`;
+					li.dataset.userId = conn.friendInfo.id;
                     
                     li.innerHTML = `
                         <a href="/profile.html?userId=${conn.friendInfo.id}" class="connection-item-link">
@@ -338,38 +365,14 @@
                             <span>${conn.friendInfo.nickname}</span>
                         </a>
                         <div class="action-buttons">
-                            <button class="btn-video" data-nickname="${conn.friendInfo.nickname}" title="Criar sala de vídeo com ${conn.friendInfo.nickname}">🎥</button>
+                            <button class="btn-video" title="Iniciar chamada de vídeo com ${conn.friendInfo.nickname}">🎥</button>
                             <button class="btn-chat" data-id="${conn.friendInfo.id}" data-nickname="${conn.friendInfo.nickname}" title="Conversar com ${conn.friendInfo.nickname}">💬</button>
                         </div>
                     `;
                     connectionsList.appendChild(li);
                 });
             }
-            
-async function createVideoRoom(nickname) {
-    if (!confirm(`Criar uma sala de vídeo com ${nickname} irá custar 1 crédito. Deseja continuar?`)) {
-        return;
-    }
 
-    try {
-         const backendUrl = 'https://chat-idiomas-production.up.railway.app'; // Exemplo de URL
-        const response = await fetch(`${backendUrl}/api/video/generate-token`, { method: 'POST' });
-        
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || 'Falha ao criar a sala.');
-        }
-
-        // Constrói a URL para a nova página de vídeo
-        const joinUrl = `/videocall.html?appId=${encodeURIComponent(data.appId)}&channel=${encodeURIComponent(data.channel)}&token=${encodeURIComponent(data.token)}`;
-        
-        window.open(joinUrl, '_blank');
-
-    } catch (error) {
-        alert(error.message);
-    }
-}
             function startChat(userId, nickname) {
                 alert(`Funcionalidade de chat com ${nickname} será implementada em breve!`);
             }
@@ -378,16 +381,18 @@ async function createVideoRoom(nickname) {
                 requestsList.innerHTML = '';
                 notificationBell.style.display = 'flex';
 
-                if (!notifications || notifications.length === 0) {
+                const unreadNotifications = notifications.filter(n => !n.isRead);
+
+                if (!unreadNotifications || unreadNotifications.length === 0) {
                     notificationCount.style.display = 'none';
                     requestsList.innerHTML = '<li style="padding: 15px; text-align: center; color: #6c757d;">Nenhuma notificação nova.</li>';
                     return;
                 }
 
-                notificationCount.textContent = notifications.length;
+                notificationCount.textContent = unreadNotifications.length;
                 notificationCount.style.display = 'flex';
 
-                notifications.forEach(notif => {
+                unreadNotifications.forEach(notif => {
                     const li = document.createElement('li');
                     li.className = 'request-item';
 
@@ -547,7 +552,7 @@ async function createVideoRoom(nickname) {
                 window.location.href = `chat.html?sala=${salaLimpa}&nick=${nick}&idade=${age}&color=${encodeURIComponent(color)}`;
             });
 
-            const socket = io();
+            // LISTENERS DE SOCKET.IO GERAIS
             socket.on('roomCounts', (counts) => {
                 for (const room in counts) {
                     const roomLimpa = limparNomeSala(room);
@@ -560,6 +565,7 @@ async function createVideoRoom(nickname) {
                 if (countElement) { countElement.textContent = count; }
             });
 
+            // LÓGICA DE BUSCA
             let searchTimeout;
             userSearchInput.addEventListener('input', () => {
                 clearTimeout(searchTimeout);
@@ -593,6 +599,7 @@ async function createVideoRoom(nickname) {
                 if (!userSearchInput.contains(e.target)) { searchResultsDiv.style.display = 'none'; }
             });
 
+            // EVENTOS DE UI GERAIS
             toggleWidget.addEventListener('click', () => {
                 const isVisible = widgetBody.style.display !== 'none';
                 widgetBody.style.display = isVisible ? 'none' : 'block';
@@ -604,8 +611,10 @@ async function createVideoRoom(nickname) {
                 const chatButton = e.target.closest('.btn-chat');
                 
                 if (videoButton) {
-                    const nickname = videoButton.dataset.nickname;
-                    createVideoRoom(nickname);
+                    const connectionItem = videoButton.closest('.connection-item');
+					const friendId = connectionItem.dataset.userId; 
+                    socket.emit('video:invite', { recipientId: friendId });
+                    alert('Convite para chamada de vídeo enviado!');
                 }
                 
                 if (chatButton) {
@@ -626,6 +635,7 @@ async function createVideoRoom(nickname) {
             });
 
             requestsList.addEventListener('click', (e) => {
+                // Ações para pedidos de conexão
                 if (e.target.matches('.btn-accept')) {
                     handleRequestAction(e.target.dataset.id, 'accept');
                 } else if (e.target.matches('.btn-reject')) {
@@ -633,6 +643,55 @@ async function createVideoRoom(nickname) {
                 } else if (e.target.matches('.btn-read')) {
                     handleMarkAsRead(e.target.dataset.id);
                 }
+
+                // Ações para convites de vídeo
+                const acceptVideoButton = e.target.closest('.btn-accept-video');
+                const rejectVideoButton = e.target.closest('.btn-reject-video');
+
+                if (acceptVideoButton) {
+                    const { requesterId, channel } = acceptVideoButton.dataset;
+                    socket.emit('video:accept', { requesterId, channel });
+                    joinVideoRoom(channel);
+                    acceptVideoButton.closest('.request-item').remove();
+                }
+
+                if (rejectVideoButton) {
+                    const { requesterId } = rejectVideoButton.dataset;
+                    socket.emit('video:decline', { requesterId });
+                    rejectVideoButton.closest('.request-item').remove();
+                }
+            });
+
+            // LISTENERS DE SOCKET PARA VÍDEO
+            socket.on('video:incoming_invite', (data) => {
+                const { requester, channel } = data;
+                const li = document.createElement('li');
+                li.className = 'request-item';
+                li.innerHTML = `
+                    <img src="${requester.profilePicture || 'default-avatar.png'}" alt="Avatar">
+                    <div class="info"><strong>${requester.nickname}</strong> quer iniciar uma chamada de vídeo.</div>
+                    <div class="actions">
+                        <button class="btn-accept-video" data-requester-id="${requester.id}" data-channel="${channel}">Reunir Agora</button>
+                        <button class="btn-reject-video" data-requester-id="${requester.id}">Recusar</button>
+                    </div>
+                `;
+                requestsList.prepend(li);
+                
+                notificationCount.textContent = parseInt(notificationCount.textContent || 0) + 1;
+                notificationCount.style.display = 'flex';
+            });
+
+            socket.on('video:invite_accepted', (data) => {
+                alert('Convite aceito! Entrando na sala...');
+                joinVideoRoom(data.channel);
+            });
+
+            socket.on('video:invite_declined', (data) => {
+                alert(data.message);
+            });
+            
+            socket.on('video:recipient_offline', (data) => {
+                alert(data.message);
             });
         });
     </script>
