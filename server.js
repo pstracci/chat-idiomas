@@ -236,6 +236,7 @@ io.on('connection', (socket) => {
         if (requesterSocketId) {
             io.to(requesterSocketId).emit('video:invite_declined', { 
                 message: `${recipientNickname} recusou a chamada.` 
+				channel: channel // <-- ADICIONE ESTA LINHA
             });
         }
     });

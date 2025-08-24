@@ -57,6 +57,13 @@
                 localTracks.videoTrack.play(player);
                 
                 await client.publish(Object.values(localTracks));
+
+                // Inicia o temporizador de 120 minutos
+                setTimeout(() => {
+                    alert('A sua sessão de 120 minutos terminou.');
+                    leaveAndRemoveLocalStream();
+                }, 120 * 60 * 1000);
+
             } catch (error) {
                 console.error("Falha ao iniciar a chamada:", error);
                 document.getElementById('error-message').innerText = `Não foi possível conectar à sala. Verifique suas permissões de câmera/microfone e tente novamente. Erro: ${error.message}`;
@@ -98,14 +105,14 @@
         document.getElementById('leave-btn').addEventListener('click', leaveAndRemoveLocalStream);
 
         document.getElementById('mic-btn').addEventListener('click', async () => {
-            if (localTracks.audioTrack) { // Verifica se a track existe
+            if (localTracks.audioTrack) {
                 await localTracks.audioTrack.setMuted(!localTracks.audioTrack.muted);
                 document.getElementById('mic-btn').innerText = localTracks.audioTrack.muted ? '🔇' : '🎤';
             }
         });
 
         document.getElementById('cam-btn').addEventListener('click', async () => {
-            if (localTracks.videoTrack) { // Verifica se a track existe
+            if (localTracks.videoTrack) {
                 await localTracks.videoTrack.setMuted(!localTracks.videoTrack.muted);
                 document.getElementById('cam-btn').innerText = localTracks.videoTrack.muted ? '📸' : '📹';
             }

@@ -290,421 +290,336 @@
         </div>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // ELEMENTOS DA UI
-            const adminLinkContainer = document.getElementById('admin-link-container');
-            const loggedOutView = document.getElementById('logged-out-view');
-            const loggedInView = document.getElementById('logged-in-view');
-            const welcomeMessage = document.getElementById('welcome-message');
-            const stopGameCard = document.querySelector('.game-card');
-            const form = document.getElementById('join-form');
-            const nicknameInput = document.getElementById('nickname');
-            const ageInput = document.getElementById('age');
-            const colorSelector = document.getElementById('colorSelector');
-            const nicknameColorInput = document.getElementById('nicknameColor');
-            const colorPickerBtn = document.getElementById('colorPickerBtn');
-            const selectedColorPreview = document.getElementById('selectedColorPreview');
-            const userSearchInput = document.getElementById('userSearch');
-            const searchResultsDiv = document.getElementById('searchResults');
-            const roomSelect = document.getElementById('room');
-            const dynamicRoomListContainer = document.getElementById('dynamic-room-list');
-            const connectionsWidget = document.getElementById('connections-widget');
-            const connectionsList = document.getElementById('connections-list');
-            const toggleWidget = document.getElementById('toggle-widget');
-            const widgetBody = document.getElementById('widget-body');
-            const notificationBell = document.getElementById('notification-bell');
-            const notificationCount = document.getElementById('notification-count');
-            const notificationsDropdown = document.getElementById('notifications-dropdown');
-            const requestsList = document.getElementById('requests-list');
-            const notificationContainer = document.querySelector('.notification-container');
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // ELEMENTOS DA UI
+        const adminLinkContainer = document.getElementById('admin-link-container');
+        const loggedOutView = document.getElementById('logged-out-view');
+        const loggedInView = document.getElementById('logged-in-view');
+        const welcomeMessage = document.getElementById('welcome-message');
+        const stopGameCard = document.querySelector('.game-card');
+        const form = document.getElementById('join-form');
+        const nicknameInput = document.getElementById('nickname');
+        const ageInput = document.getElementById('age');
+        const colorSelector = document.getElementById('colorSelector');
+        const nicknameColorInput = document.getElementById('nicknameColor');
+        const colorPickerBtn = document.getElementById('colorPickerBtn');
+        const selectedColorPreview = document.getElementById('selectedColorPreview');
+        const userSearchInput = document.getElementById('userSearch');
+        const searchResultsDiv = document.getElementById('searchResults');
+        const roomSelect = document.getElementById('room');
+        const dynamicRoomListContainer = document.getElementById('dynamic-room-list');
+        const connectionsWidget = document.getElementById('connections-widget');
+        const connectionsList = document.getElementById('connections-list');
+        const toggleWidget = document.getElementById('toggle-widget');
+        const widgetBody = document.getElementById('widget-body');
+        const notificationBell = document.getElementById('notification-bell');
+        const notificationCount = document.getElementById('notification-count');
+        const notificationsDropdown = document.getElementById('notifications-dropdown');
+        const requestsList = document.getElementById('requests-list');
+        const notificationContainer = document.querySelector('.notification-container');
 
-            // SOCKET.IO E ESTADO DA APLICAÇÃO
-            const socket = io();
-            let activeVideoCalls = {}; // Armazena chamadas ativas: { userId: channel }
+        // SOCKET.IO E ESTADO DA APLICAÇÃO
+        const socket = io();
+        let activeVideoCalls = {}; // Armazena chamadas ativas: { userId: channel }
 
-            // FUNÇÕES
-            function calculateAge(dateString) { if (!dateString) return ''; const birthday = new Date(dateString); const today = new Date(); let age = today.getFullYear() - birthday.getFullYear(); const m = today.getMonth() - birthday.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birthday.getDate())) { age--; } return age; }
-            
-            function populateRoomList() { dynamicRoomListContainer.innerHTML = ''; const roomOptions = roomSelect.querySelectorAll('option'); roomOptions.forEach(option => { const roomName = option.textContent; const roomValue = option.value; const roomItem = document.createElement('div'); roomItem.className = 'room-item'; roomItem.dataset.value = roomValue; roomItem.innerHTML = `<span class="room-name">${roomName}</span><span class="room-count">Participantes: <span id="count-${roomValue}">0</span> / 20</span>`; roomItem.addEventListener('click', () => { roomSelect.value = roomValue; form.scrollIntoView({ behavior: 'smooth', block: 'center' }); }); dynamicRoomListContainer.appendChild(roomItem); }); }
-            
-            async function joinVideoRoom(channel) {
-                try {
-                    const backendUrl = 'https://chat-idiomas-production.up.railway.app';
-                    const response = await fetch(`${backendUrl}/api/video/generate-token`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ channel: channel })
-                    });
+        // FUNÇÕES
+        function calculateAge(dateString) { if (!dateString) return ''; const birthday = new Date(dateString); const today = new Date(); let age = today.getFullYear() - birthday.getFullYear(); const m = today.getMonth() - birthday.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birthday.getDate())) { age--; } return age; }
+        
+        function populateRoomList() { dynamicRoomListContainer.innerHTML = ''; const roomOptions = roomSelect.querySelectorAll('option'); roomOptions.forEach(option => { const roomName = option.textContent; const roomValue = option.value; const roomItem = document.createElement('div'); roomItem.className = 'room-item'; roomItem.dataset.value = roomValue; roomItem.innerHTML = `<span class="room-name">${roomName}</span><span class="room-count">Participantes: <span id="count-${roomValue}">0</span> / 20</span>`; roomItem.addEventListener('click', () => { roomSelect.value = roomValue; form.scrollIntoView({ behavior: 'smooth', block: 'center' }); }); dynamicRoomListContainer.appendChild(roomItem); }); }
+        
+        async function joinVideoRoom(channel) {
+            try {
+                const backendUrl = 'https://chat-idiomas-production.up.railway.app';
+                const response = await fetch(`${backendUrl}/api/video/generate-token`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ channel: channel })
+                });
 
-                    const data = await response.json();
-                    if (!response.ok) throw new Error(data.error || 'Falha ao entrar na sala.');
-                    
-                    const joinUrl = `/videocall.html?appId=${encodeURIComponent(data.appId)}&channel=${encodeURIComponent(data.channel)}&token=${encodeURIComponent(data.token)}`;
-                    window.open(joinUrl, '_blank');
-
-                } catch (error) {
-                    alert(error.message);
-                }
-            }
-		
-            function populateConnectionsWidget(connections) {
-                connectionsList.innerHTML = '';
-                if (!connections || connections.length === 0) {
-                    connectionsList.innerHTML = '<li style="padding: 10px; color: #6c757d; font-size: 0.9em;">Você ainda não tem conexões.</li>';
-                    return;
-                }
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Falha ao entrar na sala.');
                 
-                connections.forEach(conn => {
-                    const li = document.createElement('li');
-                    li.className = 'connection-item';
-                    li.id = `connection-${conn.connectionId}`;
-					li.dataset.userId = conn.friendInfo.id;
-                    
+                const joinUrl = `/videocall.html?appId=${encodeURIComponent(data.appId)}&channel=${encodeURIComponent(data.channel)}&token=${encodeURIComponent(data.token)}`;
+                window.open(joinUrl, '_blank');
+
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+    
+        function populateConnectionsWidget(connections) {
+            connectionsList.innerHTML = '';
+            if (!connections || connections.length === 0) {
+                connectionsList.innerHTML = '<li style="padding: 10px; color: #6c757d; font-size: 0.9em;">Você ainda não tem conexões.</li>';
+                return;
+            }
+            
+            connections.forEach(conn => {
+                const li = document.createElement('li');
+                li.className = 'connection-item';
+                li.id = `connection-${conn.connectionId}`;
+                li.dataset.userId = conn.friendInfo.id;
+                
+                li.innerHTML = `
+                    <a href="/profile.html?userId=${conn.friendInfo.id}" class="connection-item-link">
+                        <img src="${conn.friendInfo.profilePicture || 'default-avatar.png'}" alt="Avatar">
+                        <span>${conn.friendInfo.nickname}</span>
+                    </a>
+                    <div class="action-buttons">
+                        <button class="btn-video" title="Iniciar chamada de vídeo com ${conn.friendInfo.nickname}">🎥</button>
+                        <button class="btn-chat" data-id="${conn.friendInfo.id}" data-nickname="${conn.friendInfo.nickname}" title="Conversar com ${conn.friendInfo.nickname}">💬</button>
+                    </div>
+                `;
+                connectionsList.appendChild(li);
+            });
+        }
+
+        function startChat(userId, nickname) {
+            alert(`Funcionalidade de chat com ${nickname} será implementada em breve!`);
+        }
+
+        function renderNotifications(notifications) {
+            requestsList.innerHTML = '';
+            notificationBell.style.display = 'flex';
+            const unreadNotifications = notifications.filter(n => !n.isRead);
+            if (!unreadNotifications || unreadNotifications.length === 0) {
+                notificationCount.style.display = 'none';
+                requestsList.innerHTML = '<li style="padding: 15px; text-align: center; color: #6c757d;">Nenhuma notificação nova.</li>';
+                return;
+            }
+            notificationCount.textContent = unreadNotifications.length;
+            notificationCount.style.display = 'flex';
+            unreadNotifications.forEach(notif => {
+                const li = document.createElement('li');
+                li.className = 'request-item';
+                if (notif.type === 'CONNECTION_REQUEST' && notif.requester) {
+                    li.id = `request-${notif.relatedId}`;
                     li.innerHTML = `
-                        <a href="/profile.html?userId=${conn.friendInfo.id}" class="connection-item-link">
-                            <img src="${conn.friendInfo.profilePicture || 'default-avatar.png'}" alt="Avatar">
-                            <span>${conn.friendInfo.nickname}</span>
-                        </a>
-                        <div class="action-buttons">
-                            <button class="btn-video" title="Iniciar chamada de vídeo com ${conn.friendInfo.nickname}">🎥</button>
-                            <button class="btn-chat" data-id="${conn.friendInfo.id}" data-nickname="${conn.friendInfo.nickname}" title="Conversar com ${conn.friendInfo.nickname}">💬</button>
+                        <img src="${notif.requester.profilePicture || 'default-avatar.png'}" alt="Avatar">
+                        <div class="info"><strong>${notif.requester.nickname}</strong> quer se conectar.</div>
+                        <div class="actions">
+                            <button class="btn-accept" data-id="${notif.relatedId}">Aceitar</button>
+                            <button class="btn-reject" data-id="${notif.relatedId}">Recusar</button>
                         </div>
                     `;
-                    connectionsList.appendChild(li);
-                });
-            }
-
-            function startChat(userId, nickname) {
-                alert(`Funcionalidade de chat com ${nickname} será implementada em breve!`);
-            }
-
-            function renderNotifications(notifications) {
-                requestsList.innerHTML = '';
-                notificationBell.style.display = 'flex';
-
-                const unreadNotifications = notifications.filter(n => !n.isRead);
-
-                if (!unreadNotifications || unreadNotifications.length === 0) {
-                    notificationCount.style.display = 'none';
-                    requestsList.innerHTML = '<li style="padding: 15px; text-align: center; color: #6c757d;">Nenhuma notificação nova.</li>';
+                } else if (notif.type === 'SYSTEM_MESSAGE') {
+                    li.id = `notification-${notif.id}`;
+                    li.innerHTML = `
+                        <span style="font-size: 2em; margin-right: 15px;">📢</span>
+                        <div class="info" style="align-self: center;">${notif.content}</div>
+                        <div class="actions">
+                            <button class="btn-read" data-id="${notif.id}">Lido</button>
+                        </div>
+                    `;
+                } else {
+                    li.innerHTML = `<div class="info">${notif.content}</div>`;
+                }
+                requestsList.appendChild(li);
+            });
+        }
+        
+        async function loadAndDisplayNotifications() {
+            try {
+                const response = await fetch('/api/notifications');
+                if (!response.ok) {
+                    if (response.status !== 401) { console.error('Falha ao buscar notificações'); }
                     return;
                 }
+                const notifications = await response.json();
+                renderNotifications(notifications);
+            } catch (error) { console.error('Erro ao carregar notificações:', error); }
+        }
 
-                notificationCount.textContent = unreadNotifications.length;
-                notificationCount.style.display = 'flex';
-
-                unreadNotifications.forEach(notif => {
-                    const li = document.createElement('li');
-                    li.className = 'request-item';
-
-                    if (notif.type === 'CONNECTION_REQUEST' && notif.requester) {
-                        li.id = `request-${notif.relatedId}`;
-                        li.innerHTML = `
-                            <img src="${notif.requester.profilePicture || 'default-avatar.png'}" alt="Avatar">
-                            <div class="info"><strong>${notif.requester.nickname}</strong> quer se conectar.</div>
-                            <div class="actions">
-                                <button class="btn-accept" data-id="${notif.relatedId}">Aceitar</button>
-                                <button class="btn-reject" data-id="${notif.relatedId}">Recusar</button>
-                            </div>
-                        `;
-                    } else if (notif.type === 'SYSTEM_MESSAGE') {
-                        li.id = `notification-${notif.id}`;
-                        li.innerHTML = `
-                            <span style="font-size: 2em; margin-right: 15px;">📢</span>
-                            <div class="info" style="align-self: center;">${notif.content}</div>
-                            <div class="actions">
-                                <button class="btn-read" data-id="${notif.id}">Lido</button>
-                            </div>
-                        `;
-                    } else {
-                        li.innerHTML = `<div class="info">${notif.content}</div>`;
-                    }
-                    requestsList.appendChild(li);
-                });
-            }
-            
-            async function loadAndDisplayNotifications() {
-                try {
-                    const response = await fetch('/api/notifications');
-                    if (!response.ok) {
-                        if (response.status !== 401) { console.error('Falha ao buscar notificações'); }
-                        return;
-                    }
-                    const notifications = await response.json();
-                    renderNotifications(notifications);
-                } catch (error) { console.error('Erro ao carregar notificações:', error); }
-            }
-
-            async function handleRequestAction(connectionId, action) { 
-                const url = action === 'accept' ? `/api/connections/accept/${connectionId}` : `/api/connections/delete/${connectionId}`; 
-                const method = action === 'accept' ? 'PUT' : 'DELETE'; 
-                try { 
-                    const response = await fetch(url, { method }); 
-                    if (!response.ok) throw new Error(`Falha ao ${action === 'accept' ? 'aceitar' : 'rejeitar'} o pedido.`); 
-                    
-                    const statusResponse = await fetch('/api/user/status');
-                    const data = await statusResponse.json();
-                    if(data.loggedIn) {
-                        populateConnectionsWidget(data.connections);
-                    }
-                    loadAndDisplayNotifications();
-                } catch (error) { alert(error.message); } 
-            }
-
-            async function handleMarkAsRead(notificationId) {
-                try {
-                    const response = await fetch(`/api/notifications/${notificationId}/read`, { method: 'PUT' });
-                    if (!response.ok) { throw new Error('Falha ao marcar notificação como lida.'); }
-                    loadAndDisplayNotifications();
-                } catch (error) { console.error(error); alert(error.message); }
-            }
-            
-            // INICIALIZAÇÃO DA PÁGINA
-            populateRoomList();
-
-            fetch('/api/user/status')
-                .then(res => res.json())
-                .then(data => {
-                    if (data.loggedIn) {
-                        loggedInView.style.display = 'flex';
-                        loggedOutView.style.display = 'none';
-                        welcomeMessage.textContent = `Olá, ${data.user.nickname}!`;
-                        if (stopGameCard) { stopGameCard.onclick = () => { location.href='stop-lobby.html'; }; }
-                        if (nicknameInput && data.user.nickname) { nicknameInput.value = data.user.nickname; }
-                        if (ageInput && data.user.profile && data.user.profile.dateOfBirth) {
-                            const age = calculateAge(data.user.profile.dateOfBirth);
-                            if (age) ageInput.value = age;
-                        }
-                        populateConnectionsWidget(data.connections);
-                        connectionsWidget.style.display = 'flex';
-                        loadAndDisplayNotifications();
-						if (data.user.role === 'ADMIN') {
-                            adminLinkContainer.innerHTML = `<a href="/admin.html">Admin</a>`;
-                        }
-                    } else {
-                        loggedOutView.style.display = 'block';
-                        loggedInView.style.display = 'none';
-                        if (stopGameCard) { stopGameCard.onclick = () => { location.href='login.html'; }; }
-                    }
-                })
-                .catch(err => {
-                    console.error("Erro ao verificar status de login:", err);
-                    if (stopGameCard) { stopGameCard.onclick = () => { location.href='login.html'; }; }
-                });
-
-            const colors = ['#000000', '#E53935', '#D81B60', '#8E24AA', '#5E35B1', '#3949AB', '#1E88E5', '#039BE5', '#00ACC1', '#00897B', '#43A047', '#7CB342', '#FDD835', '#FB8C00', '#FB8C00', '#F4511E'];
-            const defaultColor = '#000000';
-            nicknameColorInput.value = defaultColor;
-            selectedColorPreview.style.backgroundColor = defaultColor;
-            colors.forEach(color => {
-                const swatch = document.createElement('div');
-                swatch.className = 'color-swatch';
-                swatch.style.backgroundColor = color;
-                swatch.dataset.color = color;
-                if (color === defaultColor) swatch.classList.add('selected');
-                colorSelector.appendChild(swatch);
-            });
-            colorPickerBtn.addEventListener('click', () => {
-                const isHidden = colorSelector.style.display === 'none' || colorSelector.style.display === '';
-                colorSelector.style.display = isHidden ? 'grid' : 'none';
-            });
-            colorSelector.addEventListener('click', (e) => {
-                if (e.target.classList.contains('color-swatch')) {
-                    colorSelector.querySelector('.selected')?.classList.remove('selected');
-                    e.target.classList.add('selected');
-                    const newColor = e.target.dataset.color;
-                    nicknameColorInput.value = newColor;
-                    selectedColorPreview.style.backgroundColor = newColor;
-                    colorSelector.style.display = 'none';
+        async function handleRequestAction(connectionId, action) { 
+            const url = action === 'accept' ? `/api/connections/accept/${connectionId}` : `/api/connections/delete/${connectionId}`; 
+            const method = action === 'accept' ? 'PUT' : 'DELETE'; 
+            try { 
+                const response = await fetch(url, { method }); 
+                if (!response.ok) throw new Error(`Falha ao ${action === 'accept' ? 'aceitar' : 'rejeitar'} o pedido.`); 
+                const statusResponse = await fetch('/api/user/status');
+                const data = await statusResponse.json();
+                if(data.loggedIn) {
+                    populateConnectionsWidget(data.connections);
                 }
-            });
-            
-            function limparNomeSala(nome) { return nome.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-'); }
-            form.addEventListener('submit', function(event) {
-                event.preventDefault();
-                const nick = document.getElementById('nickname').value;
-                const age = parseInt(document.getElementById('age').value);
-                const selectedRoom = document.getElementById('room').value;
-                const color = nicknameColorInput.value;
-                if (!nick.trim()) { alert('Por favor, insira um nickname.'); return; }
-                if (nick.length > 20) { alert('O nickname não pode ter mais de 20 caracteres.'); return; }
-                if (isNaN(age) || age < 18) { alert('Você precisa ter 18 anos ou mais para entrar no chat.'); return; }
-                const salaLimpa = limparNomeSala(selectedRoom);
-                window.location.href = `chat.html?sala=${salaLimpa}&nick=${nick}&idade=${age}&color=${encodeURIComponent(color)}`;
-            });
+                loadAndDisplayNotifications();
+            } catch (error) { alert(error.message); } 
+        }
 
-            socket.on('roomCounts', (counts) => {
-                for (const room in counts) {
-                    const roomLimpa = limparNomeSala(room);
-                    const countElement = document.getElementById(`count-${roomLimpa}`);
-                    if (countElement) countElement.textContent = counts[room];
+        async function handleMarkAsRead(notificationId) {
+            try {
+                const response = await fetch(`/api/notifications/${notificationId}/read`, { method: 'PUT' });
+                if (!response.ok) { throw new Error('Falha ao marcar notificação como lida.'); }
+                loadAndDisplayNotifications();
+            } catch (error) { console.error(error); alert(error.message); }
+        }
+
+        function updateNotificationBadge() {
+            const currentCount = parseInt(notificationCount.textContent || '0');
+            const newCount = Math.max(0, currentCount - 1);
+            notificationCount.textContent = newCount;
+            if (newCount === 0) {
+                notificationCount.style.display = 'none';
+            }
+        }
+        
+        // INICIALIZAÇÃO DA PÁGINA
+        populateRoomList();
+        fetch('/api/user/status').then(res => res.json()).then(data => {
+            if (data.loggedIn) {
+                loggedInView.style.display = 'flex';
+                loggedOutView.style.display = 'none';
+                welcomeMessage.textContent = `Olá, ${data.user.nickname}!`;
+                if (stopGameCard) { stopGameCard.onclick = () => { location.href='stop-lobby.html'; }; }
+                if (nicknameInput && data.user.nickname) { nicknameInput.value = data.user.nickname; }
+                if (ageInput && data.user.profile && data.user.profile.dateOfBirth) {
+                    const age = calculateAge(data.user.profile.dateOfBirth);
+                    if (age) ageInput.value = age;
                 }
-            });
-            socket.on('stopPlayerCountUpdate', (count) => { document.getElementById('stop-player-count').textContent = count; });
-
-            let searchTimeout;
-            userSearchInput.addEventListener('input', () => {
-                clearTimeout(searchTimeout);
-                const query = userSearchInput.value.trim();
-                if (query.length < 2) {
-                    searchResultsDiv.innerHTML = '';
-                    searchResultsDiv.style.display = 'none';
-                    return;
+                populateConnectionsWidget(data.connections);
+                connectionsWidget.style.display = 'flex';
+                loadAndDisplayNotifications();
+                if (data.user.role === 'ADMIN') {
+                    adminLinkContainer.innerHTML = `<a href="/admin.html">Admin</a>`;
                 }
-                searchTimeout = setTimeout(async () => {
-                    try {
-                        const response = await fetch(`/api/profile/search?q=${encodeURIComponent(query)}`);
-                        const users = await response.json();
-                        searchResultsDiv.innerHTML = '';
-                        if (users.length === 0) {
-                            searchResultsDiv.innerHTML = '<div class="search-result-item" style="cursor:default;">Nenhum usuário encontrado.</div>';
-                        } else {
-                            users.forEach(user => {
-                                const item = document.createElement('div');
-                                item.className = 'search-result-item';
-                                item.onclick = () => { window.location.href = `/profile.html?userId=${user.id}`; };
-                                item.innerHTML = `<img src="${user.profile?.profilePicture || 'default-avatar.png'}" alt="${user.nickname}"><span>${user.nickname}</span>`;
-                                searchResultsDiv.appendChild(item);
-                            });
-                        }
-                        searchResultsDiv.style.display = 'block';
-                    } catch (error) { console.error('Erro na busca:', error); }
-                }, 300);
-            });
-            document.addEventListener('click', (e) => {
-                if (!userSearchInput.contains(e.target)) { searchResultsDiv.style.display = 'none'; }
-            });
+            } else {
+                loggedOutView.style.display = 'block';
+                loggedInView.style.display = 'none';
+                if (stopGameCard) { stopGameCard.onclick = () => { location.href='login.html'; }; }
+            }
+        }).catch(err => {
+            console.error("Erro ao verificar status de login:", err);
+            if (stopGameCard) { stopGameCard.onclick = () => { location.href='login.html'; }; }
+        });
+        const colors = ['#000000', '#E53935', '#D81B60', '#8E24AA', '#5E35B1', '#3949AB', '#1E88E5', '#039BE5', '#00ACC1', '#00897B', '#43A047', '#7CB342', '#FDD835', '#FB8C00', '#FB8C00', '#F4511E'];
+        const defaultColor = '#000000';
+        nicknameColorInput.value = defaultColor;
+        selectedColorPreview.style.backgroundColor = defaultColor;
+        colors.forEach(color => { const swatch = document.createElement('div'); swatch.className = 'color-swatch'; swatch.style.backgroundColor = color; swatch.dataset.color = color; if (color === defaultColor) swatch.classList.add('selected'); colorSelector.appendChild(swatch); });
+        colorPickerBtn.addEventListener('click', () => { const isHidden = colorSelector.style.display === 'none' || colorSelector.style.display === ''; colorSelector.style.display = isHidden ? 'grid' : 'none'; });
+        colorSelector.addEventListener('click', (e) => { if (e.target.classList.contains('color-swatch')) { colorSelector.querySelector('.selected')?.classList.remove('selected'); e.target.classList.add('selected'); const newColor = e.target.dataset.color; nicknameColorInput.value = newColor; selectedColorPreview.style.backgroundColor = newColor; colorSelector.style.display = 'none'; } });
+        function limparNomeSala(nome) { return nome.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-'); }
+        form.addEventListener('submit', function(event) { event.preventDefault(); const nick = document.getElementById('nickname').value; const age = parseInt(document.getElementById('age').value); const selectedRoom = document.getElementById('room').value; const color = nicknameColorInput.value; if (!nick.trim()) { alert('Por favor, insira um nickname.'); return; } if (nick.length > 20) { alert('O nickname não pode ter mais de 20 caracteres.'); return; } if (isNaN(age) || age < 18) { alert('Você precisa ter 18 anos ou mais para entrar no chat.'); return; } const salaLimpa = limparNomeSala(selectedRoom); window.location.href = `chat.html?sala=${salaLimpa}&nick=${nick}&idade=${age}&color=${encodeURIComponent(color)}`; });
+        socket.on('roomCounts', (counts) => { for (const room in counts) { const roomLimpa = limparNomeSala(room); const countElement = document.getElementById(`count-${roomLimpa}`); if (countElement) countElement.textContent = counts[room]; } });
+        socket.on('stopPlayerCountUpdate', (count) => { document.getElementById('stop-player-count').textContent = count; });
+        let searchTimeout;
+        userSearchInput.addEventListener('input', () => { clearTimeout(searchTimeout); const query = userSearchInput.value.trim(); if (query.length < 2) { searchResultsDiv.innerHTML = ''; searchResultsDiv.style.display = 'none'; return; } searchTimeout = setTimeout(async () => { try { const response = await fetch(`/api/profile/search?q=${encodeURIComponent(query)}`); const users = await response.json(); searchResultsDiv.innerHTML = ''; if (users.length === 0) { searchResultsDiv.innerHTML = '<div class="search-result-item" style="cursor:default;">Nenhum usuário encontrado.</div>'; } else { users.forEach(user => { const item = document.createElement('div'); item.className = 'search-result-item'; item.onclick = () => { window.location.href = `/profile.html?userId=${user.id}`; }; item.innerHTML = `<img src="${user.profile?.profilePicture || 'default-avatar.png'}" alt="${user.nickname}"><span>${user.nickname}</span>`; searchResultsDiv.appendChild(item); }); } searchResultsDiv.style.display = 'block'; } catch (error) { console.error('Erro na busca:', error); } }, 300); });
+        document.addEventListener('click', (e) => { if (!userSearchInput.contains(e.target)) { searchResultsDiv.style.display = 'none'; } });
+        toggleWidget.addEventListener('click', () => { const isVisible = widgetBody.style.display !== 'none'; widgetBody.style.display = isVisible ? 'none' : 'block'; toggleWidget.textContent = isVisible ? '+' : '-'; });
 
-            toggleWidget.addEventListener('click', () => {
-                const isVisible = widgetBody.style.display !== 'none';
-                widgetBody.style.display = isVisible ? 'none' : 'block';
-                toggleWidget.textContent = isVisible ? '+' : '-';
-            });
-
-            // --- LISTENER DO WIDGET DE CONEXÕES (LÓGICA ATUALIZADA) ---
-            connectionsList.addEventListener('click', (e) => {
-                const videoButton = e.target.closest('.btn-video');
-                const chatButton = e.target.closest('.btn-chat');
-                
-                if (videoButton) {
-                    const connectionItem = videoButton.closest('.connection-item');
-                    if (!connectionItem || !connectionItem.dataset.userId) {
-                        console.error("Erro: não foi possível encontrar o ID do usuário para a chamada.");
-                        return;
-                    }
-                    const friendId = connectionItem.dataset.userId;
-
-                    // Se já existe uma chamada ativa ou pendente, entra nela
-                    if (activeVideoCalls[friendId]) {
-                        joinVideoRoom(activeVideoCalls[friendId]);
-                        return;
-                    }
-                    
-                    // Caso contrário, inicia um novo convite
+        // --- LISTENER DO WIDGET DE CONEXÕES (LÓGICA ATUALIZADA) ---
+        connectionsList.addEventListener('click', (e) => {
+            const videoButton = e.target.closest('.btn-video');
+            const chatButton = e.target.closest('.btn-chat');
+            if (videoButton) {
+                const connectionItem = videoButton.closest('.connection-item');
+                if (!connectionItem || !connectionItem.dataset.userId) { console.error("Erro: não foi possível encontrar o ID do usuário para a chamada."); return; }
+                const friendId = connectionItem.dataset.userId;
+                if (activeVideoCalls[friendId]) { joinVideoRoom(activeVideoCalls[friendId]); return; }
+                if (confirm("Iniciar uma chamada de vídeo custará 1 crédito. Deseja prosseguir?")) {
                     socket.emit('video:invite', { recipientId: friendId });
                 }
-                
-                if (chatButton) {
-                    const userId = chatButton.dataset.id;
-                    const nickname = chatButton.dataset.nickname;
-                    startChat(userId, nickname);
-                }
-            });
+            }
+            if (chatButton) {
+                const userId = chatButton.dataset.id;
+                const nickname = chatButton.dataset.nickname;
+                startChat(userId, nickname);
+            }
+        });
 
-            notificationBell.addEventListener('click', (e) => { e.stopPropagation(); notificationsDropdown.classList.toggle('active'); });
-            window.addEventListener('click', (e) => { if (notificationContainer && !notificationContainer.contains(e.target)) { notificationsDropdown.classList.remove('active'); } });
+        notificationBell.addEventListener('click', (e) => { e.stopPropagation(); notificationsDropdown.classList.toggle('active'); });
+        window.addEventListener('click', (e) => { if (notificationContainer && !notificationContainer.contains(e.target)) { notificationsDropdown.classList.remove('active'); } });
 
-            requestsList.addEventListener('click', (e) => {
-                if (e.target.matches('.btn-accept')) handleRequestAction(e.target.dataset.id, 'accept');
-                else if (e.target.matches('.btn-reject')) handleRequestAction(e.target.dataset.id, 'reject');
-                else if (e.target.matches('.btn-read')) handleMarkAsRead(e.target.dataset.id);
+        requestsList.addEventListener('click', (e) => {
+            if (e.target.matches('.btn-accept')) handleRequestAction(e.target.dataset.id, 'accept');
+            else if (e.target.matches('.btn-reject')) handleRequestAction(e.target.dataset.id, 'reject');
+            else if (e.target.matches('.btn-read')) handleMarkAsRead(e.target.dataset.id);
 
-                const acceptVideoButton = e.target.closest('.btn-accept-video');
-                const rejectVideoButton = e.target.closest('.btn-reject-video');
+            const acceptVideoButton = e.target.closest('.btn-accept-video');
+            const rejectVideoButton = e.target.closest('.btn-reject-video');
+            if (acceptVideoButton) {
+                const { requesterId, channel } = acceptVideoButton.dataset;
+                socket.emit('video:accept', { requesterId, channel });
+                joinVideoRoom(channel);
+                acceptVideoButton.closest('.request-item').remove();
+                updateNotificationBadge();
+            }
+            if (rejectVideoButton) {
+                const { requesterId, channel } = rejectVideoButton.dataset;
+                socket.emit('video:decline', { requesterId, channel });
+                rejectVideoButton.closest('.request-item').remove();
+                updateNotificationBadge();
+            }
+        });
 
-                if (acceptVideoButton) {
-                    const { requesterId, channel } = acceptVideoButton.dataset;
-                    socket.emit('video:accept', { requesterId, channel });
-                    joinVideoRoom(channel);
-                    acceptVideoButton.closest('.request-item').remove();
-                }
-                if (rejectVideoButton) {
-                    const { requesterId, channel } = rejectVideoButton.dataset;
-                    socket.emit('video:decline', { requesterId, channel });
-                    rejectVideoButton.closest('.request-item').remove();
-                }
-            });
+        // --- LISTENERS DE SOCKET PARA VÍDEO (ATUALIZADOS) ---
+        socket.on('video:invite_sent', (data) => {
+            const { channel, recipientId } = data;
+            activeVideoCalls[recipientId] = channel;
+            const connectionItem = document.querySelector(`.connection-item[data-user-id='${recipientId}']`);
+            if (connectionItem) {
+                const videoButton = connectionItem.querySelector('.btn-video');
+                videoButton.innerHTML = '🕒';
+                videoButton.title = 'Aguardando resposta...';
+                videoButton.classList.add('pending');
+            }
+            alert('Convite para chamada de vídeo enviado!');
+        });
 
-            // --- LISTENERS DE SOCKET PARA VÍDEO (ATUALIZADOS) ---
-            socket.on('video:invite_sent', (data) => {
-                const { channel, recipientId } = data;
-                activeVideoCalls[recipientId] = channel;
+        socket.on('video:incoming_invite', (data) => {
+            const { requester, channel } = data;
+            const li = document.createElement('li');
+            li.className = 'request-item';
+            li.innerHTML = `
+                <img src="${requester.profilePicture || 'default-avatar.png'}" alt="Avatar">
+                <div class="info"><strong>${requester.nickname}</strong> quer iniciar uma chamada de vídeo.</div>
+                <div class="actions">
+                    <button class="btn-accept-video" data-requester-id="${requester.id}" data-channel="${channel}">Reunir Agora</button>
+                    <button class="btn-reject-video" data-requester-id="${requester.id}" data-channel="${channel}">Recusar</button>
+                </div>
+            `;
+            requestsList.prepend(li);
+            const currentCount = parseInt(notificationCount.textContent || '0');
+            notificationCount.textContent = currentCount + 1;
+            notificationCount.style.display = 'flex';
+        });
 
+        socket.on('video:invite_accepted', (data) => {
+            alert('Convite aceito! Entrando na sala...');
+            const recipientId = Object.keys(activeVideoCalls).find(key => activeVideoCalls[key] === data.channel);
+            if (recipientId) {
                 const connectionItem = document.querySelector(`.connection-item[data-user-id='${recipientId}']`);
                 if (connectionItem) {
                     const videoButton = connectionItem.querySelector('.btn-video');
-                    videoButton.innerHTML = '🕒';
-                    videoButton.title = 'Aguardando resposta...';
-                    videoButton.classList.add('pending');
+                    videoButton.innerHTML = '🔴';
+                    videoButton.title = 'Reunião em andamento. Clique para entrar.';
+                    videoButton.classList.remove('pending');
+                    videoButton.classList.add('active');
                 }
-                alert('Convite para chamada de vídeo enviado!');
-            });
-
-            socket.on('video:incoming_invite', (data) => {
-                const { requester, channel } = data;
-                const li = document.createElement('li');
-                li.className = 'request-item';
-                li.innerHTML = `
-                    <img src="${requester.profilePicture || 'default-avatar.png'}" alt="Avatar">
-                    <div class="info"><strong>${requester.nickname}</strong> quer iniciar uma chamada de vídeo.</div>
-                    <div class="actions">
-                        <button class="btn-accept-video" data-requester-id="${requester.id}" data-channel="${channel}">Reunir Agora</button>
-                        <button class="btn-reject-video" data-requester-id="${requester.id}" data-channel="${channel}">Recusar</button>
-                    </div>
-                `;
-                requestsList.prepend(li);
-                
-                const currentCount = parseInt(notificationCount.textContent || '0');
-                notificationCount.textContent = currentCount + 1;
-                notificationCount.style.display = 'flex';
-            });
-
-            socket.on('video:invite_accepted', (data) => {
-                alert('Convite aceito! A sala está pronta.');
-                const recipientId = Object.keys(activeVideoCalls).find(key => activeVideoCalls[key] === data.channel);
-                if (recipientId) {
-                    const connectionItem = document.querySelector(`.connection-item[data-user-id='${recipientId}']`);
-                    if (connectionItem) {
-                        const videoButton = connectionItem.querySelector('.btn-video');
-                        videoButton.innerHTML = '🔴';
-                        videoButton.title = 'Reunião em andamento. Clique para entrar.';
-                        videoButton.classList.remove('pending');
-                        videoButton.classList.add('active');
-                    }
-                }
-            });
-
-            socket.on('video:invite_declined', (data) => {
-                alert(data.message);
-                const recipientId = Object.keys(activeVideoCalls).find(key => activeVideoCalls[key] === data.channel);
-                if (recipientId) {
-                    const connectionItem = document.querySelector(`.connection-item[data-user-id='${recipientId}']`);
-                    if (connectionItem) {
-                        const videoButton = connectionItem.querySelector('.btn-video');
-                        videoButton.innerHTML = '🎥';
-                        videoButton.title = 'Iniciar chamada de vídeo';
-                        videoButton.classList.remove('pending', 'active');
-                    }
-                    delete activeVideoCalls[recipientId];
-                }
-            });
-            
-            socket.on('video:recipient_offline', (data) => {
-                alert(data.message);
-            });
+            }
+            joinVideoRoom(data.channel); // Redireciona automaticamente
         });
-    </script>
+
+        socket.on('video:invite_declined', (data) => {
+            alert(data.message);
+            const recipientId = Object.keys(activeVideoCalls).find(key => activeVideoCalls[key] === data.channel);
+            if (recipientId) {
+                const connectionItem = document.querySelector(`.connection-item[data-user-id='${recipientId}']`);
+                if (connectionItem) {
+                    const videoButton = connectionItem.querySelector('.btn-video');
+                    videoButton.innerHTML = '🎥';
+                    videoButton.title = 'Iniciar chamada de vídeo';
+                    videoButton.classList.remove('pending', 'active');
+                }
+                delete activeVideoCalls[recipientId]; // Limpa o estado para permitir novo convite
+            }
+        });
+        
+        socket.on('video:recipient_offline', (data) => {
+            alert(data.message);
+        });
+    });
+</script>
 </body>
 </html>
