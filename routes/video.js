@@ -1,62 +1,44 @@
 // routes/video.js
 const express = require('express');
-const router = express.Router();
 const { RtcTokenBuilder, RtcRole } = require('agora-token');
-const { v4: uuidv4 } = require('uuid');
-const { PrismaClient } = require('@prisma/client'); // Importe o PrismaClient
-const prisma = new PrismaClient();
 
-function isAuthenticated(req, res, next) {
-    if (req.isAuthenticated()) {
-        return next();
+const router = express.Router();
+
+// Função para gerar o token do Agora
+const generateAgoraToken = (req, res) => {
+    // Defina o tempo de expiração do token (ex: 1 hora)
+    const expirationTimeInSeconds = 3600;
+    const currentTimestamp = Math.floor(Date.now() / 1000);
+    const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
+
+    // Pegue suas credenciais das variáveis de ambiente
+    const APP_ID = process.env.AGORA_APP_ID;
+    const APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE;
+
+    if (!APP_ID || !APP_CERTIFICATE) {
+        return res.status(500).json({ error: 'Credenciais do Agora não configuradas no servidor.' });
     }
-    res.status(401).json({ error: 'Não autorizado' });
-}
 
-function uuidToUint32(uuid) {
-    const hex = uuid.replace(/-/g, '').substring(0, 8);
-    return parseInt(hex, 16);
-}
+    // Crie um nome de canal aleatório para a sala
+    const channelName = Math.random().toString(36).substring(7);
+    
+    // O UID pode ser 0 para permitir que qualquer usuário entre
+    const uid = 0; 
+    const role = RtcRole.PUBLISHER;
 
-router.get('/generate-link', isAuthenticated, async (req, res) => {
-    try {
-        // --- Lógica de Segurança ---
-        // 1. Verificar se o usuário tem créditos (exemplo)
-        const user = await prisma.user.findUnique({ where: { id: req.user.id } });
-        if (user.credits < 1) {
-            return res.status(402).json({ error: 'Créditos insuficientes.' });
-        }
+    // Construa o token
+    const token = RtcTokenBuilder.buildTokenWithUid(APP_ID, APP_CERTIFICATE, channelName, uid, role, privilegeExpiredTs);
 
-        // --- Geração das Credenciais da Sala ---
-        const appId = process.env.AGORA_APP_ID;
-        const appCertificate = process.env.AGORA_APP_CERTIFICATE;
-        const channelName = crypto.randomBytes(16).toString('hex'); // Gera um nome de sala aleatório
-        const uid = req.user.id; // UID pode ser o ID do usuário
-        const role = 1; // 1 para Host, 2 para Audience
-        const expirationTimeInSeconds = 3600; // Token válido por 1 hora
+    // Envie as informações de volta para o front-end
+    res.json({
+        appId: APP_ID,
+        channel: channelName,
+        token: token
+    });
+};
 
-        // Gera o token
-        const token = RtcTokenBuilder.buildTokenWithUid(appId, appCertificate, channelName, uid, role, expirationTimeInSeconds);
-        
-        // Pega a URL da aplicação de vídeo das variáveis de ambiente
-        const videoAppUrl = process.env.VIDEO_APP_URL;
-
-        // Monta o link final com as credenciais como parâmetros
-        const joinUrl = `${videoAppUrl}?channel=${channelName}&token=${token}&uid=${uid}`;
-
-        // Debita o crédito do usuário
-        await prisma.user.update({
-            where: { id: req.user.id },
-            data: { credits: { decrement: 1 } },
-        });
-        
-        // Envia o link completo para o frontend
-        res.json({ joinUrl: joinUrl });
-
-    } catch (error) {
-        console.error('Erro ao gerar link de vídeo:', error);
-        res.status(500).json({ error: 'Erro interno ao criar a sala.' });
-    }
-});
+// Defina a rota que o front-end está chamando
+// É importante que seja .post() porque a requisição é do tipo POST
+router.post('/generate-token', generateAgoraToken);
 
 module.exports = router;
