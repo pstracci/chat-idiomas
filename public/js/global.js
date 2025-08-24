@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!requestsList || !notificationBell || !notificationCount) return;
         requestsList.innerHTML = '';
         notificationBell.style.display = 'flex';
-        const unreadNotifications = notifications.filter(n => !n.isRead);
+       const unreadNotifications = notifications.filter(n => !n.read)
         if (unreadNotifications.length === 0) {
             notificationCount.style.display = 'none';
             requestsList.innerHTML = '<li style="padding: 15px; text-align: center; color: #6c757d;">Nenhuma notificação nova.</li>';

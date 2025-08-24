@@ -128,7 +128,12 @@ io.on('connection', (socket) => {
         if (!requester) return;
         
         try {
-            const user = await prisma.user.findUnique({ where: { id: requester.id } });
+            
+			
+			const user = await prisma.user.findUnique({
+    where: { id: requester.id },
+    include: { profile: true } // Adicione esta linha para incluir o perfil
+});
 
             if (!user || user.credits < 1) {
                 return socket.emit('video:error', { message: 'Você não tem créditos suficientes para iniciar uma chamada.' });
