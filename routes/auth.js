@@ -241,6 +241,7 @@ router.post('/forgot-password', async (req, res) => {
             data: { passwordResetToken: token, passwordResetExpires: expires, },
         });
         const resetURL = `${req.protocol}://${req.get('host')}/reset-password.html?token=${token}`;
+		console.log("Tentando enviar e-mail DE:", process.env.SENDER_EMAIL); // <-- ADICIONE ESTA LINHA
         await transporter.sendMail({
             to: user.email,
             from: `Verbi <${process.env.EMAIL_USER}>`,
