@@ -15,9 +15,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const declineCallBtn = document.getElementById('decline-call-btn');
     const adminLinkContainer = document.getElementById('admin-link-container');
     const notificationBell = document.getElementById('notification-bell');
-    const notificationContainer = document.querySelector('.notification-container');
+    const notificationCount = document.getElementById('notification-count');
     const notificationsDropdown = document.getElementById('notifications-dropdown');
     const requestsList = document.getElementById('requests-list');
+    const notificationContainer = document.querySelector('.notification-container');
 
     // --- ESTADO DA APLICAÇÃO ---
     const socket = io();
@@ -52,10 +53,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const li = document.createElement('li');
             li.className = 'connection-item';
             li.dataset.userId = conn.friendInfo.id;
-            
             const statusClass = conn.friendInfo.isOnline ? 'online' : 'offline';
             const statusTitle = conn.friendInfo.isOnline ? 'Online' : 'Offline';
-
             li.innerHTML = `
                 <span class="status-dot ${statusClass}" title="${statusTitle}"></span>
                 <a href="/profile.html?userId=${conn.friendInfo.id}" class="connection-item-link">
@@ -69,6 +68,61 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             connectionsList.appendChild(li);
         });
+    }
+
+    // --- LÓGICA DE NOTIFICAÇÕES (RESTAURADA E INTEGRADA) ---
+    function renderNotifications(notifications) {
+        if (!requestsList || !notificationBell || !notificationCount) return;
+        requestsList.innerHTML = '';
+        notificationBell.style.display = 'flex';
+        const unreadNotifications = notifications.filter(n => !n.isRead);
+        if (unreadNotifications.length === 0) {
+            notificationCount.style.display = 'none';
+            requestsList.innerHTML = '<li style="padding: 15px; text-align: center; color: #6c757d;">Nenhuma notificação nova.</li>';
+            return;
+        }
+        notificationCount.textContent = unreadNotifications.length;
+        notificationCount.style.display = 'flex';
+        unreadNotifications.forEach(notif => {
+            const li = document.createElement('li');
+            li.className = 'request-item';
+            if (notif.type === 'CONNECTION_REQUEST' && notif.requester) {
+                li.innerHTML = `
+                    <img src="${notif.requester.profilePicture || '/default-avatar.png'}" alt="Avatar">
+                    <div class="info"><strong>${notif.requester.nickname}</strong> quer se conectar.</div>
+                    <div class="actions">
+                        <button class="btn-accept" data-id="${notif.relatedId}">Aceitar</button>
+                        <button class="btn-reject" data-id="${notif.relatedId}">Recusar</button>
+                    </div>
+                `;
+            }
+            // Adicione outros tipos de notificação aqui se necessário
+            requestsList.appendChild(li);
+        });
+    }
+    
+    async function loadAndDisplayNotifications() {
+        try {
+            const response = await fetch('/api/notifications');
+            if (response.ok) {
+                const notifications = await response.json();
+                renderNotifications(notifications);
+            }
+        } catch (error) { console.error('Erro ao carregar notificações:', error); }
+    }
+
+    async function handleRequestAction(connectionId, action) { 
+        const url = action === 'accept' ? `/api/connections/accept/${connectionId}` : `/api/connections/delete/${connectionId}`; 
+        const method = action === 'accept' ? 'PUT' : 'DELETE'; // DELETE para rejeitar
+        try { 
+            const response = await fetch(url, { method });
+            if (!response.ok) throw new Error('Falha na ação de conexão.');
+            // Recarrega os widgets e notificações para refletir a mudança
+            fetch('/api/user/status').then(res => res.json()).then(data => {
+                if (data.loggedIn) populateConnectionsWidget(data.connections);
+            });
+            loadAndDisplayNotifications();
+        } catch (error) { alert(error.message); } 
     }
     
     // --- FETCH INICIAL E LÓGICA DE LOGIN ---
@@ -87,6 +141,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 populateConnectionsWidget(data.connections);
                 connectionsWidget.style.display = 'flex';
             }
+            // Carrega as notificações para o usuário logado
+            loadAndDisplayNotifications();
         } else {
             if (loggedInView) loggedInView.style.display = 'none';
             if (loggedOutView) loggedOutView.style.display = 'block';
@@ -103,9 +159,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (confirm("Iniciar uma chamada de vídeo custará 1 crédito. Deseja prosseguir?")) {
                     socket.emit('video:invite', { recipientId: friendId });
                 }
-            }
-             if (videoButton && videoButton.classList.contains('active')) {
-                alert("Esta chamada já está em andamento. Você não pode reentrar após sair.");
+            } else if (videoButton) {
+                alert("Esta chamada já está em andamento ou aguardando resposta.");
             }
         });
     }
@@ -139,13 +194,26 @@ document.addEventListener('DOMContentLoaded', () => {
         notificationBell.addEventListener('click', (e) => { e.stopPropagation(); notificationsDropdown.classList.toggle('active'); });
     }
 
-    window.addEventListener('click', (e) => { if (notificationContainer && !notificationContainer.contains(e.target)) { notificationsDropdown.classList.remove('active'); } });
+    if (requestsList) {
+        requestsList.addEventListener('click', (e) => {
+            if (e.target.matches('.btn-accept')) {
+                handleRequestAction(e.target.dataset.id, 'accept');
+            } else if (e.target.matches('.btn-reject')) {
+                handleRequestAction(e.target.dataset.id, 'reject');
+            }
+        });
+    }
+
+    window.addEventListener('click', (e) => {
+        if (notificationContainer && !notificationContainer.contains(e.target)) {
+            if(notificationsDropdown) notificationsDropdown.classList.remove('active');
+        }
+    });
 
     // --- LISTENERS DE SOCKET GLOBAIS ---
     socket.on('user_status_change', (data) => {
         const { userId, isOnline } = data;
         const connectionItem = document.querySelector(`.connection-item[data-user-id='${userId}']`);
-        
         if (connectionItem) {
             const dot = connectionItem.querySelector('.status-dot');
             if (dot) {
