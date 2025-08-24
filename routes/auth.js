@@ -34,6 +34,15 @@ async function sendVerificationEmail(user, req) {
     });
 
    const verificationURL = `${req.protocol}://${req.get('host')}/verify-email?token=${token}`;
+   
+    // --- ADICIONE ESTE BLOCO DE DEBUG ---
+    console.log("--- DEBUG DE ENVIO DE E-MAIL ---");
+    console.log("Host:", process.env.EMAIL_HOST);
+    console.log("Port:", process.env.EMAIL_PORT);
+    console.log("User (usuário):", process.env.EMAIL_USER);
+    console.log("Sender (remetente):", process.env.SENDER_EMAIL);
+    console.log("--- FIM DO DEBUG ---");
+    // --- FIM DO BLOCO DE DEBUG ---
 
     await transporter.sendMail({
         to: user.email,
