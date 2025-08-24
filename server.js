@@ -10,28 +10,28 @@ const http = require('http');
 const { Server } = require('socket.io');
 const PgSimple = require('connect-pg-simple')(session);
 const { PrismaClient, Role } = require('@prisma/client');
+const cors = require('cors');  
+
+// --- INICIALIZAÇÃO E CONFIGURAÇÃO ---
+const prisma = new PrismaClient();
+const app = express(); // A variável 'app' é criada aqui
+
 const corsOptions = {
     origin: 'https://www.verbi.com.br', 
     optionsSuccessStatus: 200
 };
-app.use(cors(corsOptions));
 
-
-
-// --- INICIALIZAÇÃO E CONFIGURAÇÃO ---
-const prisma = new PrismaClient();
-const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
     maxHttpBufferSize: 5e6 // 5MB
 });
 
 // --- MIDDLEWARES DO EXPRESS ---
+app.use(cors(corsOptions));  
 app.set('trust proxy', 1);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
-
 
 // --- AUTENTICAÇÃO E SESSÕES ---
 const sessionMiddleware = session({
