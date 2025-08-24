@@ -123,32 +123,21 @@ io.on('connection', (socket) => {
     }
 
     socket.on('video:invite', async (data) => {
-		
-		console.log("\n--- [PASSO 1] Rota 'video:invite' acionada ---");
-		
         const { recipientId } = data;
         const requester = socket.request.user;
-		
-		 console.log(`[INFO] Solicitante (Requester): ${requester?.id}, Destinatário (Recipient): ${recipientId}`);
 
-
-        if (!requester) return;
-		
-		 console.error("[ERRO] Solicitante não autenticado. Ação interrompida.");
-        
+        if (!requester) {
+            console.error("[ERRO] Solicitante não autenticado na chamada de vídeo.");
+            return;
+        }
         
         try {
-            
-			
 			const user = await prisma.user.findUnique({
-    where: { id: requester.id },
-    include: { profile: true } // Adicione esta linha para incluir o perfil
-});
+                where: { id: requester.id },
+                include: { profile: true }
+            });
 
             if (!user || user.credits < 1) {
-				
-				 console.warn(`[AVISO] Usuário ${requester.id} sem créditos suficientes. Créditos: ${user?.credits}`);
-           
                 return socket.emit('video:error', { message: 'Você não tem créditos suficientes para iniciar uma chamada.' });
             }
 
@@ -156,15 +145,9 @@ io.on('connection', (socket) => {
                 where: { id: requester.id },
                 data: { credits: { decrement: 1 } }
             });
-			
-			  console.log(`--- [PASSO 2] Buscando destinatário no mapa de sockets... ---`);
-       
             
             const recipientSocketId = userSocketMap[recipientId];
             if (recipientSocketId) {
-				
-				 console.log(`--- [SUCESSO] Destinatário ${recipientId} encontrado! Socket ID: ${recipientSocketId}. Enviando convite... ---`);
-           
                 const channel = randomUUID();
                 io.to(recipientSocketId).emit('video:incoming_invite', {
                     requester: { id: requester.id, nickname: requester.nickname, profilePicture: user.profile?.profilePicture },
@@ -175,9 +158,6 @@ io.on('connection', (socket) => {
                     recipientId: recipientId
                 });
             } else {
-				
-				 console.warn(`--- [FALHA] Destinatário ${recipientId} não encontrado no userSocketMap. Devolvendo crédito. ---`);
-            
                 await prisma.user.update({
                     where: { id: requester.id },
                     data: { credits: { increment: 1 } }
@@ -185,9 +165,6 @@ io.on('connection', (socket) => {
                 socket.emit('video:recipient_offline', { message: 'Este usuário não está online. Seu crédito foi devolvido.' });
             }
         } catch (error) {
-			
-			 console.error("--- [ERRO CRÍTICO] Ocorreu um erro no bloco try...catch do 'video:invite' ---", error);
-       
             console.error("Erro ao processar convite de vídeo:", error);
             await prisma.user.update({
                 where: { id: requester.id },
@@ -258,9 +235,14 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         const userId = socket.request.user?.id;
         if (userId) {
-            delete userSocketMap[userId];
-            console.log(`[Socket.IO] Usuário ${userId} desconectado.`);
-            io.emit('user_status_change', { userId, isOnline: false });
+            // Apenas remove o mapeamento se o socket ID for o mesmo
+            if(userSocketMap[userId] === socket.id) {
+                delete userSocketMap[userId];
+                console.log(`[Socket.IO] Usuário ${userId} desconectado.`);
+                io.emit('user_status_change', { userId, isOnline: false });
+            } else {
+                console.log(`[Socket.IO] Um socket antigo do usuário ${userId} foi desconectado.`);
+            }
 
             for (const channel in videoCallState) {
                 const room = videoCallState[channel];
@@ -289,6 +271,80 @@ io.on('connection', (socket) => {
         }
     });
 });
+
+// =======================================================
+// === LÓGICA DO JOGO STOP! (NAMESPACE /stop) ===
+// =======================================================
+const stopRooms = {}; // Objeto para armazenar as salas em memória
+const stopNamespace = io.of('/stop');
+
+// Middleware para compartilhar a sessão com o namespace do STOP!
+stopNamespace.use(wrap(sessionMiddleware));
+stopNamespace.use(wrap(passport.initialize()));
+stopNamespace.use(wrap(passport.session()));
+
+function getLobbyRooms() {
+    return Object.values(stopRooms).map(room => ({
+        id: room.id,
+        name: room.name,
+        participants: room.participants.size,
+        maxParticipants: room.maxParticipants,
+        isPrivate: room.isPrivate,
+        status: room.status
+    }));
+}
+
+stopNamespace.on('connection', (socket) => {
+    // Envia a lista de salas para o usuário que acabou de conectar
+    socket.emit('updateRoomList', getLobbyRooms());
+
+    socket.on('createRoom', (data) => {
+        if (!socket.request.user) {
+            return socket.emit('error', 'Você precisa estar logado para criar uma sala.');
+        }
+        const roomId = randomUUID();
+        const ownerId = socket.request.user.id;
+
+        stopRooms[roomId] = {
+            id: roomId,
+            name: data.name,
+            ownerId: ownerId,
+            ownerNickname: socket.request.user.nickname,
+            participants: new Set(),
+            maxParticipants: data.maxParticipants,
+            isPrivate: data.isPrivate,
+            password: data.password,
+            categories: data.categories,
+            status: 'Aguardando',
+            // Adicione outros estados do jogo conforme necessário
+        };
+
+        // Envia a lista de salas atualizada para TODOS no lobby
+        stopNamespace.emit('updateRoomList', getLobbyRooms());
+
+        // Envia o evento de sucesso APENAS para o criador da sala
+        socket.emit('joinSuccess', roomId);
+    });
+    
+    socket.on('joinRoom', (data) => {
+        const room = stopRooms[data.roomId];
+        if (!room) {
+            return socket.emit('error', 'A sala não existe.');
+        }
+        if (room.participants.size >= room.maxParticipants) {
+            return socket.emit('error', 'A sala está cheia.');
+        }
+        if (room.isPrivate && room.password !== data.password) {
+            return socket.emit('error', 'Senha incorreta.');
+        }
+
+        // Se tudo estiver OK, envia o sucesso para o usuário entrar na sala
+        socket.emit('joinSuccess', data.roomId);
+    });
+
+    // Lembre-se de adicionar aqui os outros listeners do jogo (startGame, submitAnswers, etc.)
+});
+
 
 // --- INICIALIZAÇÃO DO SERVIDOR ---
 const PORT = process.env.PORT || 3000;
