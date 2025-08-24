@@ -257,7 +257,11 @@
             const colorPickerBtn = document.getElementById('colorPickerBtn');
             const selectedColorPreview = document.getElementById('selectedColorPreview');
             
-            const socket = io();
+            // A conexão principal do Socket.IO é gerenciada pelo global.js
+            // Para eventos específicos desta página, podemos criar uma nova conexão
+            // ou usar a existente se a fizermos global. Por simplicidade,
+            // vamos nos conectar novamente para ouvir os contadores de sala.
+            const pageSocket = io();
 
             function populateRoomList() {
                 if (!dynamicRoomListContainer) return;
@@ -292,14 +296,14 @@
                 window.location.href = `chat.html?sala=${selectedRoom}&nick=${nick}&idade=${age}&color=${encodeURIComponent(color)}`;
             });
 
-            socket.on('roomCounts', (counts) => {
+            pageSocket.on('roomCounts', (counts) => {
                 for (const room in counts) {
                     const countElement = document.getElementById(`count-${room}`);
                     if (countElement) countElement.textContent = counts[room];
                 }
             });
 
-            socket.on('stopPlayerCountUpdate', (count) => {
+            pageSocket.on('stopPlayerCountUpdate', (count) => {
                 const countElement = document.getElementById('stop-player-count');
                 if (countElement) countElement.textContent = count;
             });
