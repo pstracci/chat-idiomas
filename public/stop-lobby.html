@@ -116,5 +116,31 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="stop-lobby.js"></script>
+	
+		<div id="connections-widget" class="connections-widget">
+        <div class="widget-header">
+            <h3>Minhas Conexões</h3>
+            <span id="toggle-widget" class="toggle-widget">-</span>
+        </div>
+        <div id="widget-body" class="widget-body">
+            <ul id="connections-list" class="connections-list">
+            </ul>
+        </div>
+    </div>
+
+    <div id="incoming-call-modal" class="call-modal-overlay" style="display: none;">
+        <div class="call-modal-content">
+            <img id="caller-avatar" src="/default-avatar.png" alt="Avatar">
+            <h3 id="caller-name"></h3>
+            <p>está te ligando...</p>
+            <div class="call-modal-actions">
+                <button id="accept-call-btn">✅ Aceitar</button>
+                <button id="decline-call-btn">❌ Recusar</button>
+            </div>
+        </div>
+    </div>
+	
+	    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/global.js"></script>
 </body>
 </html>
