@@ -63,19 +63,55 @@ document.addEventListener('DOMContentLoaded', () => {
                 </a>
                 <div class="action-buttons">
                     <button class="btn-video" title="Iniciar chamada de vídeo com ${conn.friendInfo.nickname}">🎥</button>
-                    <button class="btn-chat" data-id="${conn.friendInfo.id}" data-nickname="${conn.friendInfo.nickname}" title="Conversar com ${conn.friendInfo.nickname}">💬</button>
+                    <button class="btn-chat" data-id="${conn.friendInfo.id}" data-nickname="${conn.friendInfo.nickname}" title="Conversar com ${conn.friendInfo.nickname}">✉️</button>
                 </div>
             `;
             connectionsList.appendChild(li);
         });
     }
+    
+    // --- FUNÇÃO PARA MARCAR NOTIFICAÇÃO COMO LIDA ---
+    async function markNotificationAsRead(notificationId) {
+        try {
+            const response = await fetch(`/api/notifications/${notificationId}/read`, {
+                method: 'PUT'
+            });
 
-    // --- LÓGICA DE NOTIFICAÇÕES (RESTAURADA E INTEGRADA) ---
+            if (response.ok) {
+                // Remove a notificação da UI
+                const notificationElement = document.querySelector(`.request-item[data-notification-id="${notificationId}"]`);
+                if (notificationElement) {
+                    notificationElement.remove();
+                }
+
+                // Decrementa o contador
+                const currentCount = parseInt(notificationCount.textContent);
+                if (!isNaN(currentCount) && currentCount > 0) {
+                    const newCount = currentCount - 1;
+                    notificationCount.textContent = newCount;
+                    if (newCount === 0) {
+                        notificationCount.style.display = 'none';
+                    }
+                }
+                
+                // Verifica se a lista está vazia
+                if (requestsList.children.length === 0) {
+                    requestsList.innerHTML = '<li style="padding: 15px; text-align: center; color: #6c757d;">Nenhuma notificação nova.</li>';
+                }
+            }
+        } catch (error) {
+            console.error('Erro ao marcar notificação como lida:', error);
+            alert('Não foi possível remover a notificação.');
+        }
+    }
+
+
+    // --- LÓGICA DE NOTIFICAÇÕES (ATUALIZADA) ---
     function renderNotifications(notifications) {
         if (!requestsList || !notificationBell || !notificationCount) return;
         requestsList.innerHTML = '';
         notificationBell.style.display = 'flex';
-       const unreadNotifications = notifications.filter(n => !n.read)
+        const unreadNotifications = notifications.filter(n => !n.read);
         if (unreadNotifications.length === 0) {
             notificationCount.style.display = 'none';
             requestsList.innerHTML = '<li style="padding: 15px; text-align: center; color: #6c757d;">Nenhuma notificação nova.</li>';
@@ -83,42 +119,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         notificationCount.textContent = unreadNotifications.length;
         notificationCount.style.display = 'flex';
-		
-		
-      unreadNotifications.forEach(notif => {
-    const li = document.createElement('li');
-    li.className = 'request-item';
-    let notificationAdded = false; // Variável de controle
+        
+        unreadNotifications.forEach(notif => {
+            const li = document.createElement('li');
+            li.className = 'request-item';
+            li.dataset.notificationId = notif.id; 
 
-    if (notif.type === 'CONNECTION_REQUEST' && notif.requester) {
-        li.innerHTML = `
-            <img src="${notif.requester.profilePicture || '/default-avatar.png'}" alt="Avatar">
-            <div class="info"><strong>${notif.requester.nickname}</strong> quer se conectar.</div>
-            <div class="actions">
-                <button class="btn-accept" data-id="${notif.relatedId}">Aceitar</button>
-                <button class="btn-reject" data-id="${notif.relatedId}">Recusar</button>
-            </div>
-        `;
-        notificationAdded = true;
-    } 
-    // ADICIONE ESTE BLOCO PARA EXIBIR MENSAGENS DO SISTEMA
-    else if (notif.type === 'SYSTEM_MESSAGE') {
-        li.innerHTML = `
-            <img src="/default-avatar.png" alt="Avatar do Sistema" style="filter: grayscale(1);">
-            <div class="info">${notif.content}</div>
-        `;
-        notificationAdded = true;
-    }
-    // Você pode adicionar mais 'else if' para outros tipos de notificação aqui
+            let contentHTML = '';
 
-    // Apenas adiciona o 'li' à lista se ele tiver conteúdo
-    if (notificationAdded) {
-        requestsList.appendChild(li);
-    }
-});
-		
-		
-		
+            if (notif.type === 'CONNECTION_REQUEST' && notif.requester) {
+                contentHTML = `
+                    <img src="${notif.requester.profilePicture || '/default-avatar.png'}" alt="Avatar">
+                    <div class="info"><strong>${notif.requester.nickname}</strong> quer se conectar.</div>
+                    <div class="actions">
+                        <button class="btn-accept" data-id="${notif.relatedId}" data-notification-id="${notif.id}">Aceitar</button>
+                        <button class="btn-reject" data-id="${notif.relatedId}" data-notification-id="${notif.id}">Recusar</button>
+                    </div>
+                `;
+            } else if (notif.type === 'SYSTEM_MESSAGE') {
+                // *** ALTERAÇÃO APLICADA AQUI ***
+                // Substituído <img> por um <span> com o emoji de carta
+                contentHTML = `
+                     <span class="notification-icon">✉️</span>
+                     <div class="info">${notif.content}</div>
+                `;
+            }
+            
+            li.innerHTML = contentHTML + `<button class="btn-mark-read" data-id="${notif.id}" title="Marcar como lida">X</button>`;
+            requestsList.appendChild(li);
+        });
     }
     
     async function loadAndDisplayNotifications() {
@@ -131,17 +160,18 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) { console.error('Erro ao carregar notificações:', error); }
     }
 
-    async function handleRequestAction(connectionId, action) { 
+    async function handleRequestAction(connectionId, action, notificationId) { 
         const url = action === 'accept' ? `/api/connections/accept/${connectionId}` : `/api/connections/delete/${connectionId}`; 
-        const method = action === 'accept' ? 'PUT' : 'DELETE'; // DELETE para rejeitar
+        const method = action === 'accept' ? 'PUT' : 'DELETE';
         try { 
             const response = await fetch(url, { method });
             if (!response.ok) throw new Error('Falha na ação de conexão.');
-            // Recarrega os widgets e notificações para refletir a mudança
+            
+            await markNotificationAsRead(notificationId);
+            
             fetch('/api/user/status').then(res => res.json()).then(data => {
                 if (data.loggedIn) populateConnectionsWidget(data.connections);
             });
-            loadAndDisplayNotifications();
         } catch (error) { alert(error.message); } 
     }
     
@@ -161,7 +191,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 populateConnectionsWidget(data.connections);
                 connectionsWidget.style.display = 'flex';
             }
-            // Carrega as notificações para o usuário logado
             loadAndDisplayNotifications();
         } else {
             if (loggedInView) loggedInView.style.display = 'none';
@@ -217,9 +246,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (requestsList) {
         requestsList.addEventListener('click', (e) => {
             if (e.target.matches('.btn-accept')) {
-                handleRequestAction(e.target.dataset.id, 'accept');
+                handleRequestAction(e.target.dataset.id, 'accept', e.target.dataset.notificationId);
             } else if (e.target.matches('.btn-reject')) {
-                handleRequestAction(e.target.dataset.id, 'reject');
+                handleRequestAction(e.target.dataset.id, 'reject', e.target.dataset.notificationId);
+            } else if (e.target.matches('.btn-mark-read')) {
+                markNotificationAsRead(e.target.dataset.id);
             }
         });
     }
@@ -229,8 +260,38 @@ document.addEventListener('DOMContentLoaded', () => {
             if(notificationsDropdown) notificationsDropdown.classList.remove('active');
         }
     });
+    
+    // --- CSS ADICIONADO DINAMICAMENTE ---
+    // Adiciona CSS para o botão de "lida" e para o novo ícone de notificação
+    const style = document.createElement('style');
+    style.innerHTML = `
+        .request-item { position: relative; }
+        .btn-mark-read { 
+            position: absolute; top: 5px; right: 5px;
+            background: none; border: none; font-size: 1.2em;
+            cursor: pointer; color: #aaa; line-height: 1; padding: 5px;
+        }
+        .btn-mark-read:hover { color: #333; }
+
+        /* *** CSS PARA O NOVO ÍCONE DE CARTA *** */
+        .notification-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            background-color: #e9ecef;
+            border-radius: 50%;
+            margin-right: 15px;
+            font-size: 1.4em;
+            color: #495057;
+        }
+    `;
+    document.head.appendChild(style);
 
     // --- LISTENERS DE SOCKET GLOBAIS ---
+    // (O restante do seu código permanece inalterado)
     socket.on('user_status_change', (data) => {
         const { userId, isOnline } = data;
         const connectionItem = document.querySelector(`.connection-item[data-user-id='${userId}']`);

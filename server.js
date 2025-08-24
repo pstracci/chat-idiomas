@@ -123,9 +123,19 @@ io.on('connection', (socket) => {
     }
 
     socket.on('video:invite', async (data) => {
+		
+		console.log("\n--- [PASSO 1] Rota 'video:invite' acionada ---");
+		
         const { recipientId } = data;
         const requester = socket.request.user;
+		
+		 console.log(`[INFO] Solicitante (Requester): ${requester?.id}, Destinatário (Recipient): ${recipientId}`);
+
+
         if (!requester) return;
+		
+		 console.error("[ERRO] Solicitante não autenticado. Ação interrompida.");
+        
         
         try {
             
@@ -136,6 +146,9 @@ io.on('connection', (socket) => {
 });
 
             if (!user || user.credits < 1) {
+				
+				 console.warn(`[AVISO] Usuário ${requester.id} sem créditos suficientes. Créditos: ${user?.credits}`);
+           
                 return socket.emit('video:error', { message: 'Você não tem créditos suficientes para iniciar uma chamada.' });
             }
 
@@ -143,9 +156,15 @@ io.on('connection', (socket) => {
                 where: { id: requester.id },
                 data: { credits: { decrement: 1 } }
             });
+			
+			  console.log(`--- [PASSO 2] Buscando destinatário no mapa de sockets... ---`);
+       
             
             const recipientSocketId = userSocketMap[recipientId];
             if (recipientSocketId) {
+				
+				 console.log(`--- [SUCESSO] Destinatário ${recipientId} encontrado! Socket ID: ${recipientSocketId}. Enviando convite... ---`);
+           
                 const channel = randomUUID();
                 io.to(recipientSocketId).emit('video:incoming_invite', {
                     requester: { id: requester.id, nickname: requester.nickname, profilePicture: user.profile?.profilePicture },
@@ -156,6 +175,9 @@ io.on('connection', (socket) => {
                     recipientId: recipientId
                 });
             } else {
+				
+				 console.warn(`--- [FALHA] Destinatário ${recipientId} não encontrado no userSocketMap. Devolvendo crédito. ---`);
+            
                 await prisma.user.update({
                     where: { id: requester.id },
                     data: { credits: { increment: 1 } }
@@ -163,6 +185,9 @@ io.on('connection', (socket) => {
                 socket.emit('video:recipient_offline', { message: 'Este usuário não está online. Seu crédito foi devolvido.' });
             }
         } catch (error) {
+			
+			 console.error("--- [ERRO CRÍTICO] Ocorreu um erro no bloco try...catch do 'video:invite' ---", error);
+       
             console.error("Erro ao processar convite de vídeo:", error);
             await prisma.user.update({
                 where: { id: requester.id },
