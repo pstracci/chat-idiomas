@@ -1,13 +1,12 @@
 // public/js/global.js
 document.addEventListener('DOMContentLoaded', () => {
-    // --- ELEMENTOS DA UI GLOBAIS ---
+    // --- ELEMENTOS DA UI GLOBAIS (sem alterações) ---
     const loggedInView = document.getElementById('logged-in-view');
     const loggedOutView = document.getElementById('logged-out-view');
     const welcomeMessage = document.getElementById('welcome-message');
     const connectionsWidget = document.getElementById('connections-widget');
     const connectionsList = document.getElementById('connections-list');
     const toggleWidget = document.getElementById('toggle-widget');
-    const widgetBody = document.getElementById('widget-body');
     const incomingCallModal = document.getElementById('incoming-call-modal');
     const callerAvatar = document.getElementById('caller-avatar');
     const callerName = document.getElementById('caller-name');
@@ -20,11 +19,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const requestsList = document.getElementById('requests-list');
     const notificationContainer = document.querySelector('.notification-container');
 
-    // --- ESTADO DA APLICAÇÃO ---
+    // --- ESTADO DA APLICAÇÃO (sem alterações) ---
     const socket = io(); // ÚNICA CONEXÃO GLOBAL
     let loggedInUserId = null;
 
-    // --- FUNÇÕES GLOBAIS ---
+    // --- FUNÇÕES GLOBAIS (sem alterações) ---
     async function joinVideoRoom(channel) {
         try {
             const backendUrl = window.location.origin;
@@ -69,39 +68,49 @@ document.addEventListener('DOMContentLoaded', () => {
             connectionsList.appendChild(li);
         });
     }
-    
-    // --- FUNÇÃO PARA MARCAR NOTIFICAÇÃO COMO LIDA ---
-    async function markNotificationAsRead(notificationId) {
-        try {
-            const response = await fetch(`/api/notifications/${notificationId}/read`, {
-                method: 'PUT'
-            });
 
-            if (response.ok) {
-                const notificationElement = document.querySelector(`.request-item[data-notification-id="${notificationId}"]`);
-                if (notificationElement) {
-                    notificationElement.remove();
+    // --- MUDANÇA 1: CENTRALIZAR A LÓGICA DE ATUALIZAÇÃO ---
+    // Esta função buscará os dados mais recentes do usuário e atualizará toda a UI.
+    async function updateUserStatusAndConnections() {
+        try {
+            const response = await fetch('/api/user/status');
+            const data = await response.json();
+
+            if (data.loggedIn) {
+                loggedInUserId = data.user.id;
+
+                if (loggedInView) loggedInView.style.display = 'flex';
+                if (loggedOutView) loggedOutView.style.display = 'none';
+                if (welcomeMessage) welcomeMessage.textContent = `Olá, ${data.user.nickname}!`;
+                if (adminLinkContainer && data.user.role === 'ADMIN') {
+                    adminLinkContainer.innerHTML = `<a href="/admin.html">Admin</a>`;
                 }
-                const currentCount = parseInt(notificationCount.textContent);
-                if (!isNaN(currentCount) && currentCount > 0) {
-                    const newCount = currentCount - 1;
-                    notificationCount.textContent = newCount;
-                    if (newCount === 0) {
-                        notificationCount.style.display = 'none';
-                    }
+
+                if (connectionsWidget) {
+                    populateConnectionsWidget(data.connections);
+                    connectionsWidget.style.display = 'flex';
                 }
-                if (requestsList.children.length === 0) {
-                    requestsList.innerHTML = '<li style="padding: 15px; text-align: center; color: #6c757d;">Nenhuma notificação nova.</li>';
-                }
+                // Também atualizamos as notificações para manter a consistência.
+                loadAndDisplayNotifications();
+            } else {
+                if (loggedInView) loggedInView.style.display = 'none';
+                if (loggedOutView) loggedOutView.style.display = 'block';
             }
         } catch (error) {
+            console.error('Falha ao atualizar o status do usuário:', error);
+        }
+    }
+    
+    // As funções de notificação permanecem, mas suas ações podem ser simplificadas.
+    async function markNotificationAsRead(notificationId) {
+        try {
+            await fetch(`/api/notifications/${notificationId}/read`, { method: 'PUT' });
+            updateUserStatusAndConnections(); // Simplificado: Apenas atualiza tudo.
+        } catch (error) {
             console.error('Erro ao marcar notificação como lida:', error);
-            alert('Não foi possível remover a notificação.');
         }
     }
 
-
-    // --- LÓGICA DE NOTIFICAÇÕES ---
     function renderNotifications(notifications) {
         if (!requestsList || !notificationBell || !notificationCount) return;
         requestsList.innerHTML = '';
@@ -110,39 +119,31 @@ document.addEventListener('DOMContentLoaded', () => {
         if (unreadNotifications.length === 0) {
             notificationCount.style.display = 'none';
             requestsList.innerHTML = '<li style="padding: 15px; text-align: center; color: #6c757d;">Nenhuma notificação nova.</li>';
-            return;
+        } else {
+            notificationCount.textContent = unreadNotifications.length;
+            notificationCount.style.display = 'flex';
+            unreadNotifications.forEach(notif => {
+                const li = document.createElement('li');
+                li.className = 'request-item';
+                li.dataset.notificationId = notif.id;
+                let contentHTML = '';
+                if (notif.type === 'CONNECTION_REQUEST' && notif.requester) {
+                    contentHTML = `
+                        <img src="${notif.requester.profilePicture || '/default-avatar.png'}" alt="Avatar">
+                        <div class="info"><strong>${notif.requester.nickname}</strong> quer se conectar.</div>
+                        <div class="actions">
+                            <button class="btn-accept" data-id="${notif.relatedId}" data-notification-id="${notif.id}">Aceitar</button>
+                            <button class="btn-reject" data-id="${notif.relatedId}" data-notification-id="${notif.id}">Recusar</button>
+                        </div>`;
+                } else if (notif.type === 'SYSTEM_MESSAGE') {
+                    contentHTML = `<span class="notification-icon">✉️</span><div class="info">${notif.content}</div>`;
+                }
+                li.innerHTML = contentHTML + `<button class="btn-mark-read" data-id="${notif.id}" title="Marcar como lida">X</button>`;
+                requestsList.appendChild(li);
+            });
         }
-        notificationCount.textContent = unreadNotifications.length;
-        notificationCount.style.display = 'flex';
-        
-        unreadNotifications.forEach(notif => {
-            const li = document.createElement('li');
-            li.className = 'request-item';
-            li.dataset.notificationId = notif.id; 
-
-            let contentHTML = '';
-
-            if (notif.type === 'CONNECTION_REQUEST' && notif.requester) {
-                contentHTML = `
-                    <img src="${notif.requester.profilePicture || '/default-avatar.png'}" alt="Avatar">
-                    <div class="info"><strong>${notif.requester.nickname}</strong> quer se conectar.</div>
-                    <div class="actions">
-                        <button class="btn-accept" data-id="${notif.relatedId}" data-notification-id="${notif.id}">Aceitar</button>
-                        <button class="btn-reject" data-id="${notif.relatedId}" data-notification-id="${notif.id}">Recusar</button>
-                    </div>
-                `;
-            } else if (notif.type === 'SYSTEM_MESSAGE') {
-                contentHTML = `
-                     <span class="notification-icon">✉️</span>
-                     <div class="info">${notif.content}</div>
-                `;
-            }
-            
-            li.innerHTML = contentHTML + `<button class="btn-mark-read" data-id="${notif.id}" title="Marcar como lida">X</button>`;
-            requestsList.appendChild(li);
-        });
     }
-    
+
     async function loadAndDisplayNotifications() {
         try {
             const response = await fetch('/api/notifications');
@@ -153,59 +154,35 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) { console.error('Erro ao carregar notificações:', error); }
     }
 
-    async function handleRequestAction(connectionId, action, notificationId) { 
-        const url = action === 'accept' ? `/api/connections/accept/${connectionId}` : `/api/connections/delete/${connectionId}`; 
+    async function handleRequestAction(connectionId, action, notificationId) {
+        const url = action === 'accept' ? `/api/connections/accept/${connectionId}` : `/api/connections/delete/${connectionId}`;
         const method = action === 'accept' ? 'PUT' : 'DELETE';
-        try { 
+        try {
             const response = await fetch(url, { method });
             if (!response.ok) throw new Error('Falha na ação de conexão.');
-            
-            await markNotificationAsRead(notificationId);
-            
-            fetch('/api/user/status').then(res => res.json()).then(data => {
-                if (data.loggedIn) populateConnectionsWidget(data.connections);
-            });
-        } catch (error) { alert(error.message); } 
+            updateUserStatusAndConnections(); // Simplificado: Apenas atualiza tudo.
+        } catch (error) {
+            alert(error.message);
+        }
     }
     
-    // --- FETCH INICIAL E LÓGICA DE LOGIN ---
-    fetch('/api/user/status').then(res => res.json()).then(data => {
-        if (data.loggedIn) {
-            loggedInUserId = data.user.id;
-            
-            if (loggedInView) loggedInView.style.display = 'flex';
-            if (loggedOutView) loggedOutView.style.display = 'none';
-            if (welcomeMessage) welcomeMessage.textContent = `Olá, ${data.user.nickname}!`;
-            if (adminLinkContainer && data.user.role === 'ADMIN') {
-                adminLinkContainer.innerHTML = `<a href="/admin.html">Admin</a>`;
-            }
+    // --- MUDANÇA 2: O FETCH INICIAL AGORA USA A NOVA FUNÇÃO ---
+    updateUserStatusAndConnections();
 
-            if (connectionsWidget) {
-                populateConnectionsWidget(data.connections);
-                connectionsWidget.style.display = 'flex';
-            }
-            loadAndDisplayNotifications();
-        } else {
-            if (loggedInView) loggedInView.style.display = 'none';
-            if (loggedOutView) loggedOutView.style.display = 'block';
-        }
-    });
-
-    // --- LISTENERS DE EVENTOS DE UI GLOBAIS ---
+    // --- LISTENERS DE EVENTOS DE UI GLOBAIS (sem alterações) ---
     if (connectionsList) {
         connectionsList.addEventListener('click', (e) => {
             const videoButton = e.target.closest('.btn-video');
-            if (videoButton) { // Simplificado: sempre tenta iniciar a chamada
+            if (videoButton) {
                 const friendId = videoButton.closest('.connection-item')?.dataset.userId;
                 if (!friendId) return;
-                // Opcional: manter a confirmação do crédito
                 if (confirm("Iniciar uma chamada de vídeo custará 1 crédito. Deseja prosseguir?")) {
                     socket.emit('video:invite', { recipientId: friendId });
                 }
             }
         });
     }
-    
+
     if (toggleWidget) {
         toggleWidget.addEventListener('click', () => {
             const widgetBody = document.getElementById('widget-body');
@@ -302,31 +279,23 @@ document.addEventListener('DOMContentLoaded', () => {
         joinVideoRoom(data.channel);
     });
 
-    socket.on('video:invite_declined', (data) => {
-        alert(data.message);
+    // --- MUDANÇA 3: O LISTENER FOI REINTRODUZIDO COM A NOVA AÇÃO ---
+    socket.on('video:call_ended', () => {
+        console.log("Chamada de vídeo encerrada. Atualizando status e conexões.");
+        updateUserStatusAndConnections();
     });
-    
-    socket.on('video:recipient_offline', (data) => {
-        alert(data.message);
-    });
-    
-    socket.on('video:error', (data) => {
-        alert(`Erro: ${data.message}`);
-    });
-    
-    // LISTENERS QUE ANTES ESTAVAM NO INDEX.HTML
+
+    socket.on('video:invite_declined', (data) => { alert(data.message); });
+    socket.on('video:recipient_offline', (data) => { alert(data.message); });
+    socket.on('video:error', (data) => { alert(`Erro: ${data.message}`); });
     socket.on('roomCounts', (counts) => {
         for (const room in counts) {
             const countElement = document.getElementById(`count-${room}`);
             if (countElement) countElement.textContent = counts[room];
         }
     });
-
     socket.on('stopPlayerCountUpdate', (count) => {
         const countElement = document.getElementById('stop-player-count');
         if (countElement) countElement.textContent = count;
     });
-
-    // REMOVIDO: Listeners que alteravam o ícone (video:invite_sent, video:call_started, video:call_ended)
-    // Agora o ícone permanecerá sempre '🎥'.
 });
