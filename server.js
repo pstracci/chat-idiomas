@@ -120,19 +120,149 @@ io.on('connection', (socket) => {
     if (socket.request.user) {
         const userId = socket.request.user.id;
         userSocketMap[userId] = socket.id;
+        console.log(`[Socket.IO] Usuário ${userId} online com socket ${socket.id}`);
         socket.broadcast.emit('user_status_change', { userId, isOnline: true });
     }
+
+    // ===== CÓDIGO RESTAURADO: CHAT DE IDIOMAS =====
+    socket.on('joinRoom', (data) => {
+        const { sala, nickname, idade, color } = data;
+        if (!nickname || nickname.length > 20 || !idade || idade < 18) return socket.emit('invalidData', { message: 'Dados inválidos.' });
+        if (!chatRooms[sala]) chatRooms[sala] = { users: {}, history: [] };
+        if (Object.keys(chatRooms[sala].users).length >= 20) return socket.emit('roomFull');
+        if (Object.values(chatRooms[sala].users).some(u => u.nickname === nickname)) return socket.emit('nicknameTaken', { nickname });
+        
+        socket.join(sala);
+        socket.room = sala;
+        socket.nickname = nickname;
+        chatRooms[sala].users[socket.id] = { nickname, idade, color, status: 'online' };
+
+        socket.emit('chatHistory', chatRooms[sala].history);
+        io.to(sala).emit('userList', Object.values(chatRooms[sala].users));
+    });
+
+    socket.on('message', (msg) => {
+        if (!socket.room || !socket.nickname) return;
+        const room = chatRooms[socket.room];
+        const user = room.users[socket.id];
+
+        if (room && user) {
+            const messageData = { nickname: socket.nickname, color: user.color, text: msg.text, mentions: msg.mentions, imageData: msg.imageData };
+            room.history.push(messageData);
+            if (room.history.length > 100) room.history.shift();
+            io.to(socket.room).emit('message', messageData);
+        }
+    });
+
+    socket.on('updateStatus', (newStatus) => {
+        if (socket.room && chatRooms[socket.room] && chatRooms[socket.room].users[socket.id]) {
+            chatRooms[socket.room].users[socket.id].status = newStatus;
+            io.to(socket.room).emit('userList', Object.values(chatRooms[socket.room].users));
+        }
+    });
+    // ===== FIM DO CÓDIGO RESTAURADO =====
+
+    // ===== CÓDIGO RESTAURADO: CHAMADA DE VÍDEO =====
+    socket.on('video:invite', async (data) => {
+        const { recipientId } = data;
+        const requester = socket.request.user;
+        if (!requester) return console.error("[ERRO] Solicitante não autenticado na chamada de vídeo.");
+        
+        try {
+			const user = await prisma.user.findUnique({ where: { id: requester.id }, include: { profile: true } });
+            if (!user || user.credits < 1) return socket.emit('video:error', { message: 'Você não tem créditos suficientes para iniciar uma chamada.' });
+
+            await prisma.user.update({ where: { id: requester.id }, data: { credits: { decrement: 1 } } });
+            
+            const recipientSocketId = userSocketMap[recipientId];
+            if (recipientSocketId) {
+                const channel = randomUUID();
+                io.to(recipientSocketId).emit('video:incoming_invite', { requester: { id: requester.id, nickname: requester.nickname, profilePicture: user.profile?.profilePicture }, channel: channel });
+                socket.emit('video:invite_sent', { channel: channel, recipientId: recipientId });
+            } else {
+                await prisma.user.update({ where: { id: requester.id }, data: { credits: { increment: 1 } } });
+                socket.emit('video:recipient_offline', { message: 'Este usuário não está online. Seu crédito foi devolvido.' });
+            }
+        } catch (error) {
+            console.error("Erro ao processar convite de vídeo:", error);
+            await prisma.user.update({ where: { id: requester.id }, data: { credits: { increment: 1 } } }).catch(e => console.error("Erro ao devolver crédito:", e));
+            socket.emit('video:error', { message: 'Ocorreu um erro interno. Seu crédito foi devolvido.' });
+        }
+    });
+
+    socket.on('video:accept', (data) => {
+        const { requesterId, channel } = data;
+        const recipient = socket.request.user;
+        if (!recipient) return;
+        const requesterSocketId = userSocketMap[requesterId];
+
+        if (requesterSocketId) {
+            const allParticipants = [requesterId, recipient.id];
+            io.to(requesterSocketId).emit('video:invite_accepted', { channel });
+            socket.emit('video:invite_accepted', { channel });
+            
+            const warningTimer = setTimeout(() => allParticipants.forEach(id => { const s = userSocketMap[id]; if (s) io.to(s).emit('video:warning_10_minutes', { channel }); }), 110 * 60 * 1000);
+            const endTimer = setTimeout(() => {
+                const room = videoCallState[channel];
+                if (room) {
+                    room.originalParticipants.forEach(id => { const s = userSocketMap[id]; if (s) io.to(s).emit('video:force_disconnect', { channel }); });
+                    delete videoCallState[channel];
+                }
+            }, 120 * 60 * 1000);
+
+            videoCallState[channel] = { participants: new Set(allParticipants), originalParticipants: new Set(allParticipants), warningTimer, endTimer };
+            allParticipants.forEach(id => { const s = userSocketMap[id]; if (s) io.to(s).emit('video:call_started', { channel, participants: allParticipants }); });
+        }
+    });
+
+    socket.on('video:decline', (data) => {
+        const { requesterId, channel } = data;
+        const recipientNickname = socket.request.user.nickname;
+        const requesterSocketId = userSocketMap[requesterId];
+        if (requesterSocketId) {
+            io.to(requesterSocketId).emit('video:invite_declined', { message: `${recipientNickname} recusou a chamada.`, channel: channel });
+        }
+    });
+    // ===== FIM DO CÓDIGO RESTAURADO =====
+    
+    // ===== LÓGICA DE DESCONEXÃO UNIFICADA (RESTAURADA E COMPLETA) =====
     socket.on('disconnect', () => {
+        if (socket.room && chatRooms[socket.room] && chatRooms[socket.room].users[socket.id]) {
+            delete chatRooms[socket.room].users[socket.id];
+            io.to(socket.room).emit('userList', Object.values(chatRooms[socket.room].users));
+        }
+
         const userId = socket.request.user?.id;
-        if (userId && userSocketMap[userId] === socket.id) {
-            delete userSocketMap[userId];
-            io.emit('user_status_change', { userId, isOnline: false });
+        if (userId) {
+            if(userSocketMap[userId] === socket.id) {
+                delete userSocketMap[userId];
+                console.log(`[Socket.IO] Usuário ${userId} desconectado.`);
+                io.emit('user_status_change', { userId, isOnline: false });
+            }
+            for (const channel in videoCallState) {
+                const room = videoCallState[channel];
+                if (room.participants.has(userId)) {
+                    room.participants.delete(userId);
+                    socket.emit('video:call_ended', { channel });
+                    if (room.participants.size === 1) {
+                        const remainingUserId = [...room.participants][0];
+                        const remainingSocketId = userSocketMap[remainingUserId];
+                        if (remainingSocketId) io.to(remainingSocketId).emit('video:call_ended', { channel });
+                    }
+                    if (room.participants.size === 0) {
+                        clearTimeout(room.warningTimer);
+                        clearTimeout(room.endTimer);
+                        delete videoCallState[channel];
+                    }
+                }
+            }
         }
     });
 });
 
+
 // =======================================================
-// === LÓGICA DO JOGO STOP! (NAMESPACE /stop) ===
+// === LÓGICA DO JOGO STOP! (NAMESPACE /stop) - MANTIDA E FUNCIONAL ===
 // =======================================================
 const stopRooms = {}; 
 const stopNamespace = io.of('/stop');
@@ -163,27 +293,12 @@ stopNamespace.on('connection', (socket) => {
         const ownerId = socket.request.user.id;
 
         stopRooms[roomId] = {
-            id: roomId,
-            name: data.name,
-            ownerId: ownerId,
-            ownerNickname: socket.request.user.nickname,
-            players: new Map(),
-            maxParticipants: data.maxParticipants,
-            totalRounds: 5,
-            isPrivate: data.isPrivate,
-            password: data.password,
-            categories: data.categories,
-            status: 'Aguardando',
-            gameState: {
-                currentRound: 0,
-                currentLetter: '',
-                answers: {},
-                roundScores: {},
-                roundTimer: null
-            },
+            id: roomId, name: data.name, ownerId: ownerId, ownerNickname: socket.request.user.nickname,
+            players: new Map(), maxParticipants: data.maxParticipants, totalRounds: 5, isPrivate: data.isPrivate,
+            password: data.password, categories: data.categories, status: 'Aguardando',
+            gameState: { currentRound: 0, currentLetter: '', answers: {}, roundScores: {}, roundTimer: null },
             chatHistory: []
         };
-
         stopNamespace.emit('updateRoomList', getLobbyRooms());
         socket.emit('joinSuccess', roomId);
     });
@@ -226,7 +341,6 @@ stopNamespace.on('connection', (socket) => {
         });
         
         socket.emit('stopChatHistory', room.chatHistory);
-
         const playerList = Array.from(room.players.values());
         stopNamespace.to(roomId).emit('updatePlayerList', playerList);
         stopNamespace.emit('updateRoomList', getLobbyRooms());
@@ -242,7 +356,6 @@ stopNamespace.on('connection', (socket) => {
 
         if (player && !player.isOwner) {
             player.isReady = !player.isReady;
-
             const playerList = Array.from(room.players.values());
             stopNamespace.to(roomId).emit('updatePlayerList', playerList);
 
@@ -267,29 +380,18 @@ stopNamespace.on('connection', (socket) => {
         room.status = 'Jogando';
         room.gameState.currentRound++;
         room.gameState.answers = {}; 
-        
         room.players.forEach(p => { p.isReady = p.isOwner; });
         
         const alphabet = "ABCDEFGHIJKLMNOPRSTUVZ";
         room.gameState.currentLetter = alphabet[Math.floor(Math.random() * alphabet.length)];
+        const duration = 120;
         
-        const duration = 120; // 2 minutos
-        
-        stopNamespace.to(roomId).emit('roundStart', {
-            round: room.gameState.currentRound,
-            letter: room.gameState.currentLetter,
-            categories: room.categories,
-            duration: duration
-        });
+        stopNamespace.to(roomId).emit('roundStart', { round: room.gameState.currentRound, letter: room.gameState.currentLetter, categories: room.categories, duration: duration });
 
-        // Inicia um timer no servidor para garantir o fim da rodada
         clearTimeout(room.gameState.roundTimer);
         room.gameState.roundTimer = setTimeout(() => {
-            if (stopRooms[roomId] && stopRooms[roomId].status === 'Jogando') {
-                 stopNamespace.to(roomId).emit('roundEnd', { initiator: 'Tempo Esgotado' });
-            }
+            if (stopRooms[roomId] && stopRooms[roomId].status === 'Jogando') stopNamespace.to(roomId).emit('roundEnd', { initiator: 'Tempo Esgotado' });
         }, duration * 1000);
-
         stopNamespace.emit('updateRoomList', getLobbyRooms());
     });
 
@@ -309,126 +411,78 @@ stopNamespace.on('connection', (socket) => {
         if (!room || !user || !room.players.has(user.id)) return;
         
         room.gameState.answers[user.id] = answers;
-
         const answeredPlayers = Object.keys(room.gameState.answers);
         const activePlayers = Array.from(room.players.keys());
         
         if (answeredPlayers.length === activePlayers.length) {
-            // Todos responderam, hora de calcular os pontos
             const allAnswers = room.gameState.answers;
             const roundScores = {};
+            activePlayers.forEach(pId => { roundScores[pId] = { scores: {}, total: 0 }; room.categories.forEach(cat => roundScores[pId].scores[cat] = 0); });
 
-            // Inicializa scores
-            activePlayers.forEach(playerId => {
-                roundScores[playerId] = { scores: {}, total: 0 };
-                room.categories.forEach(cat => roundScores[playerId].scores[cat] = 0);
-            });
-
-            // Lógica de pontuação
             room.categories.forEach(cat => {
                 const categoryAnswers = {};
-                activePlayers.forEach(playerId => {
-                    const answer = (allAnswers[playerId]?.[cat] || '').trim().toLowerCase();
-                    if (answer) {
-                        if (!categoryAnswers[answer]) categoryAnswers[answer] = [];
-                        categoryAnswers[answer].push(playerId);
-                    }
-                });
-
-                for (const answer in categoryAnswers) {
-                    const playersWithAnswer = categoryAnswers[answer];
-                    const letter = room.gameState.currentLetter.toLowerCase();
-                    if (answer.startsWith(letter)) {
-                        const score = playersWithAnswer.length > 1 ? 5 : 10;
-                        playersWithAnswer.forEach(playerId => roundScores[playerId].scores[cat] = score);
+                activePlayers.forEach(pId => { const ans = (allAnswers[pId]?.[cat] || '').trim().toLowerCase(); if (ans) { if (!categoryAnswers[ans]) categoryAnswers[ans] = []; categoryAnswers[ans].push(pId); } });
+                for (const ans in categoryAnswers) {
+                    const playersWithAns = categoryAnswers[ans];
+                    if (ans.startsWith(room.gameState.currentLetter.toLowerCase())) {
+                        const score = playersWithAns.length > 1 ? 5 : 10;
+                        playersWithAns.forEach(pId => roundScores[pId].scores[cat] = score);
                     }
                 }
             });
 
-            // Soma os totais e atualiza o score geral
-            activePlayers.forEach(playerId => {
-                const player = room.players.get(playerId);
-                let total = 0;
-                for (const cat in roundScores[playerId].scores) {
-                    total += roundScores[playerId].scores[cat];
-                }
-                roundScores[playerId].total = total;
-                player.score += total;
-            });
+            activePlayers.forEach(pId => { const player = room.players.get(pId); let total = Object.values(roundScores[pId].scores).reduce((sum, s) => sum + s, 0); roundScores[pId].total = total; player.score += total; });
             
             room.gameState.roundScores = roundScores;
             const isFinalRound = room.gameState.currentRound >= room.totalRounds;
-            
-            stopNamespace.to(roomId).emit('roundResults', { 
-                round: room.gameState.currentRound, 
-                roundScores, 
-                allAnswers,
-                participants: Array.from(room.players.values()),
-                isFinalRound
-            });
+            stopNamespace.to(roomId).emit('roundResults', { round: room.gameState.currentRound, roundScores, allAnswers, participants: Array.from(room.players.values()), isFinalRound });
 
             if (isFinalRound) {
-                const winner = [...room.players.values()].reduce((prev, current) => (prev.score > current.score) ? prev : current);
+                const winner = [...room.players.values()].reduce((p, c) => (p.score > c.score) ? p : c);
                 winner.wins = (winner.wins || 0) + 1;
                 stopNamespace.to(roomId).emit('gameOver', { winner });
                 room.status = 'Finalizado';
             } else {
                 room.status = 'Aguardando';
             }
-             stopNamespace.emit('updateRoomList', getLobbyRooms());
+            stopNamespace.emit('updateRoomList', getLobbyRooms());
         }
     });
 
-     socket.on('requestNewGame', () => {
+    socket.on('requestNewGame', () => {
         const user = socket.request.user;
         const roomId = socket.roomId;
         const room = stopRooms[roomId];
         if (!room || !user || user.id !== room.ownerId) return;
 
-        // Reseta o estado do jogo
         room.status = 'Aguardando';
         room.gameState.currentRound = 0;
-        room.players.forEach(p => {
-            p.score = 0;
-            p.isReady = p.isOwner;
-        });
+        room.players.forEach(p => { p.score = 0; p.isReady = p.isOwner; });
 
-        // Notifica todos para voltarem à tela de configuração
         room.players.forEach(p => {
              for (const [, sock] of stopNamespace.sockets.entries()) {
                 if (sock.request.user.id === p.id) {
                      sock.emit('roomInfo', {
-                        name: room.name, isOwner: p.isOwner, categories: room.categories,
-                        maxParticipants: room.maxParticipants, totalRounds: room.totalRounds,
-                        isPrivate: room.isPrivate, ownerNickname: room.ownerNickname,
-                        currentRound: 0, isSpectating: false
+                        name: room.name, isOwner: p.isOwner, categories: room.categories, maxParticipants: room.maxParticipants,
+                        totalRounds: room.totalRounds, isPrivate: room.isPrivate, ownerNickname: room.ownerNickname, currentRound: 0, isSpectating: false
                     });
                     break;
                 }
             }
         });
-        
         const playerList = Array.from(room.players.values());
         stopNamespace.to(roomId).emit('updatePlayerList', playerList);
         stopNamespace.emit('updateRoomList', getLobbyRooms());
     });
     
-    // O restante dos listeners como chat, disconnect etc.
     socket.on('stopMessage', (data) => {
         const user = socket.request.user;
         const roomId = socket.roomId;
         const room = stopRooms[roomId];
         if (!room || !user) return;
-
-        const message = {
-            nickname: user.nickname,
-            text: data.text,
-            mentions: data.mentions,
-            color: '#333' // Cor padrão, poderia ser customizável
-        };
+        const message = { nickname: user.nickname, text: data.text, mentions: data.mentions, color: '#333' };
         room.chatHistory.push(message);
         if (room.chatHistory.length > 50) room.chatHistory.shift();
-
         stopNamespace.to(roomId).emit('newStopMessage', message);
     });
 
@@ -438,7 +492,6 @@ stopNamespace.on('connection', (socket) => {
 
         if (user && roomId && stopRooms[roomId]) {
             const room = stopRooms[roomId];
-            const playerWhoLeft = room.players.get(user.id);
             room.players.delete(user.id);
 
             if (room.players.size === 0 || user.id === room.ownerId) {
@@ -447,24 +500,15 @@ stopNamespace.on('connection', (socket) => {
                 stopNamespace.emit('updateRoomList', getLobbyRooms());
                 stopNamespace.to(roomId).emit('ownerDestroyedRoom');
             } else {
-                // Se a rodada estava em andamento, verifica se o jogo pode continuar
-                if (room.status === 'Jogando') {
-                    // Simula o envio de respostas vazias pelo jogador que saiu
-                    socket.emit('submitAnswers', {});
-                }
-                 // Atualiza a lista de jogadores e o status de "pronto"
+                if (room.status === 'Jogando') socket.emit('submitAnswers', {});
                 const playerList = Array.from(room.players.values());
                 stopNamespace.to(roomId).emit('updatePlayerList', playerList);
                 stopNamespace.emit('updateRoomList', getLobbyRooms());
                 
                 const allPlayersReady = playerList.filter(p => !p.isOwner).every(p => p.isReady);
                 const canStart = allPlayersReady && room.players.size >= 2;
-
-                for (const [, connectedSocket] of stopNamespace.sockets.entries()) {
-                    if (connectedSocket.request.user.id === room.ownerId) {
-                        connectedSocket.emit('ownerCanStart', canStart);
-                        break;
-                    }
+                for (const [, sock] of stopNamespace.sockets.entries()) {
+                    if (sock.request.user.id === room.ownerId) { sock.emit('ownerCanStart', canStart); break; }
                 }
             }
         }
