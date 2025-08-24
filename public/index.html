@@ -346,8 +346,28 @@
                 });
             }
             
-            async function createVideoRoom(nickname) { if (!confirm(`Criar uma sala de vídeo com ${nickname} irá custar 1 crédito. Deseja continuar?`)) { return; } try { const response = await fetch('/api/video/generate-link'); const data = await response.json(); if (response.status === 402) { alert(data.error); return; } if (!response.ok) { throw new Error(data.error || 'Falha ao criar a sala.'); } window.open(data.joinUrl, '_blank'); } catch (error) { alert(error.message); } }
-            
+async function createVideoRoom(nickname) {
+    if (!confirm(`Criar uma sala de vídeo com ${nickname} irá custar 1 crédito. Deseja continuar?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/video/generate-token', { method: 'POST' });
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Falha ao criar a sala.');
+        }
+
+        // Constrói a URL para a nova página de vídeo
+        const joinUrl = `/videocall.html?appId=${encodeURIComponent(data.appId)}&channel=${encodeURIComponent(data.channel)}&token=${encodeURIComponent(data.token)}`;
+        
+        window.open(joinUrl, '_blank');
+
+    } catch (error) {
+        alert(error.message);
+    }
+}
             function startChat(userId, nickname) {
                 alert(`Funcionalidade de chat com ${nickname} será implementada em breve!`);
             }

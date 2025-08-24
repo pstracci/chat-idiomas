@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verbi - Sala de Vídeo</title>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: sans-serif; background-color: #1a1a1a; color: white; }
+        #video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1em;
+            width: 100%;
+            height: calc(100% - 80px);
+            padding: 1em;
+            box-sizing: border-box;
+        }
+        .video-player { width: 100%; height: 100%; overflow: hidden; border-radius: 8px; }
+        .video-player > div { width: 100%; height: 100%; } /* Crucial para o player da Agora */
+        #controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 80px;
+            background-color: #252525;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1em;
+        }
+        #controls button {
+            padding: 1em;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2em;
+        }
+        #leave-btn { background-color: #e63946; color: white; }
+    </style>
+    <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.2.js"></script>
+</head>
+<body>
+    <div id="video-grid">
+        <div id="local-player" class="video-player"></div>
+    </div>
+    <div id="controls">
+        <button id="mic-btn">🎤</button>
+        <button id="cam-btn">📹</button>
+        <button id="leave-btn">🚪</button>
+    </div>
+
+    <script>
+        const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+        let localTracks = {
+            audioTrack: null,
+            videoTrack: null
+        };
+        let remoteUsers = {};
+        
+        // --- Pega as credenciais da URL ---
+        const urlParams = new URLSearchParams(window.location.search);
+        const APP_ID = urlParams.get('appId');
+        const CHANNEL = urlParams.get('channel');
+        const TOKEN = urlParams.get('token');
+        const UID = Math.floor(Math.random() * 100000); // Gera um UID aleatório para o cliente
+
+        if (!APP_ID || !CHANNEL || !TOKEN) {
+            document.body.innerHTML = '<h1>Acesso inválido. Credenciais não encontradas.</h1>';
+        }
+
+        const joinAndDisplayLocalStream = async () => {
+            client.on("user-published", handleUserJoined);
+            client.on("user-left", handleUserLeft);
+            
+            await client.join(APP_ID, CHANNEL, TOKEN, UID);
+            
+            localTracks.audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+            localTracks.videoTrack = await AgoraRTC.createCameraVideoTrack();
+            
+            const player = document.getElementById('local-player');
+            player.id = `user-container-${UID}`;
+            localTracks.videoTrack.play(player);
+            
+            await client.publish(Object.values(localTracks));
+        };
+
+        const handleUserJoined = async (user, mediaType) => {
+            remoteUsers[user.uid] = user;
+            await client.subscribe(user, mediaType);
+
+            if (mediaType === 'video') {
+                let player = document.getElementById(`user-container-${user.uid}`);
+                if (player != null) {
+                    player.remove();
+                }
+                
+                player = document.createElement('div');
+                player.id = `user-container-${user.uid}`;
+                player.className = 'video-player';
+                document.getElementById('video-grid').append(player);
+                
+                user.videoTrack.play(player);
+            }
+
+            if (mediaType === 'audio') {
+                user.audioTrack.play();
+            }
+        };
+
+        const handleUserLeft = (user) => {
+            delete remoteUsers[user.uid];
+            document.getElementById(`user-container-${user.uid}`).remove();
+        };
+
+        const leaveAndRemoveLocalStream = async () => {
+            for (let trackName in localTracks) {
+                let track = localTracks[trackName];
+                if(track) {
+                    track.stop();
+                    track.close();
+                    localTracks[trackName] = null;
+                }
+            }
+            await client.leave();
+            window.close(); // Fecha a aba
+        };
+
+        // --- Controles ---
+        document.getElementById('leave-btn').addEventListener('click', leaveAndRemoveLocalStream);
+
+        document.getElementById('mic-btn').addEventListener('click', async () => {
+            if (localTracks.audioTrack.muted) {
+                await localTracks.audioTrack.setMuted(false);
+                document.getElementById('mic-btn').innerText = '🎤';
+            } else {
+                await localTracks.audioTrack.setMuted(true);
+                document.getElementById('mic-btn').innerText = '🔇';
+            }
+        });
+
+        document.getElementById('cam-btn').addEventListener('click', async () => {
+            if (localTracks.videoTrack.muted) {
+                await localTracks.videoTrack.setMuted(false);
+                document.getElementById('cam-btn').innerText = '📹';
+            } else {
+                await localTracks.videoTrack.setMuted(true);
+                document.getElementById('cam-btn').innerText = '📸';
+            }
+        });
+
+        joinAndDisplayLocalStream();
+    </script>
+</body>
+</html>
