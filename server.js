@@ -226,38 +226,50 @@ io.on('connection', (socket) => {
     // ===== FIM DO CÓDIGO RESTAURADO =====
     
     // ===== LÓGICA DE DESCONEXÃO UNIFICADA (RESTAURADA E COMPLETA) =====
-    socket.on('disconnect', () => {
-        if (socket.room && chatRooms[socket.room] && chatRooms[socket.room].users[socket.id]) {
-            delete chatRooms[socket.room].users[socket.id];
-            io.to(socket.room).emit('userList', Object.values(chatRooms[socket.room].users));
+socket.on('disconnect', () => {
+    // Primeiro, lida com a saída de salas de chat anônimas
+    if (socket.room && chatRooms[socket.room] && chatRooms[socket.room].users[socket.id]) {
+        delete chatRooms[socket.room].users[socket.id];
+        io.to(socket.room).emit('userList', Object.values(chatRooms[socket.room].users));
+    }
+
+    const userId = socket.request.user?.id;
+    if (userId) {
+        // Apenas processa a desconexão se o socket que está se desconectando
+        // for o último socket conhecido para este usuário.
+        if(userSocketMap[userId] === socket.id) {
+            // Adiciona um atraso para lidar com a navegação entre páginas
+            setTimeout(() => {
+                // Após o atraso, verifica novamente. Se o usuário reconectou em outra página,
+                // o socket.id em userSocketMap será diferente, e não faremos nada.
+                if (userSocketMap[userId] === socket.id) {
+                    delete userSocketMap[userId];
+                    console.log(`[Socket.IO] Usuário ${userId} desconectado.`);
+                    io.emit('user_status_change', { userId, isOnline: false });
+                }
+            }, 1500); // Atraso de 1.5 segundos
         }
 
-        const userId = socket.request.user?.id;
-        if (userId) {
-            if(userSocketMap[userId] === socket.id) {
-                delete userSocketMap[userId];
-                console.log(`[Socket.IO] Usuário ${userId} desconectado.`);
-                io.emit('user_status_change', { userId, isOnline: false });
-            }
-            for (const channel in videoCallState) {
-                const room = videoCallState[channel];
-                if (room.participants.has(userId)) {
-                    room.participants.delete(userId);
-                    socket.emit('video:call_ended', { channel });
-                    if (room.participants.size === 1) {
-                        const remainingUserId = [...room.participants][0];
-                        const remainingSocketId = userSocketMap[remainingUserId];
-                        if (remainingSocketId) io.to(remainingSocketId).emit('video:call_ended', { channel });
-                    }
-                    if (room.participants.size === 0) {
-                        clearTimeout(room.warningTimer);
-                        clearTimeout(room.endTimer);
-                        delete videoCallState[channel];
-                    }
+        // Lógica para chamadas de vídeo (permanece a mesma)
+        for (const channel in videoCallState) {
+            const room = videoCallState[channel];
+            if (room.participants.has(userId)) {
+                room.participants.delete(userId);
+                socket.emit('video:call_ended', { channel });
+                if (room.participants.size === 1) {
+                    const remainingUserId = [...room.participants][0];
+                    const remainingSocketId = userSocketMap[remainingUserId];
+                    if (remainingSocketId) io.to(remainingSocketId).emit('video:call_ended', { channel });
+                }
+                if (room.participants.size === 0) {
+                    clearTimeout(room.warningTimer);
+                    clearTimeout(room.endTimer);
+                    delete videoCallState[channel];
                 }
             }
         }
-    });
+    }
+});
 });
 
 
