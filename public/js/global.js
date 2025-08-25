@@ -1,6 +1,13 @@
 // public/js/global.js
+
+// --- NOVO CÓDIGO ---
+// Esta função envia o "sinal verde" para o preloader na index.html.
+function signalAuthReady() {
+    document.dispatchEvent(new CustomEvent('authReady'));
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    // --- ELEMENTOS DA UI GLOBAIS (sem alterações) ---
+    // --- ELEMENTOS DA UI GLOBAIS ---
     const loggedInView = document.getElementById('logged-in-view');
     const loggedOutView = document.getElementById('logged-out-view');
     const welcomeMessage = document.getElementById('welcome-message');
@@ -19,11 +26,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const requestsList = document.getElementById('requests-list');
     const notificationContainer = document.querySelector('.notification-container');
 
-    // --- ESTADO DA APLICAÇÃO (sem alterações) ---
+    // --- ESTADO DA APLICAÇÃO ---
     const socket = io(); // ÚNICA CONEXÃO GLOBAL
     let loggedInUserId = null;
 
-    // --- FUNÇÕES GLOBAIS (sem alterações) ---
+    // --- FUNÇÕES GLOBAIS ---
     async function joinVideoRoom(channel) {
         try {
             const backendUrl = window.location.origin;
@@ -69,8 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- MUDANÇA 1: CENTRALIZAR A LÓGICA DE ATUALIZAÇÃO ---
-    // Esta função buscará os dados mais recentes do usuário e atualizará toda a UI.
+    // --- FUNÇÃO CENTRAL DE ATUALIZAÇÃO ---
     async function updateUserStatusAndConnections() {
         try {
             const response = await fetch('/api/user/status');
@@ -98,10 +104,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Falha ao atualizar o status do usuário:', error);
+            // Mesmo com erro, garante que a UI mostre o estado de deslogado
+            if (loggedInView) loggedInView.style.display = 'none';
+            if (loggedOutView) loggedOutView.style.display = 'block';
+        } finally {
+            // --- MUDANÇA IMPORTANTE ---
+            // Envia o sinal de que a verificação de auth terminou, com sucesso ou erro.
+            // O preloader na index.html está esperando por este sinal.
+            signalAuthReady();
         }
     }
     
-    // As funções de notificação permanecem, mas suas ações podem ser simplificadas.
     async function markNotificationAsRead(notificationId) {
         try {
             await fetch(`/api/notifications/${notificationId}/read`, { method: 'PUT' });
@@ -166,10 +179,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // --- MUDANÇA 2: O FETCH INICIAL AGORA USA A NOVA FUNÇÃO ---
+    // --- O FETCH INICIAL AGORA USA A NOVA FUNÇÃO ---
     updateUserStatusAndConnections();
 
-    // --- LISTENERS DE EVENTOS DE UI GLOBAIS (sem alterações) ---
+    // --- LISTENERS DE EVENTOS DE UI GLOBAIS ---
     if (connectionsList) {
         connectionsList.addEventListener('click', (e) => {
             const videoButton = e.target.closest('.btn-video');
@@ -279,7 +292,6 @@ document.addEventListener('DOMContentLoaded', () => {
         joinVideoRoom(data.channel);
     });
 
-    // --- MUDANÇA 3: O LISTENER FOI REINTRODUZIDO COM A NOVA AÇÃO ---
     socket.on('video:call_ended', () => {
         console.log("Chamada de vídeo encerrada. Atualizando status e conexões.");
         updateUserStatusAndConnections();

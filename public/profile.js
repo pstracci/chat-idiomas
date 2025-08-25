@@ -1,6 +1,7 @@
 // public/profile.js
 document.addEventListener('DOMContentLoaded', async () => {
     // --- ELEMENTOS DA UI ---
+    const container = document.querySelector('.container'); // Pega o container principal
     const profilePicture = document.getElementById('profilePicture');
     const profilePictureInput = document.getElementById('profilePictureInput');
     const uploadButton = document.getElementById('uploadButton');
@@ -31,6 +32,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     let base64Image = null;
 
     // --- FUNÇÕES ---
+
+    // Adiciona a classe 'loading' para ativar os skeletons
+    if (container) container.classList.add('loading');
 
     async function getCurrentUserStatus() {
         try {
@@ -212,7 +216,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function sendConnectionRequest() { if (connectBtn) connectBtn.disabled = true; try { const response = await fetch(`/api/connections/request/${profileData.user.id}`, { method: 'POST' }); if (!response.ok) throw new Error('Falha ao enviar pedido.'); if (connectBtn) connectBtn.textContent = 'Pedido Enviado'; } catch (error) { alert(error.message); if (connectBtn) connectBtn.disabled = false; } }
     async function acceptConnection(connectionId) { if (connectBtn) connectBtn.disabled = true; try { const response = await fetch(`/api/connections/accept/${connectionId}`, { method: 'PUT' }); if (!response.ok) throw new Error('Falha ao aceitar pedido.'); if (connectBtn) { connectBtn.textContent = 'Conectado'; connectBtn.classList.remove('btn-accept'); } profileData.connectionStatus = 'ACCEPTED'; updateConnectionButton(); } catch (error) { alert(error.message); if (connectBtn) connectBtn.disabled = false; } }
     
-    // LÓGICA DE EVENTOS
     editNicknameBtn.addEventListener('click', () => { nicknameDisplay.style.display = 'none'; editNicknameBtn.style.display = 'none'; editNicknameInputContainer.style.display = 'flex'; nicknameInput.focus(); });
     saveNicknameBtn.addEventListener('click', () => { const newNickname = nicknameInput.value.trim(); if (newNickname) { nicknameDisplay.textContent = newNickname; profileData.user.nickname = newNickname; } nicknameDisplay.style.display = 'block'; editNicknameBtn.style.display = 'block'; editNicknameInputContainer.style.display = 'none'; });
     uploadButton.addEventListener('click', () => profilePictureInput.click());
@@ -223,26 +226,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.addEventListener('input', (e) => { if (e.target.matches('.language-item input, .language-item select')) { const { index, type, key } = e.target.dataset; if (type === 'spoken') { if (!profileData.languagesSpoken[index]) profileData.languagesSpoken[index] = {}; profileData.languagesSpoken[index][key] = e.target.value; } if (type === 'learning') { profileData.languagesLearning[index] = e.target.value; } } });
     profileForm.addEventListener('submit', async (e) => { e.preventDefault(); const formData = new FormData(profileForm); const data = Object.fromEntries(formData.entries()); const payload = { ...data, nickname: profileData.user.nickname, profilePicture: base64Image || profileData.profilePicture, languagesSpoken: (profileData.languagesSpoken || []).filter(l => l.language?.trim()), languagesLearning: (profileData.languagesLearning || []).filter(l => l?.trim()), }; try { const response = await fetch('/api/profile/me', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), }); if (!response.ok) { const errorData = await response.json().catch(() => ({})); throw new Error(errorData.error || 'Falha ao salvar.'); } alert('Perfil atualizado com sucesso!'); base64Image = null; window.location.reload(); } catch (error) { alert(`Erro ao salvar o perfil: ${error.message}`); } });
 
-    // --- INICIALIZAÇÃO DA PÁGINA (LÓGICA CORRIGIDA) ---
+    // --- INICIALIZAÇÃO DA PÁGINA ---
     try {
         currentUser = await getCurrentUserStatus();
         const params = new URLSearchParams(window.location.search);
         const urlUserId = params.get('userId');
         let fetchUrl;
 
-        // Caso 1: Utilizador está a tentar ver um perfil sem especificar qual (ex: /profile.html)
         if (!urlUserId) {
             if (isLoggedIn) {
-                // Se está logado, mostramos o seu próprio perfil
                 isOwnProfile = true;
                 fetchUrl = '/api/profile/me';
             } else {
-                // Se não está logado, não há o que mostrar.
                 throw new Error('Perfil não encontrado. Por favor, faça login para ver o seu perfil.');
             }
-        } 
-        // Caso 2: Um perfil específico foi solicitado na URL
-        else {
+        } else {
             isOwnProfile = isLoggedIn && (urlUserId === currentUser.userId);
             fetchUrl = `/api/profile/${urlUserId}`;
         }
@@ -261,5 +259,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
         console.error("Erro na inicialização da página:", error);
         document.body.innerHTML = `<h1>Erro ao carregar o perfil</h1><p>${error.message}</p><a href="/">Voltar</a>`;
+    } finally {
+        // Garante que a classe 'loading' seja removida no final, mesmo se houver erro
+        if (container) container.classList.remove('loading');
     }
 });

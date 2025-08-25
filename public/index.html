@@ -102,11 +102,55 @@
         .call-modal-actions button:hover { transform: scale(1.05); }
         #accept-call-btn { background-color: #28a745; color: white; }
         #decline-call-btn { background-color: #dc3545; color: white; }
+		
+		/* --- PRELOADER / SPLASH SCREEN --- */
+#preloader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #f4f7f6; /* Mesma cor de fundo do body */
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid #ccc;
+    border-top-color: #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Classe para esconder o conteúdo principal inicialmente */
+.content-hidden {
+    visibility: hidden;
+    opacity: 0;
+}
+
+.content-visible {
+    visibility: visible;
+    opacity: 1;
+    transition: opacity 0.5s ease;
+}
     </style>
 </head>
 <body>
-    
-    <div class="top-nav">
+
+    <div id="preloader">
+        <div class="spinner"></div>
+    </div>
+
+    <div class="top-nav content-hidden">
         <div id="logged-out-view">
             <a href="/login.html">Login</a>
             <a href="/register.html">Cadastre-se</a>
@@ -129,12 +173,12 @@
         </div>
     </div>
 
-    <header>
+    <header class="content-hidden">
         <h1>Verbi</h1>
         <p>Jogue, pratique idiomas e conecte-se com o mundo!</p>
     </header>
 
-    <div class="hero">
+    <div class="hero content-hidden">
         <div class="hero-content">
             <div class="form-container">
                 <h2>Encontre Praticantes</h2>
@@ -193,7 +237,7 @@
         </div>
     </div>
 
-    <main>
+    <main class="content-hidden">
         <div class="main-content">
             <section class="room-list">
                 <h2>Salas de Idiomas Ativas</h2>
@@ -211,12 +255,12 @@
         </div>
     </main>
     
-    <footer>
+    <footer class="content-hidden">
         <p>&copy; 2025 Verbi. Todos os direitos reservados.</p>
         <p>Desenvolvido por <a href="mailto:paulo.stracci@gmail.com">Paulo Stracci</a></p>
     </footer>
     
-    <div id="connections-widget" class="connections-widget">
+    <div id="connections-widget" class="connections-widget content-hidden">
         <div class="widget-header">
             <h3>Minhas Conexões</h3>
             <span id="toggle-widget" class="toggle-widget">-</span>
@@ -257,9 +301,6 @@
             const colorPickerBtn = document.getElementById('colorPickerBtn');
             const selectedColorPreview = document.getElementById('selectedColorPreview');
             
-            // A conexão principal do Socket.IO já é gerenciada pelo global.js
-            // e a variável 'socket' de lá agora vai lidar com os eventos desta página.
-
             function populateRoomList() {
                 if (!dynamicRoomListContainer) return;
                 dynamicRoomListContainer.innerHTML = '';
@@ -343,5 +384,29 @@
             colorSelector.addEventListener('click', (e) => { if (e.target.classList.contains('color-swatch')) { colorSelector.querySelector('.selected')?.classList.remove('selected'); e.target.classList.add('selected'); const newColor = e.target.dataset.color; nicknameColorInput.value = newColor; selectedColorPreview.style.backgroundColor = newColor; colorSelector.style.display = 'none'; } });
         });
     </script>
+<script>
+        // Ouve o nosso evento customizado 'authReady' que será enviado pelo global.js
+        document.addEventListener('authReady', () => {
+            const preloader = document.getElementById('preloader');
+            const contentElements = document.querySelectorAll('.content-hidden');
+
+            // Adiciona um pequeno delay para a transição ficar mais suave
+            setTimeout(() => {
+                if (preloader) {
+                    preloader.style.opacity = '0';
+                    preloader.style.visibility = 'hidden';
+                }
+
+                contentElements.forEach(el => {
+                    el.classList.add('content-visible');
+                    el.classList.remove('content-hidden');
+                });
+            }, 100); // 100ms de delay
+        });
+    </script>
+ 
+</body>
+</html>
+
 </body>
 </html>
