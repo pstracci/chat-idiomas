@@ -1,19 +1,14 @@
-// public/js/global.js
-
-// --- NOVO CÓDIGO ---
-// Esta função envia o "sinal verde" para o preloader na index.html.
 function signalAuthReady() {
     document.dispatchEvent(new CustomEvent('authReady'));
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // --- ELEMENTOS DA UI GLOBAIS ---
     const loggedInView = document.getElementById('logged-in-view');
     const loggedOutView = document.getElementById('logged-out-view');
     const welcomeMessage = document.getElementById('welcome-message');
     const connectionsWidget = document.getElementById('connections-widget');
     const connectionsList = document.getElementById('connections-list');
-    const toggleWidget = document.getElementById('toggle-widget');
+    const toggleConnectionsWidget = document.getElementById('toggle-connections-widget');
     const incomingCallModal = document.getElementById('incoming-call-modal');
     const callerAvatar = document.getElementById('caller-avatar');
     const callerName = document.getElementById('caller-name');
@@ -25,12 +20,120 @@ document.addEventListener('DOMContentLoaded', () => {
     const notificationsDropdown = document.getElementById('notifications-dropdown');
     const requestsList = document.getElementById('requests-list');
     const notificationContainer = document.querySelector('.notification-container');
+    const dmWidget = document.getElementById('dm-widget');
+    const dmRecipientAvatar = document.getElementById('dm-recipient-avatar');
+    const dmRecipientName = document.getElementById('dm-recipient-name');
+    const toggleDmWidget = document.getElementById('toggle-dm-widget');
+    const closeDmWidget = document.getElementById('close-dm-widget');
+    const dmWidgetBody = document.getElementById('dm-widget-body');
+    const dmForm = document.getElementById('dm-form');
+    const dmInput = document.getElementById('dm-input');
+    const dmEmojiBtn = document.getElementById('dm-emoji-btn');
+    const dmEmojiPicker = document.getElementById('dm-emoji-picker');
 
-    // --- ESTADO DA APLICAÇÃO ---
-    const socket = io(); // ÚNICA CONEXÃO GLOBAL
+    const socket = io();
     let loggedInUserId = null;
+    let currentOpenChat = { userId: null };
 
-    // --- FUNÇÕES GLOBAIS ---
+    async function openDirectMessageWidget(recipientId, recipientNickname, recipientAvatar) {
+        if (currentOpenChat.userId !== recipientId) {
+            try {
+                await fetch(`/api/dm/conversations/read/${recipientId}`, { method: 'PUT' });
+                const connectionItem = connectionsList.querySelector(`.connection-item[data-user-id='${recipientId}']`);
+                const badge = connectionItem?.querySelector('.dm-notification-badge');
+                if (badge) {
+                    badge.remove();
+                }
+            } catch (error) {
+                console.error("Erro ao marcar mensagens como lidas:", error);
+            }
+        }
+        
+        if (currentOpenChat.userId === recipientId && dmWidget.style.display === 'flex') {
+            return;
+        }
+
+        currentOpenChat = { userId: recipientId, nickname: recipientNickname, avatar: recipientAvatar };
+
+        dmRecipientAvatar.src = recipientAvatar || '/default-avatar.png';
+        dmRecipientName.textContent = recipientNickname;
+        dmWidgetBody.innerHTML = '';
+        dmWidget.style.display = 'flex';
+        dmWidgetBody.style.display = 'flex';
+        toggleDmWidget.textContent = '-';
+
+        try {
+            const response = await fetch(`/api/dm/history/${recipientId}`);
+            if (!response.ok) throw new Error('Falha ao buscar histórico.');
+            
+            const messages = await response.json();
+            messages.forEach(appendMessageToDmWidget);
+        } catch (error) {
+            console.error(error);
+            dmWidgetBody.innerHTML = '<p style="color: #6c757d; text-align: center;">Não foi possível carregar as mensagens.</p>';
+        }
+    }
+
+    function appendMessageToDmWidget(message) {
+        if (!message.text) return;
+        const messageDiv = document.createElement('div');
+        messageDiv.classList.add('dm-message');
+        messageDiv.textContent = message.text;
+
+        if (message.senderId === loggedInUserId) {
+            messageDiv.classList.add('sent');
+        } else {
+            messageDiv.classList.add('received');
+        }
+        
+        dmWidgetBody.appendChild(messageDiv);
+        dmWidgetBody.scrollTop = dmWidgetBody.scrollHeight;
+    }
+
+    function populateDmEmojiPicker() {
+        if (!dmEmojiPicker) return;
+        const emojis = ["😀", "😂", "❤️", "👍", "😭", "🙏", "🎉", "🔥", "😊", "😍", "🤔", "😎", "💯", "🙄", "👋", "👏", "👀", "✨", "🚀", "✅", "❌", "⚠️", "💡", "⏳", "🌎", "🤝", "🥳", "🤯", "💔", "😴"];
+        emojis.forEach(emoji => {
+            const span = document.createElement('span');
+            span.textContent = emoji;
+            span.addEventListener('click', () => {
+                dmInput.value += emoji;
+                dmInput.focus();
+            });
+            dmEmojiPicker.appendChild(span);
+        });
+    }
+
+    dmForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const text = dmInput.value.trim();
+        if (!text || !currentOpenChat.userId) return;
+
+        socket.emit('directMessage', {
+            recipientId: currentOpenChat.userId,
+            text: text,
+        });
+
+        dmInput.value = '';
+        dmInput.focus();
+    });
+    
+    closeDmWidget.addEventListener('click', () => {
+        dmWidget.style.display = 'none';
+        currentOpenChat = { userId: null };
+    });
+
+    toggleDmWidget.addEventListener('click', () => {
+        const isVisible = dmWidgetBody.style.display !== 'none';
+        dmWidgetBody.style.display = isVisible ? 'none' : 'flex';
+        toggleDmWidget.textContent = isVisible ? '+' : '-';
+    });
+
+    dmEmojiBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dmEmojiPicker.style.display = dmEmojiPicker.style.display === 'grid' ? 'none' : 'grid';
+    });
+
     async function joinVideoRoom(channel) {
         try {
             const backendUrl = window.location.origin;
@@ -61,6 +164,12 @@ document.addEventListener('DOMContentLoaded', () => {
             li.dataset.userId = conn.friendInfo.id;
             const statusClass = conn.friendInfo.isOnline ? 'online' : 'offline';
             const statusTitle = conn.friendInfo.isOnline ? 'Online' : 'Offline';
+
+            let badgeHTML = '';
+            if (conn.friendInfo.unreadCount > 0) {
+                badgeHTML = `<span class="dm-notification-badge">${conn.friendInfo.unreadCount}</span>`;
+            }
+
             li.innerHTML = `
                 <span class="status-dot ${statusClass}" title="${statusTitle}"></span>
                 <a href="/profile.html?userId=${conn.friendInfo.id}" class="connection-item-link">
@@ -69,14 +178,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 </a>
                 <div class="action-buttons">
                     <button class="btn-video" title="Iniciar chamada de vídeo com ${conn.friendInfo.nickname}">🎥</button>
-                    <button class="btn-chat" data-id="${conn.friendInfo.id}" data-nickname="${conn.friendInfo.nickname}" title="Conversar com ${conn.friendInfo.nickname}">✉️</button>
+                    <button class="btn-chat" title="Conversar com ${conn.friendInfo.nickname}">
+                        ✉️
+                        ${badgeHTML}
+                    </button>
                 </div>
             `;
             connectionsList.appendChild(li);
         });
     }
 
-    // --- FUNÇÃO CENTRAL DE ATUALIZAÇÃO ---
     async function updateUserStatusAndConnections() {
         try {
             const response = await fetch('/api/user/status');
@@ -96,21 +207,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     populateConnectionsWidget(data.connections);
                     connectionsWidget.style.display = 'flex';
                 }
-                // Também atualizamos as notificações para manter a consistência.
                 loadAndDisplayNotifications();
             } else {
+                loggedInUserId = null;
                 if (loggedInView) loggedInView.style.display = 'none';
                 if (loggedOutView) loggedOutView.style.display = 'block';
             }
         } catch (error) {
             console.error('Falha ao atualizar o status do usuário:', error);
-            // Mesmo com erro, garante que a UI mostre o estado de deslogado
             if (loggedInView) loggedInView.style.display = 'none';
             if (loggedOutView) loggedOutView.style.display = 'block';
         } finally {
-            // --- MUDANÇA IMPORTANTE ---
-            // Envia o sinal de que a verificação de auth terminou, com sucesso ou erro.
-            // O preloader na index.html está esperando por este sinal.
             signalAuthReady();
         }
     }
@@ -118,7 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function markNotificationAsRead(notificationId) {
         try {
             await fetch(`/api/notifications/${notificationId}/read`, { method: 'PUT' });
-            updateUserStatusAndConnections(); // Simplificado: Apenas atualiza tudo.
+            updateUserStatusAndConnections();
         } catch (error) {
             console.error('Erro ao marcar notificação como lida:', error);
         }
@@ -173,38 +280,46 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch(url, { method });
             if (!response.ok) throw new Error('Falha na ação de conexão.');
-            updateUserStatusAndConnections(); // Simplificado: Apenas atualiza tudo.
+            updateUserStatusAndConnections();
         } catch (error) {
             alert(error.message);
         }
     }
     
-    // --- O FETCH INICIAL AGORA USA A NOVA FUNÇÃO ---
     updateUserStatusAndConnections();
+    populateDmEmojiPicker();
 
-    // --- LISTENERS DE EVENTOS DE UI GLOBAIS ---
     if (connectionsList) {
         connectionsList.addEventListener('click', (e) => {
-            const videoButton = e.target.closest('.btn-video');
-            if (videoButton) {
-                const friendId = videoButton.closest('.connection-item')?.dataset.userId;
-                if (!friendId) return;
+            const targetButton = e.target.closest('button');
+            if (!targetButton) return;
+
+            const connectionItem = targetButton.closest('.connection-item');
+            if (!connectionItem) return;
+            
+            const friendId = connectionItem.dataset.userId;
+            const friendNickname = connectionItem.querySelector('.connection-item-link span').textContent;
+            const friendAvatar = connectionItem.querySelector('img').src;
+
+            if (targetButton.classList.contains('btn-video')) {
                 if (confirm("Iniciar uma chamada de vídeo custará 1 crédito. Deseja prosseguir?")) {
                     socket.emit('video:invite', { recipientId: friendId });
                 }
+            } else if (targetButton.classList.contains('btn-chat')) {
+                openDirectMessageWidget(friendId, friendNickname, friendAvatar);
             }
         });
     }
 
-    if (toggleWidget) {
-        toggleWidget.addEventListener('click', () => {
-            const widgetBody = document.getElementById('widget-body');
+    if (toggleConnectionsWidget) {
+        toggleConnectionsWidget.addEventListener('click', () => {
+            const widgetBody = document.getElementById('connections-widget-body');
             const isVisible = widgetBody.style.display !== 'none';
             widgetBody.style.display = isVisible ? 'none' : 'block';
-            toggleWidget.textContent = isVisible ? '+' : '-';
+            toggleConnectionsWidget.textContent = isVisible ? '+' : '-';
         });
     }
-
+    
     if (acceptCallBtn) {
         acceptCallBtn.addEventListener('click', () => {
             const { requesterId, channel } = acceptCallBtn.dataset;
@@ -241,6 +356,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (notificationContainer && !notificationContainer.contains(e.target)) {
             if(notificationsDropdown) notificationsDropdown.classList.remove('active');
         }
+        if (dmEmojiPicker && !dmEmojiPicker.contains(e.target) && e.target !== dmEmojiBtn) {
+            dmEmojiPicker.style.display = 'none';
+        }
     });
     
     const style = document.createElement('style');
@@ -261,7 +379,35 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
     document.head.appendChild(style);
 
-    // --- LISTENERS DE SOCKET GLOBAIS ---
+    socket.on('newDirectMessage', (message) => {
+        if (message.senderId === loggedInUserId) {
+            if (dmWidget.style.display === 'flex' && dmWidget.dataset.recipientId === message.recipientId) {
+                 appendMessageToDmWidget(message);
+            }
+            return;
+        }
+
+        if (dmWidget.style.display === 'flex' && message.senderId === currentOpenChat.userId) {
+            appendMessageToDmWidget(message);
+            fetch(`/api/dm/conversations/read/${message.senderId}`, { method: 'PUT' });
+        } else {
+            const connectionItem = connectionsList.querySelector(`.connection-item[data-user-id='${message.senderId}']`);
+            if (connectionItem) {
+                const chatButton = connectionItem.querySelector('.btn-chat');
+                let badge = chatButton.querySelector('.dm-notification-badge');
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'dm-notification-badge';
+                    chatButton.appendChild(badge);
+                    badge.textContent = '1';
+                } else {
+                    const currentCount = parseInt(badge.textContent || '0', 10);
+                    badge.textContent = currentCount + 1;
+                }
+            }
+        }
+    });
+
     socket.on('user_status_change', (data) => {
         const { userId, isOnline } = data;
         const connectionItem = document.querySelector(`.connection-item[data-user-id='${userId}']`);
@@ -293,7 +439,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     socket.on('video:call_ended', () => {
-        console.log("Chamada de vídeo encerrada. Atualizando status e conexões.");
         updateUserStatusAndConnections();
     });
 

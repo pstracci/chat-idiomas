@@ -56,11 +56,19 @@
         .user-search-container { position: relative; }
         @media (max-width:960px){ main { flex-direction: column; } }
         @media (max-width:768px){ .hero{flex-direction:column;text-align:center}header h1{font-size:2em}.hero-image-container{margin-top:30px;min-height:250px} }
-        .connections-widget { position: fixed; bottom: 20px; left: 20px; width: 280px; max-height: 400px; background: #fff; border-radius: 8px; box-shadow: 0 5px 20px rgba(0,0,0,0.15); z-index: 1000; display: none; flex-direction: column; }
+        
+        .connections-widget, .dm-widget { position: fixed; bottom: 20px; width: 280px; max-height: 400px; background: #fff; border-radius: 8px; box-shadow: 0 5px 20px rgba(0,0,0,0.15); z-index: 1000; display: none; flex-direction: column; }
+        .connections-widget { left: 20px; }
+        .dm-widget { left: 320px; width: 320px; }
+        
         .widget-header { padding: 10px 15px; background-color: #343a40; color: white; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center; }
-        .widget-header h3 { margin: 0; font-size: 1.1em; }
-        .toggle-widget { cursor: pointer; font-size: 1.5em; line-height: 1; }
-        .widget-body { overflow-y: auto; padding: 5px; }
+        .widget-header h3 { margin: 0; font-size: 1.1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: white; }
+        .widget-header .user-info { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .widget-header .user-info img { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; }
+        .widget-header .controls { display: flex; align-items: center; }
+        .widget-control { cursor: pointer; font-size: 1.5em; line-height: 1; background: none; border: none; color: white; padding: 0 5px; }
+
+        .widget-body { overflow-y: auto; padding: 5px; flex-grow: 1; }
         .connections-list { list-style: none; padding: 0; margin: 0; }
         .connection-item { display: flex; align-items: center; padding: 8px 10px; border-radius: 5px; position: relative; padding-left: 30px; }
         .connection-item-link { text-decoration: none; color: inherit; display: flex; align-items: center; flex-grow: 1; }
@@ -69,10 +77,26 @@
         .connection-item .action-buttons { margin-left: auto; display: flex; align-items: center;}
         .btn-video { background: none; border: none; font-size: 1.2em; cursor: pointer; padding: 5px; transition: color 0.3s; color: #28a745;}
         .btn-video:hover { opacity: 0.7; }
-        .btn-video.pending { color: #ffc107; }
-        .btn-video.active { color: #dc3545; }
-        .btn-chat { background: none; border: none; font-size: 1.2em; cursor: pointer; color: #007bff; padding: 5px; }
+        .btn-chat { background: none; border: none; font-size: 1.2em; cursor: pointer; color: #007bff; padding: 5px; position: relative; }
         .btn-chat:hover { opacity: 0.7; }
+
+        .dm-notification-badge { position: absolute; top: 0; right: 0; width: 16px; height: 16px; background-color: #dc3545; color: white; border-radius: 50%; font-size: 10px; font-weight: bold; display: flex; align-items: center; justify-content: center; line-height: 1; border: 1px solid white; }
+        
+        .dm-body { padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+        .dm-message { max-width: 80%; padding: 8px 12px; border-radius: 18px; line-height: 1.4; word-wrap: break-word; }
+        .dm-message.sent { background-color: #007bff; color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+        .dm-message.received { background-color: #e9ecef; color: #333; align-self: flex-start; border-bottom-left-radius: 4px; }
+        .dm-footer { padding: 10px; border-top: 1px solid #eee; position: relative; }
+        .dm-form { display: flex; align-items: center; gap: 5px; }
+        .dm-form input { flex-grow: 1; border: 1px solid #ccc; border-radius: 20px; padding: 10px 15px; font-size: 1em; }
+        .dm-form .dm-send-btn { background: none; border: none; cursor: pointer; font-size: 1.5em; color: #007bff; padding: 5px; transform: rotate(90deg); }
+        
+        /* --- ESTILO ADICIONADO PARA O BOTÃO DE EMOJI E O PAINEL --- */
+        .dm-control-btn { background: none; border: none; cursor: pointer; font-size: 1.5em; padding: 5px; color: #6c757d; }
+        .emoji-picker { display: none; position: absolute; bottom: 100%; left: 10px; width: 300px; background: #fff; border-radius: 8px; box-shadow: 0 -5px 15px rgba(0,0,0,0.1); z-index: 1001; padding: 10px; display: none; grid-template-columns: repeat(auto-fill, minmax(35px, 1fr)); gap: 5px; }
+        .emoji-picker span { cursor: pointer; text-align: center; padding: 5px; font-size: 1.5em; border-radius: 5px; }
+        .emoji-picker span:hover { background-color: #f1f1f1; }
+
         .notification-container { position: relative; }
         #notification-bell { cursor: pointer; display: flex; align-items: center; }
         #notification-bell .icon { font-size: 1.5em; line-height: 1; }
@@ -102,46 +126,11 @@
         .call-modal-actions button:hover { transform: scale(1.05); }
         #accept-call-btn { background-color: #28a745; color: white; }
         #decline-call-btn { background-color: #dc3545; color: white; }
-		
-		/* --- PRELOADER / SPLASH SCREEN --- */
-#preloader {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: #f4f7f6; /* Mesma cor de fundo do body */
-    z-index: 9999;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transition: opacity 0.5s ease, visibility 0.5s ease;
-}
-
-.spinner {
-    width: 50px;
-    height: 50px;
-    border: 5px solid #ccc;
-    border-top-color: #007bff;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-/* Classe para esconder o conteúdo principal inicialmente */
-.content-hidden {
-    visibility: hidden;
-    opacity: 0;
-}
-
-.content-visible {
-    visibility: visible;
-    opacity: 1;
-    transition: opacity 0.5s ease;
-}
+		#preloader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #f4f7f6; z-index: 9999; display: flex; justify-content: center; align-items: center; transition: opacity 0.5s ease, visibility 0.5s ease; }
+        .spinner { width: 50px; height: 50px; border: 5px solid #ccc; border-top-color: #007bff; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .content-hidden { visibility: hidden; opacity: 0; }
+        .content-visible { visibility: visible; opacity: 1; transition: opacity 0.5s ease; }
     </style>
 </head>
 <body>
@@ -263,13 +252,39 @@
     <div id="connections-widget" class="connections-widget content-hidden">
         <div class="widget-header">
             <h3>Minhas Conexões</h3>
-            <span id="toggle-widget" class="toggle-widget">-</span>
+            <div class="controls">
+                <button id="toggle-connections-widget" class="widget-control">-</button>
+            </div>
         </div>
-        <div id="widget-body" class="widget-body">
+        <div id="connections-widget-body" class="widget-body">
             <ul id="connections-list" class="connections-list">
             </ul>
         </div>
     </div>
+
+    <div id="dm-widget" class="dm-widget content-hidden">
+        <div class="widget-header">
+            <div class="user-info">
+                <img id="dm-recipient-avatar" src="/default-avatar.png" alt="">
+                <h3 id="dm-recipient-name"></h3>
+            </div>
+            <div class="controls">
+                <button id="toggle-dm-widget" class="widget-control">-</button>
+                <button id="close-dm-widget" class="widget-control">×</button>
+            </div>
+        </div>
+        <div id="dm-widget-body" class="widget-body dm-body">
+        </div>
+        <div class="dm-footer">
+            <div id="dm-emoji-picker" class="emoji-picker"></div>
+            <form id="dm-form" class="dm-form">
+                <button type="button" id="dm-emoji-btn" class="dm-control-btn">😊</button>
+                <input type="text" id="dm-input" placeholder="Digite sua mensagem" autocomplete="off">
+                <button type="submit" class="dm-send-btn" title="Enviar">▲</button>
+            </form>
+        </div>
+    </div>
+
 
     <div id="incoming-call-modal" class="call-modal-overlay">
         <div class="call-modal-content">
@@ -286,7 +301,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/global.js"></script>
     <script>
-        // SCRIPT ESPECÍFICO DA INDEX.HTML
         document.addEventListener('DOMContentLoaded', () => {
             const form = document.getElementById('join-form');
             const roomSelect = document.getElementById('room');
@@ -385,12 +399,10 @@
         });
     </script>
 <script>
-        // Ouve o nosso evento customizado 'authReady' que será enviado pelo global.js
         document.addEventListener('authReady', () => {
             const preloader = document.getElementById('preloader');
             const contentElements = document.querySelectorAll('.content-hidden');
 
-            // Adiciona um pequeno delay para a transição ficar mais suave
             setTimeout(() => {
                 if (preloader) {
                     preloader.style.opacity = '0';
@@ -401,12 +413,9 @@
                     el.classList.add('content-visible');
                     el.classList.remove('content-hidden');
                 });
-            }, 100); // 100ms de delay
+            }, 100);
         });
     </script>
  
-</body>
-</html>
-
 </body>
 </html>

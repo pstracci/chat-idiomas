@@ -13,26 +13,22 @@ const { PrismaClient } = require('@prisma/client');
 const cors = require('cors');
 const { randomUUID } = require('crypto');
 
-// --- INICIALIZAÇÃO E CONFIGURAÇÃO ---
 const prisma = new PrismaClient();
 const app = express();
 const corsOptions = { origin: 'https://www.verbi.com.br', optionsSuccessStatus: 200 };
 const server = http.createServer(app);
 const io = new Server(server, { maxHttpBufferSize: 5e6 });
 
-// --- VARIÁVEIS GLOBAIS PARA SOCKET.IO ---
 const userSocketMap = {}; 
 const videoCallState = {};
 const chatRooms = {};
 
-// --- MIDDLEWARES DO EXPRESS ---
 app.use(cors(corsOptions));
 app.set('trust proxy', 1);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- AUTENTICAÇÃO E SESSÕES ---
 const sessionMiddleware = session({
     store: new PgSimple({ prisma, tableName: 'session' }),
     secret: process.env.SESSION_SECRET || 'dev-secret',
@@ -45,7 +41,6 @@ require('./config/passport-setup');
 app.use(passport.initialize());
 app.use(passport.session());
 
-// --- ROTAS E MIDDLEWARES DE AUTENTICAÇÃO ---
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profile');
 const agoraRoutes = require('./routes/agora'); 
@@ -53,8 +48,9 @@ const videoRoutes = require('./routes/video');
 const connectionsRoutes = require('./routes/connections');
 const adminRoutes = require('./routes/admin');
 const notificationRoutes = require('./routes/notifications');
+const dmRoutes = require('./routes/dm');
 
-// --- API de status ---
+// --- ROTA DE STATUS MODIFICADA PARA INCLUIR CONTAGEM DE MENSAGENS NÃO LIDAS ---
 app.get('/api/user/status', async (req, res) => {
     if (req.isAuthenticated()) {
         try {
@@ -70,23 +66,43 @@ app.get('/api/user/status', async (req, res) => {
                 }),
             ]);
             
-            const friends = connections.map(conn => {
+            const friendsData = [];
+            for (const conn of connections) {
                 const friend = conn.requesterId === userId ? conn.addressee : conn.requester;
-                return { 
+                const isOnline = userSocketMap[friend.id] && userSocketMap[friend.id].size > 0;
+
+                // Encontra a conversa e conta as mensagens não lidas
+                const conversation = await prisma.conversation.findFirst({
+                    where: { AND: [{ participants: { some: { id: userId } } }, { participants: { some: { id: friend.id } } }] }
+                });
+
+                let unreadCount = 0;
+                if (conversation) {
+                    unreadCount = await prisma.message.count({
+                        where: {
+                            conversationId: conversation.id,
+                            senderId: friend.id,
+                            read: false
+                        }
+                    });
+                }
+                
+                friendsData.push({ 
                     connectionId: conn.id, 
                     friendInfo: { 
                         id: friend.id, 
                         nickname: friend.nickname, 
                         profilePicture: friend.profile?.profilePicture,
-                        isOnline: userSocketMap[friend.id] && userSocketMap[friend.id].size > 0
+                        isOnline: isOnline,
+                        unreadCount: unreadCount // Adiciona a contagem
                     } 
-                };
-            });
+                });
+            }
 
             res.json({ 
                 loggedIn: true, 
                 user: { id: userWithProfile.id, nickname: userWithProfile.nickname, role: req.user.role, profile: userWithProfile.profile }, 
-                connections: friends 
+                connections: friendsData 
             });
         } catch (error) {
             console.error("Erro ao buscar status completo do usuário:", error);
@@ -104,6 +120,7 @@ app.use('/api/video', videoRoutes);
 app.use('/api/connections', connectionsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/dm', dmRoutes);
 
 function isAuthenticated(req, res, next) { 
     if (req.isAuthenticated()) { return next(); } 
@@ -116,18 +133,18 @@ app.get('/stop-game.html', isAuthenticated, (req, res) => { res.sendFile(path.jo
 app.get('/profile.html', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'profile.html')); });
 app.get('/admin.html', isAuthenticated, (req, res) => { res.sendFile(path.join(__dirname, 'public', 'admin.html')); });
 
-// --- LÓGICA DO SOCKET.IO ---
 const wrap = middleware => (socket, next) => middleware(socket.request, {}, next);
 io.use(wrap(sessionMiddleware));
 io.use(wrap(passport.initialize()));
 io.use(wrap(passport.session()));
 
+const { handleStopGameConnection } = require('./sockets/stopGameSocket.js');
+const { handleDMEvents } = require('./sockets/dmSocket.js');
+
 const stopNamespace = io.of('/stop');
 stopNamespace.use(wrap(sessionMiddleware));
 stopNamespace.use(wrap(passport.initialize()));
 stopNamespace.use(wrap(passport.session()));
-
-const { handleStopGameConnection } = require('./sockets/stopGameSocket.js');
 handleStopGameConnection(stopNamespace, prisma, io);
 
 io.on('connection', (socket) => {
@@ -145,9 +162,12 @@ io.on('connection', (socket) => {
         if (userSocketMap[userId].size === 1) {
             socket.broadcast.emit('user_status_change', { userId, isOnline: true });
         }
+        handleDMEvents(socket, io, userSocketMap);
     }
-
-    // Lógica das salas de idiomas
+    
+    // O restante da lógica (salas de idiomas, videochamada, disconnect) permanece aqui...
+    
+    // Lógica das salas de idiomas (sem alterações)
     socket.on('joinRoom', (data) => {
         const { sala, nickname, idade, color } = data;
         if (!nickname || nickname.length > 20 || !idade || idade < 18) return socket.emit('invalidData', { message: 'Dados inválidos.' });
@@ -184,7 +204,7 @@ io.on('connection', (socket) => {
         }
     });
     
-    // Lógica de videochamada
+    // Lógica de videochamada (sem alterações)
     socket.on('video:invite', async (data) => {
         const { recipientId } = data;
         const requester = socket.request.user;
@@ -211,7 +231,7 @@ io.on('connection', (socket) => {
             socket.emit('video:error', { message: 'Ocorreu um erro interno. Seu crédito foi devolvido.' });
         }
     });
-
+    
     socket.on('video:accept', (data) => {
         const { requesterId, channel } = data;
         const recipient = socket.request.user;
@@ -265,7 +285,7 @@ io.on('connection', (socket) => {
             delete videoCallState[channel];
         }
     });
-
+    
     socket.on('disconnect', () => {
         if (socket.room && chatRooms[socket.room] && chatRooms[socket.room].users[socket.id]) {
             delete chatRooms[socket.room].users[socket.id];

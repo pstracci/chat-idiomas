@@ -9,13 +9,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- NOVO: Define os tipos de utilizador ---
 enum Role {
   USER
   ADMIN
 }
 
-// --- NOVO: Define os tipos de notificação ---
 enum NotificationType {
   CONNECTION_REQUEST
   SYSTEM_MESSAGE
@@ -25,8 +23,7 @@ model User {
   id        String    @id @default(uuid())
   nickname  String    @db.VarChar(10)
   email     String    @unique
-  password  String?   
-
+  password  String?
   googleId   String?   @unique
   facebookId String?   @unique
   emailConsent Boolean @default(false)
@@ -37,28 +34,22 @@ model User {
   isOnline  Boolean   @default(false)
   lastSeen  DateTime  @default(now())
   credits   Int       @default(10)
-
-  // --- ADICIONADO: Campo para a role de admin ---
   role      Role      @default(USER)
   
   profile   Profile?
-
   sentConnections     Connection[]     @relation("sentConnections")
   receivedConnections Connection[]     @relation("receivedConnections")
   
-  // --- As mensagens privadas e notificações agora são geridas pelo novo modelo ---
-  sentMessages        PrivateMessage[] @relation("sentMessages")
-  receivedMessages    PrivateMessage[] @relation("receivedMessages")
+  conversations       Conversation[]   @relation("participants")
+  sentMessages        Message[]
   notifications       Notification[]
   
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   
-  isVerified                    Boolean   @default(false)
-  emailConfirmationToken        String?   @unique
+  isVerified                    Boolean    @default(false)
+  emailConfirmationToken        String?    @unique
   emailConfirmationTokenExpires DateTime?
-  
-
   @@index([email])
 }
 
@@ -71,7 +62,7 @@ model Profile {
   dateOfBirth       DateTime?
   phone             String?
   country           String?
-  profilePicture    String?   
+  profilePicture    String?
   languagesSpoken   Json      @default("[]") 
   languagesLearning String[]  @default([])
   createdAt         DateTime  @default(now())
@@ -105,27 +96,46 @@ model Connection {
   @@index([addresseeId])
 }
 
-// --- NOVO: Modelo unificado para notificações ---
 model Notification {
   id         String           @id @default(uuid())
-  userId     String           // ID do utilizador que recebe a notificação
+  userId     String           
   user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   type       NotificationType
-  content    String           // Mensagem da notificação
-  relatedId  String?          // ID relacionado (ex: ID da conexão, ID do utilizador que enviou, etc.)
+  content    String           
+  relatedId  String?
   read       Boolean          @default(false)
   createdAt  DateTime         @default(now())
 
   @@index([userId])
 }
 
-model PrivateMessage {
-  id         String   @id @default(uuid())
-  content    String
-  senderId   String
-  receiverId String
-  sender     User     @relation("sentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver   User     @relation("receivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
-  createdAt  DateTime @default(now())
-  readAt     DateTime?
+model Conversation {
+  id           String    @id @default(uuid())
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  participants User[]    @relation("participants")
+  messages     Message[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  createdAt      DateTime     @default(now())
+  
+  text           String?      
+  imageUrl       String?      
+
+  // --- CAMPO ADICIONADO ---
+  read           Boolean      @default(false) // Para rastrear se a mensagem foi lida
+
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("messages")
 }
