@@ -122,8 +122,19 @@
         </div>
     </div>
 
-     <script src="/socket.io/socket.io.js"></script>
+    <div id="incoming-call-modal" class="call-modal-overlay">
+        <div class="call-modal-content">
+            <img id="caller-avatar" src="/default-avatar.png" alt="Avatar">
+            <h3 id="caller-name"></h3>
+            <p>está te ligando...</p>
+            <div class="call-modal-actions">
+                <button id="accept-call-btn">✅ Aceitar</button>
+                <button id="decline-call-btn">❌ Recusar</button>
+            </div>
+        </div>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
     <script src="/js/global.js"></script>
-    <script src="stop-lobby.js"></script> </body>
+    <script src="stop-lobby.js"></script>
 </body>
 </html>
