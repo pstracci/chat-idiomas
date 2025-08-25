@@ -5,24 +5,131 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel de Administração - Verbi</title>
     <style>
-        :root { --primary-color: #007bff; --danger-color: #dc3545; --success-color: #28a745; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; background-color: #f4f7f6; color: #333; }
-        .top-nav { background-color: #343a40; color: white; padding: 8px 40px; text-align: right; }
-        .top-nav a { color: white; text-decoration: none; margin-left: 20px; font-weight: 500; }
-        .container { max-width: 1200px; margin: 30px auto; padding: 20px; }
-        .card { background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 30px; }
-        h1, h2 { color: #0056b3; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #dee2e6; padding: 12px; text-align: left; }
-        th { background-color: #f8f9fa; }
-        .actions-cell { display: flex; gap: 10px; }
-        .btn { border: none; border-radius: 5px; padding: 8px 12px; cursor: pointer; color: white; font-weight: bold; }
+        :root {
+            --primary-color: #007bff;
+            --danger-color: #dc3545;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --info-color: #17a2b8;
+            --dark-color: #343a40;
+            --light-gray: #f8f9fa;
+            --border-color: #dee2e6;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            margin: 0;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        .top-nav {
+            background-color: var(--dark-color);
+            color: white;
+            padding: 8px 40px;
+            text-align: right;
+        }
+        .top-nav a {
+            color: white;
+            text-decoration: none;
+            margin-left: 20px;
+            font-weight: 500;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 20px;
+        }
+        .card {
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+        }
+        h1, h2 {
+            color: #0056b3;
+        }
+        
+        /* --- ESTILOS PARA RESPONSIVIDADE DA TABELA --- */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 12px 15px;
+            text-align: left;
+            white-space: nowrap;
+        }
+        td.email-cell {
+            white-space: normal;
+            word-break: break-all;
+        }
+        th {
+            background-color: var(--light-gray);
+        }
+        .actions-cell {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .btn {
+            border: none;
+            border-radius: 5px;
+            padding: 8px 12px;
+            cursor: pointer;
+            color: white;
+            font-weight: bold;
+            font-size: 0.9em;
+            text-align: center;
+        }
         .btn-edit { background-color: var(--primary-color); }
         .btn-delete { background-color: var(--danger-color); }
+        .btn-notify { background-color: var(--warning-color); color: #212529; }
+        .btn-resend { background-color: var(--info-color); }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: 600; }
         .form-group textarea { width: 100%; min-height: 80px; padding: 10px; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; }
         .btn-send { background-color: var(--success-color); width: 100%; padding: 12px; font-size: 1.1em; }
+
+        /* --- ESTILOS DO MODAL --- */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 90%;
+            max-width: 500px;
+            border-radius: 8px;
+            position: relative;
+        }
+        .modal-close {
+            color: #aaa;
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -36,19 +143,22 @@
 
         <div class="card">
             <h2>Gestão de Utilizadores</h2>
-            <table id="users-table">
-                <thead>
-                    <tr>
-                        <th>Nickname</th>
-                        <th>Email</th>
-                        <th>Créditos</th>
-                        <th>Data de Registo</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    </tbody>
-            </table>
+            <div class="table-responsive">
+                <table id="users-table">
+                    <thead>
+                        <tr>
+                            <th>Nickname</th>
+                            <th>Email</th>
+                            <th>Créditos</th>
+                            <th>Verificado</th>
+                            <th>Data de Registo</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        </tbody>
+                </table>
+            </div>
         </div>
 
         <div class="card">
@@ -63,6 +173,194 @@
         </div>
     </div>
 
-    <script src="admin.js"></script>
+    <div id="notify-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" id="modal-close-btn">&times;</span>
+            <h2 id="notify-modal-title">Enviar Notificação</h2>
+            <form id="notify-user-form">
+                <input type="hidden" id="notify-user-id">
+                <div class="form-group">
+                    <label for="notify-user-message">Mensagem:</label>
+                    <textarea id="notify-user-message" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-send">Enviar Notificação</button>
+            </form>
+        </div>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const usersTableBody = document.querySelector('#users-table tbody');
+    const notificationForm = document.getElementById('notification-form');
+    const notifyModal = document.getElementById('notify-modal');
+    const notifyUserForm = document.getElementById('notify-user-form');
+    const closeModalBtn = document.getElementById('modal-close-btn');
+
+    // --- FUNÇÕES DO MODAL ---
+    function openNotifyModal(userId, userNickname) {
+        document.getElementById('notify-user-id').value = userId;
+        document.getElementById('notify-modal-title').textContent = `Enviar Notificação para ${userNickname}`;
+        document.getElementById('notify-user-message').value = '';
+        notifyModal.style.display = 'flex';
+    }
+
+    function closeNotifyModal() {
+        notifyModal.style.display = 'none';
+    }
+
+    closeModalBtn.addEventListener('click', closeNotifyModal);
+    window.addEventListener('click', (event) => {
+        if (event.target == notifyModal) {
+            closeNotifyModal();
+        }
+    });
+
+    // --- CARREGAR UTILIZADORES ---
+    async function fetchUsers() {
+        try {
+            const response = await fetch('/api/admin/users');
+            if (!response.ok) {
+                if(response.status === 401 || response.status === 403) {
+                   alert('Acesso negado. Faça login como administrador.');
+                   window.location.href = '/login.html';
+                }
+                throw new Error('Falha ao carregar utilizadores');
+            }
+            const users = await response.json();
+            renderUsers(users);
+        } catch (error) {
+            console.error(error);
+            usersTableBody.innerHTML = `<tr><td colspan="6">Erro ao carregar utilizadores.</td></tr>`;
+        }
+    }
+
+    function renderUsers(users) {
+        if (!users.length) {
+            usersTableBody.innerHTML = `<tr><td colspan="6">Nenhum utilizador encontrado.</td></tr>`;
+            return;
+        }
+
+        usersTableBody.innerHTML = users.map(user => `
+            <tr>
+                <td>${user.nickname}</td>
+                <td class="email-cell">${user.email}</td>
+                <td>
+                    <input type="number" value="${user.credits}" min="0" style="width: 60px;" onchange="updateCredits('${user.id}', this.value)">
+                </td>
+                <td>${user.isVerified ? 'Sim ✅' : 'Não ❌'}</td>
+                <td>${new Date(user.createdAt).toLocaleDateString()}</td>
+                <td class="actions-cell">
+                    <button class="btn btn-edit" onclick="openNotifyModalWrapper('${user.id}', '${user.nickname}')">Notificar</button>
+                    ${!user.isVerified ? `<button class="btn btn-resend" onclick="resendVerification('${user.id}', '${user.email}')">Reenviar Validação</button>` : ''}
+                    <button class="btn btn-delete" onclick="deleteUser('${user.id}')">Apagar</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+    
+    // Disponibiliza as funções no escopo global para serem chamadas pelo onclick
+    window.openNotifyModalWrapper = openNotifyModal;
+
+    // --- AÇÕES DO UTILIZADOR ---
+    window.updateCredits = async (userId, newCredits) => {
+        const credits = parseInt(newCredits, 10);
+        if (isNaN(credits) || credits < 0) {
+            alert('Por favor, insira um número de créditos válido.');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/admin/users/${userId}/credits`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ credits })
+            });
+            if (!response.ok) throw new Error('Falha ao atualizar créditos.');
+            alert('Créditos atualizados com sucesso!');
+        } catch (error) {
+            console.error(error);
+            alert('Erro ao atualizar créditos.');
+            fetchUsers();
+        }
+    };
+
+    window.deleteUser = async (userId) => {
+        if (!confirm('Tem a certeza de que quer apagar este utilizador? Esta ação é irreversível.')) return;
+
+        try {
+            const response = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+            if (!response.ok) throw new Error('Falha ao apagar utilizador.');
+            alert('Utilizador apagado com sucesso!');
+            fetchUsers();
+        } catch (error) {
+            console.error(error);
+            alert('Erro ao apagar utilizador.');
+        }
+    };
+    
+    window.resendVerification = async (userId, email) => {
+        if (!confirm(`Tem a certeza de que quer reenviar o e-mail de validação para ${email}?`)) return;
+
+        try {
+            const response = await fetch(`/api/admin/users/${userId}/resend-verification`, { method: 'POST' });
+            const result = await response.json();
+            
+            if (!response.ok) throw new Error(result.error || 'Falha ao reenviar e-mail.');
+            
+            alert(result.message || 'E-mail reenviado com sucesso!');
+        } catch (error) {
+            console.error(error);
+            alert(`Erro: ${error.message}`);
+        }
+    };
+
+    // --- NOTIFICAÇÕES ---
+    notificationForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const message = document.getElementById('notification-message').value;
+        if (!message.trim()) return;
+
+        try {
+            const response = await fetch('/api/admin/notifications', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message })
+            });
+             const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Falha ao enviar notificação.');
+            alert(result.message || 'Notificação global enviada!');
+            notificationForm.reset();
+        } catch (error) {
+            console.error(error);
+            alert(`Erro: ${error.message}`);
+        }
+    });
+    
+    notifyUserForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const userId = document.getElementById('notify-user-id').value;
+        const message = document.getElementById('notify-user-message').value;
+        if (!message.trim()) return;
+
+        try {
+            const response = await fetch(`/api/admin/notifications/user/${userId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message })
+            });
+             const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Falha ao enviar notificação.');
+            alert(result.message || 'Notificação enviada com sucesso!');
+            closeNotifyModal();
+        } catch (error) {
+            console.error(error);
+            alert(`Erro: ${error.message}`);
+        }
+    });
+
+    // --- INICIALIZAÇÃO ---
+    fetchUsers();
+});
+</script>
 </body>
 </html>

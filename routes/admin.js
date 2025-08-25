@@ -1,8 +1,10 @@
 // routes/admin.js
 const express = require('express');
 const router = express.Router();
-const { PrismaClient, Role } = require('@prisma/client'); // Importa o Enum 'Role'
+const { PrismaClient, Role } = require('@prisma/client');
 const prisma = new PrismaClient();
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 
 // Middleware para garantir que o utilizador está autenticado
 function isAuthenticated(req, res, next) {
@@ -12,7 +14,7 @@ function isAuthenticated(req, res, next) {
     res.status(401).json({ error: 'Não autorizado' });
 }
 
-// Middleware "Porteiro" para garantir que o utilizador é um Administrador
+// Middleware para garantir que o utilizador é um Administrador
 function isAdmin(req, res, next) {
     if (req.user && req.user.role === Role.ADMIN) {
         return next();
@@ -23,16 +25,61 @@ function isAdmin(req, res, next) {
 // Aplica a verificação de autenticação e de admin a TODAS as rotas neste ficheiro
 router.use(isAuthenticated, isAdmin);
 
-// --- ROTAS DE ADMINISTRAÇÃO ---
 
-// Rota para buscar todos os utilizadores
+// --- LÓGICA DE ENVIO DE E-MAIL ---
+const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST,
+    port: process.env.EMAIL_PORT,
+    secure: true,
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
+
+// Função auxiliar para enviar e-mail de verificação a partir do painel de admin
+async function resendAdminVerificationEmail(user, req) {
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 3600000 * 24); // Token expira em 24 horas
+
+    await prisma.user.update({
+        where: { id: user.id },
+        data: {
+            emailConfirmationToken: token,
+            emailConfirmationTokenExpires: expires,
+        },
+    });
+
+   const verificationURL = `${req.protocol}://${req.get('host')}/verify-email?token=${token}`;
+   
+    await transporter.sendMail({
+        to: user.email,
+        from: `"Verbi" <${process.env.SENDER_EMAIL}>`,
+        subject: 'Confirme seu E-mail no Verbi',
+        html: `
+            <p>Olá ${user.profile.firstName},</p>
+            <p>Um administrador solicitou o reenvio do e-mail de ativação para a sua conta no Verbi. Por favor, clique no link abaixo para ativar sua conta:</p>
+            <a href="${verificationURL}">${verificationURL}</a>
+            <p>Este link expirará em 24 horas.</p>
+        `
+    });
+}
+
+
+// --- ROTAS DE GESTÃO DE UTILIZADORES ---
+
 router.get('/users', async (req, res) => {
     try {
         const users = await prisma.user.findMany({
             orderBy: { createdAt: 'desc' },
-            include: {
-                profile: true, // Inclui os dados do perfil de cada utilizador
-            },
+            select: {
+                id: true,
+                nickname: true,
+                email: true,
+                credits: true,
+                isVerified: true,
+                createdAt: true,
+            }
         });
         res.json(users);
     } catch (error) {
@@ -41,28 +88,24 @@ router.get('/users', async (req, res) => {
     }
 });
 
-// Rota para apagar um utilizador
 router.delete('/users/:userId', async (req, res) => {
     const { userId } = req.params;
     try {
-        // Garante que um admin não se apague a si mesmo
         if (req.user.id === userId) {
             return res.status(400).json({ error: 'Um administrador não se pode apagar a si mesmo.' });
         }
         await prisma.user.delete({ where: { id: userId } });
-        res.status(204).send(); // Sucesso, sem conteúdo
+        res.status(204).send();
     } catch (error) {
         console.error(`Erro ao apagar utilizador ${userId}:`, error);
         res.status(500).json({ error: 'Erro ao apagar utilizador.' });
     }
 });
 
-// Rota para atualizar os créditos de um utilizador
 router.put('/users/:userId/credits', async (req, res) => {
     const { userId } = req.params;
     const { credits } = req.body;
 
-    // Validação
     if (typeof credits !== 'number' || credits < 0) {
         return res.status(400).json({ error: 'A quantidade de créditos deve ser um número positivo.' });
     }
@@ -79,37 +122,80 @@ router.put('/users/:userId/credits', async (req, res) => {
     }
 });
 
-// Rota para enviar uma notificação global para todos os utilizadores
+// NOVA ROTA: Reenviar e-mail de validação
+router.post('/users/:userId/resend-verification', async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            include: { profile: true } // Inclui o perfil para obter o primeiro nome
+        });
+
+        if (!user) {
+            return res.status(404).json({ error: 'Usuário não encontrado.' });
+        }
+        if (user.isVerified) {
+            return res.status(400).json({ error: 'Este usuário já verificou o e-mail.' });
+        }
+        
+        await resendAdminVerificationEmail(user, req);
+        res.status(200).json({ success: true, message: `E-mail de verificação reenviado para ${user.email}.` });
+    } catch (error) {
+        console.error(`Erro ao reenviar e-mail de verificação para ${userId}:`, error);
+        res.status(500).json({ error: 'Erro no servidor ao reenviar e-mail.' });
+    }
+});
+
+
+// --- ROTAS DE NOTIFICAÇÃO ---
+
 router.post('/notifications', async (req, res) => {
     const { message } = req.body;
-
     if (!message || typeof message !== 'string' || message.trim() === '') {
         return res.status(400).json({ error: 'A mensagem da notificação não pode estar vazia.' });
     }
-
     try {
-        // 1. Busca o ID de todos os utilizadores (exceto o próprio admin)
         const users = await prisma.user.findMany({
             where: { id: { not: req.user.id } },
             select: { id: true },
         });
-
-        // 2. Prepara os dados da notificação para cada utilizador
         const notificationsData = users.map(user => ({
             userId: user.id,
             type: 'SYSTEM_MESSAGE',
             content: message.trim(),
-            relatedId: req.user.id, // Guarda o ID do admin que enviou
+            relatedId: req.user.id,
         }));
-
-        // 3. Insere todas as notificações no banco de dados de uma só vez (eficiente)
-        await prisma.notification.createMany({
-            data: notificationsData,
-        });
-
+        await prisma.notification.createMany({ data: notificationsData });
         res.status(201).json({ success: true, message: `Notificação enviada para ${users.length} utilizadores.` });
     } catch (error) {
         console.error("Erro ao enviar notificação global:", error);
+        res.status(500).json({ error: 'Erro ao enviar notificação.' });
+    }
+});
+
+// NOVA ROTA: Enviar notificação para um utilizador específico
+router.post('/notifications/user/:userId', async (req, res) => {
+    const { userId } = req.params;
+    const { message } = req.body;
+    if (!message || typeof message !== 'string' || message.trim() === '') {
+        return res.status(400).json({ error: 'A mensagem não pode estar vazia.' });
+    }
+    try {
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) {
+            return res.status(404).json({ error: 'Usuário não encontrado.' });
+        }
+        await prisma.notification.create({
+            data: {
+                userId: userId,
+                type: 'SYSTEM_MESSAGE',
+                content: message.trim(),
+                relatedId: req.user.id,
+            }
+        });
+        res.status(201).json({ success: true, message: `Notificação enviada para ${user.nickname}.` });
+    } catch (error) {
+        console.error(`Erro ao enviar notificação para ${userId}:`, error);
         res.status(500).json({ error: 'Erro ao enviar notificação.' });
     }
 });

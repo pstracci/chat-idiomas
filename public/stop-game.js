@@ -239,7 +239,6 @@ document.addEventListener('DOMContentLoaded', () => {
         input.focus();
     }
     
-    // --- Lógica do Chat e Confetti (sem alterações) ---
     function launchConfetti() {
         const container = document.getElementById('confetti-container');
         if (!container) return;
@@ -268,21 +267,30 @@ document.addEventListener('DOMContentLoaded', () => {
         mentionSuggestions.style.display = 'none';
         mentionMode = false;
     }
+    
+    // --- FUNÇÃO ATUALIZADA PARA LIDAR COM MENSAGENS DE SISTEMA ---
     function addStopMessage(msg) {
         const p = document.createElement('p');
-        if (msg.mentions && msg.mentions.includes(currentUserNickname)) {
-            p.classList.add('mention-highlight');
-            if (mentionSound && isAudioUnlocked) {
-                mentionSound.play().catch(e => console.error("Erro ao tocar som de menção:", e));
+        
+        // Verifica se a mensagem é do sistema
+        if (msg.isSystemMessage) {
+            p.className = 'system-message'; // Adiciona uma classe para estilização
+            p.innerHTML = `<em>${msg.text}</em>`;
+        } else {
+            // Lógica de menção e mensagem normal
+            if (msg.mentions && msg.mentions.includes(currentUserNickname)) {
+                p.classList.add('mention-highlight');
+                if (mentionSound && isAudioUnlocked) {
+                    mentionSound.play().catch(e => console.error("Erro ao tocar som de menção:", e));
+                }
             }
+            p.innerHTML = `<strong style="color: ${msg.color || '#000000'};">${msg.nickname}:</strong> ${msg.text}`;
         }
-        p.innerHTML = msg.isSystemMessage 
-            ? `<strong>${msg.nickname}:</strong> ${msg.text}` 
-            : `<strong style="color: ${msg.color || '#000000'};">${msg.nickname}:</strong> ${msg.text}`;
-        if(msg.isSystemMessage) p.className = 'system-message';
+    
         gameChatMessages.appendChild(p);
         gameChatMessages.scrollTop = gameChatMessages.scrollHeight;
     }
+
     function showMentionList() {
         const filteredUsers = playerNicknames.filter(user => user.toLowerCase().startsWith(mentionQuery) && user !== currentUserNickname);
         if (filteredUsers.length === 0 || !mentionMode) {
@@ -344,6 +352,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     socket.on('settingsError', (message) => { alert(`Erro ao salvar: ${message}`); });
 
+    // --- NOVO LISTENER PARA FEEDBACK DE SUCESSO ---
+    socket.on('settingsUpdateSuccess', (message) => {
+        alert(message);
+    });
+
     socket.on('ownerCanStart', (canStart) => {
         if (!isOwner) return;
         let buttonText = "Iniciar Jogo";
@@ -363,8 +376,6 @@ document.addEventListener('DOMContentLoaded', () => {
         playerStatusListDiv.innerHTML = '';
         playerNicknames = players.map(p => p.nickname);
 
-        // *** CORREÇÃO APLICADA AQUI ***
-        // A UI do botão "Pronto" agora é controlada pelos dados recebidos do servidor
         if (!isOwner) {
             const currentPlayer = players.find(p => p.nickname === currentUserNickname);
             if (currentPlayer) {
@@ -541,11 +552,15 @@ document.addEventListener('DOMContentLoaded', () => {
         startGameBtn.style.display = 'none';
         readyBtn.style.display = 'none';
         stopBtn.style.display = 'none';
-        newGameBtn.style.display = 'inline-block';
+        if(isOwner) {
+            newGameBtn.style.display = 'inline-block';
+        }
     });
 
     newGameBtn.addEventListener('click', () => {
-        socket.emit('requestNewGame');
+        if(isOwner) {
+            socket.emit('requestNewGame');
+        }
     });
 
     socket.on('ownerDestroyedRoom', () => {
@@ -564,9 +579,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Listeners de Eventos dos Botões do Jogo ---
     readyBtn.addEventListener('click', () => {
-        // *** CORREÇÃO APLICADA AQUI ***
-        // A UI não é mais alterada aqui. Apenas o evento é emitido.
-        // O servidor responderá com 'updatePlayerList', que cuidará da UI.
         socket.emit('toggleReady');
     });
 
