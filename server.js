@@ -9,7 +9,7 @@ const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
 const PgSimple = require('connect-pg-simple')(session);
-const { PrismaClient, Role } = require('@prisma/client');
+const { PrismaClient } = require('@prisma/client');
 const cors = require('cors');
 const { randomUUID } = require('crypto');
 
@@ -49,6 +49,7 @@ const connectionsRoutes = require('./routes/connections');
 const adminRoutes = require('./routes/admin');
 const notificationRoutes = require('./routes/notifications');
 
+// --- ALTERAÇÃO 1: API de status agora usa a nova lógica de múltiplos sockets ---
 app.get('/api/user/status', async (req, res) => {
     if (req.isAuthenticated()) {
         try {
@@ -72,7 +73,8 @@ app.get('/api/user/status', async (req, res) => {
                         id: friend.id, 
                         nickname: friend.nickname, 
                         profilePicture: friend.profile?.profilePicture,
-                        isOnline: userSocketMap.hasOwnProperty(friend.id) 
+                        // A verificação de 'online' agora checa se o usuário tem qualquer conexão ativa
+                        isOnline: userSocketMap[friend.id] && userSocketMap[friend.id].size > 0
                     } 
                 };
             });
@@ -107,7 +109,7 @@ app.get('/profile.html', (req, res) => { res.sendFile(path.join(__dirname, 'publ
 app.get('/admin.html', isAuthenticated, (req, res) => { res.sendFile(path.join(__dirname, 'public', 'admin.html')); });
 
 // --- LÓGICA DO SOCKET.IO ---
-const userSocketMap = {}; 
+const userSocketMap = {}; // Agora vai mapear userId -> Set de socket.ids
 const videoCallState = {};
 const chatRooms = {};
 
@@ -117,14 +119,25 @@ io.use(wrap(passport.initialize()));
 io.use(wrap(passport.session()));
 
 io.on('connection', (socket) => {
+    // --- ALTERAÇÃO 2: Lógica de conexão agora suporta múltiplas abas ---
     if (socket.request.user) {
         const userId = socket.request.user.id;
-        userSocketMap[userId] = socket.id;
-        console.log(`[Socket.IO] Usuário ${userId} online com socket ${socket.id}`);
-        socket.broadcast.emit('user_status_change', { userId, isOnline: true });
+        
+        if (!userSocketMap[userId]) {
+            userSocketMap[userId] = new Set();
+        }
+        userSocketMap[userId].add(socket.id);
+        socket.join(userId); // O socket entra numa "sala" com seu próprio ID de usuário
+
+        console.log(`[Socket.IO] Usuário ${userId} conectou com socket ${socket.id}. Total de conexões: ${userSocketMap[userId].size}`);
+        
+        // Emite o status "online" apenas na primeira conexão para evitar redundância
+        if (userSocketMap[userId].size === 1) {
+            socket.broadcast.emit('user_status_change', { userId, isOnline: true });
+        }
     }
 
-    // ===== CÓDIGO RESTAURADO: CHAT DE IDIOMAS =====
+    // Lógica das salas de idiomas (sem alteração)
     socket.on('joinRoom', (data) => {
         const { sala, nickname, idade, color } = data;
         if (!nickname || nickname.length > 20 || !idade || idade < 18) return socket.emit('invalidData', { message: 'Dados inválidos.' });
@@ -160,24 +173,23 @@ io.on('connection', (socket) => {
             io.to(socket.room).emit('userList', Object.values(chatRooms[socket.room].users));
         }
     });
-    // ===== FIM DO CÓDIGO RESTAURADO =====
-
-    // ===== CÓDIGO RESTAURADO: CHAMADA DE VÍDEO =====
+    
+    // Lógica de videochamada (sem alteração de comportamento, apenas na forma de enviar eventos)
     socket.on('video:invite', async (data) => {
         const { recipientId } = data;
         const requester = socket.request.user;
         if (!requester) return console.error("[ERRO] Solicitante não autenticado na chamada de vídeo.");
         
         try {
-			const user = await prisma.user.findUnique({ where: { id: requester.id }, include: { profile: true } });
+            const user = await prisma.user.findUnique({ where: { id: requester.id }, include: { profile: true } });
             if (!user || user.credits < 1) return socket.emit('video:error', { message: 'Você não tem créditos suficientes para iniciar uma chamada.' });
 
             await prisma.user.update({ where: { id: requester.id }, data: { credits: { decrement: 1 } } });
             
-            const recipientSocketId = userSocketMap[recipientId];
-            if (recipientSocketId) {
+            const recipientConnections = userSocketMap[recipientId];
+            if (recipientConnections && recipientConnections.size > 0) {
                 const channel = randomUUID();
-                io.to(recipientSocketId).emit('video:incoming_invite', { requester: { id: requester.id, nickname: requester.nickname, profilePicture: user.profile?.profilePicture }, channel: channel });
+                io.to(recipientId).emit('video:incoming_invite', { requester: { id: requester.id, nickname: requester.nickname, profilePicture: user.profile?.profilePicture }, channel: channel });
                 socket.emit('video:invite_sent', { channel: channel, recipientId: recipientId });
             } else {
                 await prisma.user.update({ where: { id: requester.id }, data: { credits: { increment: 1 } } });
@@ -194,37 +206,33 @@ io.on('connection', (socket) => {
         const { requesterId, channel } = data;
         const recipient = socket.request.user;
         if (!recipient) return;
-        const requesterSocketId = userSocketMap[requesterId];
-
-        if (requesterSocketId) {
+        
+        if (userSocketMap[requesterId] && userSocketMap[requesterId].size > 0) {
             const allParticipants = [requesterId, recipient.id];
-            io.to(requesterSocketId).emit('video:invite_accepted', { channel });
-            socket.emit('video:invite_accepted', { channel });
+            io.to(requesterId).emit('video:invite_accepted', { channel });
+            io.to(recipient.id).emit('video:invite_accepted', { channel });
             
-            const warningTimer = setTimeout(() => allParticipants.forEach(id => { const s = userSocketMap[id]; if (s) io.to(s).emit('video:warning_10_minutes', { channel }); }), 110 * 60 * 1000);
+            const warningTimer = setTimeout(() => allParticipants.forEach(id => { io.to(id).emit('video:warning_10_minutes', { channel }); }), 110 * 60 * 1000);
             const endTimer = setTimeout(() => {
                 const room = videoCallState[channel];
                 if (room) {
-                    room.originalParticipants.forEach(id => { const s = userSocketMap[id]; if (s) io.to(s).emit('video:force_disconnect', { channel }); });
+                    room.originalParticipants.forEach(id => { io.to(id).emit('video:force_disconnect', { channel }); });
                     delete videoCallState[channel];
                 }
             }, 120 * 60 * 1000);
 
             videoCallState[channel] = { participants: new Set(allParticipants), originalParticipants: new Set(allParticipants), warningTimer, endTimer };
-            allParticipants.forEach(id => { const s = userSocketMap[id]; if (s) io.to(s).emit('video:call_started', { channel, participants: allParticipants }); });
+            io.to(requesterId).emit('video:call_started', { channel, participants: allParticipants });
+            io.to(recipient.id).emit('video:call_started', { channel, participants: allParticipants });
         }
     });
 
     socket.on('video:decline', (data) => {
         const { requesterId, channel } = data;
         const recipientNickname = socket.request.user.nickname;
-        const requesterSocketId = userSocketMap[requesterId];
-        if (requesterSocketId) {
-            io.to(requesterSocketId).emit('video:invite_declined', { message: `${recipientNickname} recusou a chamada.`, channel: channel });
-        }
+        io.to(requesterId).emit('video:invite_declined', { message: `${recipientNickname} recusou a chamada.`, channel: channel });
     });
  
-  // --- NOVO BLOCO DE CÓDIGO ADICIONADO ---
     socket.on('video:leave', (data) => {
         const userId = socket.request.user?.id;
         const { channel } = data;
@@ -234,76 +242,59 @@ io.on('connection', (socket) => {
         const room = videoCallState[channel];
         room.participants.delete(userId);
 
-        // Notifica o usuário que saiu que a chamada terminou para ele
-        socket.emit('video:call_ended', { channel });
+        io.to(userId).emit('video:call_ended', { channel });
 
-        // Se ainda houver alguém na sala, notifica essa pessoa
         if (room.participants.size === 1) {
             const remainingUserId = [...room.participants][0];
-            const remainingSocketId = userSocketMap[remainingUserId];
-            if (remainingSocketId) {
-                io.to(remainingSocketId).emit('video:call_ended', { channel });
-            }
+            io.to(remainingUserId).emit('video:call_ended', { channel });
         }
         
-        // Se a sala estiver vazia, limpa os timers e remove o estado da chamada
-        if (room.participants.size === 0) {
+        if (room.participants.size < 2) {
             clearTimeout(room.warningTimer);
             clearTimeout(room.endTimer);
             delete videoCallState[channel];
         }
     });
-    // --- FIM DO NOVO BLOCO ---
- 
-socket.on('disconnect', () => {
-    // Primeiro, lida com a saída de salas de chat anônimas
-    if (socket.room && chatRooms[socket.room] && chatRooms[socket.room].users[socket.id]) {
-        delete chatRooms[socket.room].users[socket.id];
-        io.to(socket.room).emit('userList', Object.values(chatRooms[socket.room].users));
-    }
 
-    const userId = socket.request.user?.id;
-    if (userId) {
-        // Apenas processa a desconexão se o socket que está se desconectando
-        // for o último socket conhecido para este usuário.
-        if(userSocketMap[userId] === socket.id) {
-            // Adiciona um atraso para lidar com a navegação entre páginas
-            setTimeout(() => {
-                // Após o atraso, verifica novamente. Se o usuário reconectou em outra página,
-                // o socket.id em userSocketMap será diferente, e não faremos nada.
-                if (userSocketMap[userId] === socket.id) {
-                    delete userSocketMap[userId];
-                    console.log(`[Socket.IO] Usuário ${userId} desconectado.`);
-                    io.emit('user_status_change', { userId, isOnline: false });
-                }
-            }, 1500); // Atraso de 1.5 segundos
+    // --- ALTERAÇÃO 3: Lógica de desconexão agora gerencia múltiplas abas ---
+    socket.on('disconnect', () => {
+        if (socket.room && chatRooms[socket.room] && chatRooms[socket.room].users[socket.id]) {
+            delete chatRooms[socket.room].users[socket.id];
+            io.to(socket.room).emit('userList', Object.values(chatRooms[socket.room].users));
         }
 
-        // Lógica para chamadas de vídeo (permanece a mesma)
-        for (const channel in videoCallState) {
-            const room = videoCallState[channel];
-            if (room.participants.has(userId)) {
-                room.participants.delete(userId);
-                socket.emit('video:call_ended', { channel });
-                if (room.participants.size === 1) {
-                    const remainingUserId = [...room.participants][0];
-                    const remainingSocketId = userSocketMap[remainingUserId];
-                    if (remainingSocketId) io.to(remainingSocketId).emit('video:call_ended', { channel });
-                }
-                if (room.participants.size === 0) {
-                    clearTimeout(room.warningTimer);
-                    clearTimeout(room.endTimer);
-                    delete videoCallState[channel];
+        const userId = socket.request.user?.id;
+        if (userId && userSocketMap[userId]) {
+            userSocketMap[userId].delete(socket.id);
+            console.log(`[Socket.IO] Usuário ${userId} desconectou socket ${socket.id}. Conexões restantes: ${userSocketMap[userId].size}`);
+
+            // Se o usuário não tiver mais NENHUMA conexão ativa, ele está realmente offline
+            if (userSocketMap[userId].size === 0) {
+                delete userSocketMap[userId];
+                console.log(`[Socket.IO] Usuário ${userId} ficou offline.`);
+                io.emit('user_status_change', { userId, isOnline: false });
+
+                // Limpa qualquer chamada que possa ter ficado "presa" a este usuário
+                 for (const channel in videoCallState) {
+                    const room = videoCallState[channel];
+                    if (room.participants.has(userId)) {
+                        room.participants.delete(userId);
+                        if (room.participants.size > 0) {
+                            const remainingUserId = [...room.participants][0];
+                            io.to(remainingUserId).emit('video:call_ended', { channel });
+                        }
+                        clearTimeout(room.warningTimer);
+                        clearTimeout(room.endTimer);
+                        delete videoCallState[channel];
+                    }
                 }
             }
         }
-    }
+    });
 });
-});
-
 
 // =======================================================
-// === LÓGICA DO JOGO STOP! (NAMESPACE /stop) - MANTIDA E FUNCIONAL ===
+// === LÓGICA DO JOGO STOP! (sem alterações) ===
 // =======================================================
 const stopRooms = {}; 
 const stopNamespace = io.of('/stop');
