@@ -74,7 +74,7 @@ router.post('/register', async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const user = await prisma.user.create({
+ const newUser = await prisma.user.create({
             data: {
                 nickname,
                 email: email.toLowerCase(),
@@ -88,13 +88,17 @@ router.post('/register', async (req, res) => {
                         dateOfBirth: new Date(dateOfBirth),
                     },
                 },
-            },
-            include: {
-                profile: true
             }
         });
 
-        await sendVerificationEmail(user, req);
+        // Passo 2: Busca novamente o usuário recém-criado para garantir que o perfil venha junto.
+        const userWithProfile = await prisma.user.findUnique({
+            where: { id: newUser.id },
+            include: { profile: true }
+        });
+
+        // Passo 3: Envia o e-mail usando o objeto completo e consistente.
+        await sendVerificationEmail(userWithProfile, req);
 
         return res.redirect('/verify-notice.html');
 
