@@ -5,22 +5,16 @@ const bcrypt = require('bcrypt');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+// ADICIONADO: Biblioteca oficial do SendGrid
+const sgMail = require('@sendgrid/mail');
 
-// --- CONFIGURAÇÃO CORRIGIDA E OTIMIZADA PARA PRODUÇÃO ---
-// Usando a porta 465 com `secure: true` é a forma mais direta e estável
-// de estabelecer uma conexão segura com o SendGrid.
-const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: process.env.EMAIL_PORT, // No Railway, garanta que esta variável seja 465
-    secure: false, 
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
+// REMOVIDO: A configuração do Nodemailer foi removida daqui.
 
-// Função para enviar e-mail de verificação
+// ADICIONADO: Configuração da chave de API do SendGrid.
+// Garanta que a variável de ambiente 'SENDGRID_API_KEY' está definida no Railway.
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+// Função para enviar e-mail de verificação (MODIFICADA para usar a API SendGrid)
 async function sendVerificationEmail(user, req) {
     const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 3600000 * 24); // Token expira em 24 horas
@@ -33,20 +27,14 @@ async function sendVerificationEmail(user, req) {
         },
     });
 
-   const verificationURL = `${req.protocol}://${req.get('host')}/verify-email?token=${token}`;
+    const verificationURL = `${req.protocol}://${req.get('host')}/verify-email?token=${token}`;
    
-    // --- ADICIONE ESTE BLOCO DE DEBUG ---
-    console.log("--- DEBUG DE ENVIO DE E-MAIL ---");
-    console.log("Host:", process.env.EMAIL_HOST);
-    console.log("Port:", process.env.EMAIL_PORT);
-    console.log("User (usuário):", process.env.EMAIL_USER);
-    console.log("Sender (remetente):", process.env.SENDER_EMAIL);
-    console.log("--- FIM DO DEBUG ---");
-    // --- FIM DO BLOCO DE DEBUG ---
-
-    await transporter.sendMail({
+    const msg = {
         to: user.email,
-        from: `"Verbi" <${process.env.SENDER_EMAIL}>`, // CORRETO
+        from: {
+            name: 'Verbi',
+            email: process.env.SENDER_EMAIL // Este deve ser um e-mail verificado como remetente no SendGrid
+        },
         subject: 'Confirme seu E-mail no Verbi',
         html: `
             <p>Olá ${user.profile.firstName},</p>
@@ -54,7 +42,18 @@ async function sendVerificationEmail(user, req) {
             <a href="${verificationURL}">${verificationURL}</a>
             <p>Este link expirará em 24 horas.</p>
         `
-    });
+    };
+
+    try {
+        await sgMail.send(msg);
+        console.log(`E-mail de verificação enviado para ${user.email} via SendGrid API.`);
+    } catch (error) {
+        console.error('Erro ao enviar e-mail de verificação pelo SendGrid:', error);
+        if (error.response) {
+            console.error(error.response.body);
+        }
+        throw new Error('Falha ao enviar e-mail de verificação.');
+    }
 }
 
 
@@ -74,7 +73,7 @@ router.post('/register', async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
- const newUser = await prisma.user.create({
+        const newUser = await prisma.user.create({
             data: {
                 nickname,
                 email: email.toLowerCase(),
@@ -91,13 +90,11 @@ router.post('/register', async (req, res) => {
             }
         });
 
-        // Passo 2: Busca novamente o usuário recém-criado para garantir que o perfil venha junto.
         const userWithProfile = await prisma.user.findUnique({
             where: { id: newUser.id },
             include: { profile: true }
         });
 
-        // Passo 3: Envia o e-mail usando o objeto completo e consistente.
         await sendVerificationEmail(userWithProfile, req);
 
         return res.redirect('/verify-notice.html');
@@ -239,7 +236,7 @@ router.get('/api/user/status', async (req, res) => {
 });
 
 
-// --- ROTA DE RECUPERAÇÃO DE SENHA CORRIGIDA ---
+// Rota de Recuperação de Senha (MODIFICADA para usar a API SendGrid)
 router.post('/forgot-password', async (req, res) => {
     try {
         const user = await prisma.user.findUnique({ where: { email: req.body.email.toLowerCase() } });
@@ -254,15 +251,20 @@ router.post('/forgot-password', async (req, res) => {
         });
         const resetURL = `${req.protocol}://${req.get('host')}/reset-password.html?token=${token}`;
 
-        await transporter.sendMail({
+        const msg = {
             to: user.email,
-            from: `"Verbi" <${process.env.SENDER_EMAIL}>`, // <-- CORRIGIDO AQUI
+            from: {
+                name: 'Verbi',
+                email: process.env.SENDER_EMAIL
+            },
             subject: 'Redefinição de Senha - Verbi',
             html: `Você está recebendo este e-mail porque solicitou a redefinição de senha para sua conta no Verbi.<br><br>
                    Por favor, clique no link a seguir ou cole-o em seu navegador para concluir o processo:<br><br>
                    <a href="${resetURL}">${resetURL}</a><br><br>
                    Se você não solicitou isso, por favor, ignore este e-mail e sua senha permanecerá inalterada.`
-        });
+        };
+
+        await sgMail.send(msg);
         res.redirect('/forgot-password.html?status=success');
     } catch (error) {
         console.error('Erro em /forgot-password:', error);

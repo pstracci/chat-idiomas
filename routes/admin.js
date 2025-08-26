@@ -4,7 +4,8 @@ const router = express.Router();
 const { PrismaClient, Role } = require('@prisma/client');
 const prisma = new PrismaClient();
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+// ADICIONADO: Biblioteca oficial do SendGrid
+const sgMail = require('@sendgrid/mail');
 
 // Middleware para garantir que o utilizador está autenticado
 function isAuthenticated(req, res, next) {
@@ -27,17 +28,12 @@ router.use(isAuthenticated, isAdmin);
 
 
 // --- LÓGICA DE ENVIO DE E-MAIL ---
-const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: process.env.EMAIL_PORT,
-    secure: false,
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
+// REMOVIDO: A configuração do Nodemailer foi removida daqui.
 
-// Função auxiliar para enviar e-mail de verificação a partir do painel de admin
+// ADICIONADO: Configuração da chave de API do SendGrid.
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+// Função auxiliar para enviar e-mail de verificação a partir do painel de admin (MODIFICADA para usar a API SendGrid)
 async function resendAdminVerificationEmail(user, req) {
     const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 3600000 * 24); // Token expira em 24 horas
@@ -50,11 +46,14 @@ async function resendAdminVerificationEmail(user, req) {
         },
     });
 
-   const verificationURL = `${req.protocol}://${req.get('host')}/verify-email?token=${token}`;
+    const verificationURL = `${req.protocol}://${req.get('host')}/verify-email?token=${token}`;
    
-    await transporter.sendMail({
+    const msg = {
         to: user.email,
-        from: `"Verbi" <${process.env.SENDER_EMAIL}>`,
+        from: {
+            name: 'Verbi',
+            email: process.env.SENDER_EMAIL
+        },
         subject: 'Confirme seu E-mail no Verbi',
         html: `
             <p>Olá ${user.profile.firstName},</p>
@@ -62,7 +61,18 @@ async function resendAdminVerificationEmail(user, req) {
             <a href="${verificationURL}">${verificationURL}</a>
             <p>Este link expirará em 24 horas.</p>
         `
-    });
+    };
+
+    try {
+        await sgMail.send(msg);
+        console.log(`E-mail de verificação (admin) enviado para ${user.email} via SendGrid API.`);
+    } catch (error) {
+        console.error('Erro ao reenviar e-mail de verificação (admin) pelo SendGrid:', error);
+        if (error.response) {
+            console.error(error.response.body);
+        }
+        throw new Error('Falha ao reenviar e-mail de verificação.');
+    }
 }
 
 
@@ -122,7 +132,7 @@ router.put('/users/:userId/credits', async (req, res) => {
     }
 });
 
-// NOVA ROTA: Reenviar e-mail de validação
+// ROTA: Reenviar e-mail de validação
 router.post('/users/:userId/resend-verification', async (req, res) => {
     const { userId } = req.params;
     try {
