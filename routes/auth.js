@@ -237,11 +237,13 @@ router.get('/api/user/status', async (req, res) => {
 
 
 // Rota de Recuperação de Senha (MODIFICADA para usar a API SendGrid)
+
 router.post('/forgot-password', async (req, res) => {
     try {
         const user = await prisma.user.findUnique({ where: { email: req.body.email.toLowerCase() } });
         if (!user) {
-            return res.redirect('/forgot-password.html?error=not_found');
+            // Não revele se o usuário existe ou não por segurança, mas redirecione como sucesso.
+            return res.redirect('/forgot-password.html?status=success');
         }
         const token = crypto.randomBytes(20).toString('hex');
         const expires = new Date(Date.now() + 3600000); // 1 hora
@@ -251,11 +253,12 @@ router.post('/forgot-password', async (req, res) => {
         });
         const resetURL = `${req.protocol}://${req.get('host')}/reset-password.html?token=${token}`;
 
+        // Cria a mensagem para a API do SendGrid
         const msg = {
             to: user.email,
             from: {
                 name: 'Verbi',
-                email: process.env.SENDER_EMAIL
+                email: process.env.SENDER_EMAIL // Garanta que este e-mail é um remetente verificado no SendGrid
             },
             subject: 'Redefinição de Senha - Verbi',
             html: `Você está recebendo este e-mail porque solicitou a redefinição de senha para sua conta no Verbi.<br><br>
@@ -264,10 +267,15 @@ router.post('/forgot-password', async (req, res) => {
                    Se você não solicitou isso, por favor, ignore este e-mail e sua senha permanecerá inalterada.`
         };
 
+        // Envia o e-mail usando a API do SendGrid
         await sgMail.send(msg);
+        
         res.redirect('/forgot-password.html?status=success');
     } catch (error) {
         console.error('Erro em /forgot-password:', error);
+        if (error.response) {
+            console.error(error.response.body);
+        }
         res.redirect('/forgot-password.html?error=server_error');
     }
 });
