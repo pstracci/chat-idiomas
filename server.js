@@ -344,6 +344,26 @@ io.on('connection', (socket) => {
             socket.broadcast.emit('user_status_change', { userId, isOnline: true });
         }
         handleDMEvents(socket, io, userSocketMap);
+		
+		// --- INÍCIO: NOVOS LISTENERS PARA "DIGITANDO" ---
+    socket.on('dm:typing:start', (data) => {
+        const { recipientId } = data;
+        // Emite o evento apenas para o destinatário
+        io.to(recipientId).emit('dm:typing:start', { 
+            senderId: socket.request.user.id,
+            senderNickname: socket.request.user.nickname 
+        });
+    });
+
+    socket.on('dm:typing:stop', (data) => {
+        const { recipientId } = data;
+        // Emite o evento apenas para o destinatário
+        io.to(recipientId).emit('dm:typing:stop', { 
+            senderId: socket.request.user.id 
+        });
+    });
+    // --- FIM: NOVOS LISTENERS PARA "DIGITANDO" ---
+	
     }
 
     socket.on('joinRoom', async (data) => {

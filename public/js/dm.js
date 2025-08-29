@@ -1,8 +1,8 @@
-// /js/dm.js
+// /js/dm.js (COM INDICADOR "DIGITANDO" E NICKNAME NAS MENSAGENS)
 document.addEventListener('DOMContentLoaded', () => {
     const socket = io();
 
-    // --- SEÇÃO: ELEMENTOS DA UI --- (sem alterações)
+    // --- SEÇÃO: ELEMENTOS DA UI ---
     const searchInput = document.getElementById('search-conversations');
     const clearSearchBtn = document.getElementById('clear-search-btn');
     const conversationsList = document.getElementById('conversations-list');
@@ -28,23 +28,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const imageInput = document.getElementById('image-input');
     const emojiBtn = document.getElementById('emoji-btn');
     const emojiPicker = document.getElementById('emoji-picker');
+    // NOVO: Elementos do indicador "digitando"
+    const typingIndicator = document.getElementById('typing-indicator');
+    const typingUserName = document.getElementById('typing-user-name');
+
 
     // --- SEÇÃO: VARIÁVEIS DE ESTADO ---
     let currentChatUserId = null;
-    let loggedInUser = null; // Inicia como null
+    let loggedInUser = null;
     let currentParticipant = null;
+    let typingTimeout = null; // Para controlar o evento de parar de digitar
 
     const params = new URLSearchParams(window.location.search);
     const initialChatUserId = params.get('with');
 
-    // --- SEÇÃO: FUNÇÕES PRINCIPAIS --- (sem alterações em fetchLoggedInUser, loadConversations, loadChat)
+    // --- SEÇÃO: FUNÇÕES PRINCIPAIS ---
 
     async function fetchLoggedInUser() {
         try {
             const response = await fetch('/api/user/status');
             const data = await response.json();
             if (data.loggedIn) {
-                loggedInUser = data.user; // Populado aqui
+                loggedInUser = data.user;
                 headerUserName.textContent = loggedInUser.nickname;
                 headerUserAvatar.src = loggedInUser.profile?.profilePicture || '/default-avatar.png';
             } else {
@@ -56,7 +61,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadConversations() {
-        // (código original sem alterações)
         try {
             const response = await fetch('/api/dm/conversations');
             if (!response.ok) throw new Error('Falha na resposta da API');
@@ -72,10 +76,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const li = document.createElement('li');
                 li.className = 'conversation-item';
                 li.dataset.userId = conv.participant.id;
-
                 const unreadBadge = conv.unreadCount > 0 ? `<span class="unread-badge">${conv.unreadCount}</span>` : '';
                 const lastMessageText = conv.lastMessage?.text || (conv.lastMessage?.imageData ? 'Imagem' : 'Inicie a conversa');
-
                 li.innerHTML = `
                     <img src="${conv.participant.profilePicture || '/default-avatar.png'}" alt="Avatar">
                     <div class="conversation-details">
@@ -83,14 +85,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         <p>${lastMessageText}</p>
                     </div>
                     ${unreadBadge}`;
-
                 li.addEventListener('click', () => {
                     history.pushState(null, '', `/dm.html?with=${conv.participant.id}`);
                     loadChat(conv.participant.id);
                 });
                 conversationsList.appendChild(li);
             });
-
         } catch (error) {
             console.error('Erro ao carregar conversas:', error);
             conversationsList.innerHTML = '<li class="no-conversations">Não foi possível carregar suas conversas.</li>';
@@ -98,7 +98,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     async function loadChat(userId) {
-        // (código original sem alterações)
         if (currentChatUserId === userId) return;
         currentChatUserId = userId;
         
@@ -139,15 +138,14 @@ document.addEventListener('DOMContentLoaded', () => {
             messagesContainer.innerHTML = '<p class="loading-message">Não foi possível carregar o chat.</p>';
         }
     }
-
+    
+    // ATUALIZADO: Função appendMessage agora inclui o NICKNAME
     function appendMessage(message) {
-        // [CORREÇÃO] Adicionada verificação para evitar erro se loggedInUser for null
         if (!loggedInUser) return; 
 
         const wrapper = document.createElement('div');
         wrapper.className = 'message-wrapper';
         
-        // O servidor agora envia o objeto 'sender' completo
         const senderId = message.senderId || message.sender?.id;
         const isSentByMe = senderId === loggedInUser.id;
         wrapper.classList.add(isSentByMe ? 'sent' : 'received');
@@ -155,7 +153,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const avatar = document.createElement('img');
         avatar.className = 'message-avatar';
         
-        // [MELHORIA] Usa a informação do avatar que vem na mensagem para o remetente
         let avatarSrc = '/default-avatar.png';
         if (isSentByMe) {
             avatarSrc = loggedInUser.profile?.profilePicture || '/default-avatar.png';
@@ -171,11 +168,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const messageDiv = document.createElement('div');
         messageDiv.classList.add('message');
 
+        // --- INÍCIO: NICKNAME ADICIONADO AO BALÃO DE MENSAGEM ---
+        const nicknameEl = document.createElement('strong');
+        nicknameEl.className = 'message-nickname';
+        nicknameEl.textContent = message.sender?.nickname || (isSentByMe ? loggedInUser.nickname : currentParticipant.nickname);
+        messageDiv.appendChild(nicknameEl);
+        // --- FIM: NICKNAME ADICIONADO AO BALÃO DE MENSAGEM ---
+
         if (message.text) {
-            messageDiv.textContent = message.text;
+            const textNode = document.createElement('span');
+            textNode.textContent = message.text;
+            messageDiv.appendChild(textNode);
         }
 
-        // Usa 'imageData' se for uma imagem enviada em tempo real ou 'imageUrl' se vier do histórico
         const imageSource = message.imageData || message.imageUrl;
         if (imageSource) {
             const img = document.createElement('img');
@@ -192,7 +197,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function updateParticipantStatus(isOnline) {
-        // (código original sem alterações)
         if (currentParticipant) {
             currentParticipant.isOnline = isOnline;
             chatUserStatus.textContent = isOnline ? 'Online' : 'Offline';
@@ -200,108 +204,138 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- SEÇÃO: EVENT LISTENERS --- (sem alterações)
-    messageForm.addEventListener('submit', (e) => { e.preventDefault(); const text = messageInput.value.trim(); if (!text || !currentChatUserId) return; socket.emit('directMessage', { recipientId: currentChatUserId, text }); messageInput.value = ''; });
+    // --- SEÇÃO: EVENT LISTENERS ---
+    messageForm.addEventListener('submit', (e) => { 
+        e.preventDefault(); 
+        const text = messageInput.value.trim(); 
+        if (!text || !currentChatUserId) return; 
+        socket.emit('directMessage', { recipientId: currentChatUserId, text }); 
+        // Avisa que parou de digitar ao enviar
+        socket.emit('dm:typing:stop', { recipientId: currentChatUserId });
+        clearTimeout(typingTimeout);
+        typingTimeout = null;
+        messageInput.value = ''; 
+    });
+    
+    // ATUALIZADO: Event listener de digitação
+    messageInput.addEventListener('input', () => {
+        if (!currentChatUserId) return;
+        
+        if (!typingTimeout) {
+            // Se não estiver em timeout, significa que é o início da digitação
+            socket.emit('dm:typing:start', { recipientId: currentChatUserId });
+        } else {
+            // Se já existe um timeout, limpa para resetar
+            clearTimeout(typingTimeout);
+        }
+
+        // Cria um novo timeout. Se o usuário parar de digitar por 2s, envia o evento 'stop'.
+        typingTimeout = setTimeout(() => {
+            socket.emit('dm:typing:stop', { recipientId: currentChatUserId });
+            typingTimeout = null; // Limpa a variável para indicar que não está mais digitando
+        }, 2000);
+    });
+
     imageInput.addEventListener('change', async (e) => { const file = e.target.files[0]; if (!file || !file.type.startsWith('image/')) return; if (file.size > 5e6) return alert('A imagem é muito grande! O limite é 5MB.'); try { const resizedImageData = await resizeImage(file); if (!currentChatUserId) return; socket.emit('directMessage', { recipientId: currentChatUserId, imageData: resizedImageData }); } catch (error) { console.error("Erro ao processar a imagem:", error); } finally { e.target.value = ''; } });
     videoCallBtn.addEventListener('click', () => { if (!currentChatUserId) return alert('Selecione uma conversa para iniciar uma chamada.'); if (confirm("Iniciar uma chamada de vídeo custará 1 crédito. Deseja prosseguir?")) { socket.emit('video:invite', { recipientId: currentChatUserId }); } });
     acceptCallBtn.addEventListener('click', () => { socket.emit('video:accept', { requesterId: acceptCallBtn.dataset.requesterId, channel: acceptCallBtn.dataset.channel }); incomingCallModal.style.display = 'none'; });
     declineCallBtn.addEventListener('click', () => { socket.emit('video:decline', { requesterId: declineCallBtn.dataset.requesterId, channel: declineCallBtn.dataset.channel }); incomingCallModal.style.display = 'none'; });
     
-    // --- [NOVO] SEÇÃO: SOCKET LISTENERS ---
-    // Esta função agrupa todos os 'ouvintes' do socket.
+    // --- SEÇÃO: SOCKET LISTENERS ---
     function registerSocketListeners() {
-    
-    // ================== NOVO LISTENER ADICIONADO AQUI ==================
-    // Este evento é recebido APENAS pelo usuário que INICIOU a chamada.
-    socket.on('video:invite_sent', async (data) => {
-        const { channel } = data;
-        if (!channel) return console.error('ID do canal não recebido ao enviar convite.');
-
-        // O chamador busca seu próprio token e abre a janela da chamada imediatamente.
-        try {
-            const response = await fetch(`/api/video/token?channel=${channel}`);
-            if (!response.ok) throw new Error((await response.json()).message || 'Falha ao obter credenciais.');
-            const { appId, token, uid } = await response.json();
-            const videoUrl = `/videocall.html?appId=${appId}&channel=${channel}&token=${token}&uid=${uid}`;
-            // Abre a janela para o chamador, que ficará aguardando.
-            window.open(videoUrl, '_blank', 'width=1200,height=800');
-        } catch (error) {
-            console.error('Erro ao iniciar a chamada de vídeo para o chamador:', error);
-            alert('Não foi possível entrar na sala de vídeo.');
-        }
-    });
-    // ====================================================================
-
-    socket.on('directMessage', (message) => {
-        // A verificação 'if (!loggedInUser)' já garante que o código abaixo não dará erro.
-        const isForCurrentChat = message.senderId === currentChatUserId || (message.senderId === loggedInUser.id && message.recipientId === currentChatUserId);
-        
-        if (isForCurrentChat) {
-            appendMessage(message);
-            if (message.senderId !== loggedInUser.id) {
-                fetch(`/api/dm/conversations/read/${message.senderId}`, { method: 'PUT' });
-            }
-        }
-        
-        loadConversations().then(() => {
-            if(currentChatUserId) {
-                document.querySelectorAll('.conversation-item').forEach(item => {
-                    item.classList.toggle('active', item.dataset.userId === currentChatUserId);
-                });
+        socket.on('video:invite_sent', async (data) => {
+            const { channel } = data;
+            if (!channel) return console.error('ID do canal não recebido ao enviar convite.');
+            try {
+                const response = await fetch(`/api/video/token?channel=${channel}`);
+                if (!response.ok) throw new Error((await response.json()).message || 'Falha ao obter credenciais.');
+                const { appId, token, uid } = await response.json();
+                const videoUrl = `/videocall.html?appId=${appId}&channel=${channel}&token=${token}&uid=${uid}`;
+                window.open(videoUrl, '_blank', 'width=1200,height=800');
+            } catch (error) {
+                console.error('Erro ao iniciar a chamada de vídeo para o chamador:', error);
+                alert('Não foi possível entrar na sala de vídeo.');
             }
         });
-    });
 
-    // Este evento é recebido por AMBOS os usuários DEPOIS que o destinatário aceita.
-    socket.on('video:invite_accepted', async (data) => {
-        const { channel } = data;
-        if (!channel) return console.error('ID do canal não recebido para iniciar a chamada.');
-        
-        // Verificamos se a janela já está aberta para evitar abrir duas vezes (no caso do chamador).
-        // Esta é uma verificação simples; uma solução mais robusta poderia gerenciar as janelas abertas.
-        if (window.location.pathname.includes('/videocall.html')) return;
-
-        try {
-            const response = await fetch(`/api/video/token?channel=${channel}`);
-            if (!response.ok) throw new Error((await response.json()).message || 'Falha ao obter credenciais.');
-            const { appId, token, uid } = await response.json();
-            const videoUrl = `/videocall.html?appId=${appId}&channel=${channel}&token=${token}&uid=${uid}`;
+        socket.on('directMessage', (message) => {
+            const isForCurrentChat = message.senderId === currentChatUserId || (message.senderId === loggedInUser.id && message.recipientId === currentChatUserId);
             
-            // Esta linha agora vai rodar principalmente para o DESTINATÁRIO.
-            window.open(videoUrl, '_blank', 'width=1200,height=800');
-        } catch (error) {
-            console.error('Erro ao iniciar a chamada de vídeo:', error);
-            alert('Não foi possível entrar na sala de vídeo.');
-        }
-    });
+            if (isForCurrentChat) {
+                // Ao receber uma mensagem, garante que o indicador "digitando" seja escondido
+                typingIndicator.style.display = 'none';
+                appendMessage(message);
+                if (message.senderId !== loggedInUser.id) {
+                    fetch(`/api/dm/conversations/read/${message.senderId}`, { method: 'PUT' });
+                }
+            }
+            
+            loadConversations().then(() => {
+                if(currentChatUserId) {
+                    document.querySelectorAll('.conversation-item').forEach(item => {
+                        item.classList.toggle('active', item.dataset.userId === currentChatUserId);
+                    });
+                }
+            });
+        });
 
-    socket.on('video:incoming_invite', (data) => {
-        callerAvatar.src = data.requester.profilePicture || '/default-avatar.png';
-        callerName.innerText = data.requester.nickname;
-        acceptCallBtn.dataset.requesterId = data.requester.id;
-        acceptCallBtn.dataset.channel = data.channel;
-        declineCallBtn.dataset.requesterId = data.requester.id;
-        declineCallBtn.dataset.channel = data.channel;
-        incomingCallModal.style.display = 'flex';
-    });
+        socket.on('video:invite_accepted', async (data) => {
+            const { channel } = data;
+            if (!channel) return console.error('ID do canal não recebido para iniciar a chamada.');
+            if (window.location.pathname.includes('/videocall.html')) return;
+            try {
+                const response = await fetch(`/api/video/token?channel=${channel}`);
+                if (!response.ok) throw new Error((await response.json()).message || 'Falha ao obter credenciais.');
+                const { appId, token, uid } = await response.json();
+                const videoUrl = `/videocall.html?appId=${appId}&channel=${channel}&token=${token}&uid=${uid}`;
+                window.open(videoUrl, '_blank', 'width=1200,height=800');
+            } catch (error) {
+                console.error('Erro ao iniciar a chamada de vídeo:', error);
+                alert('Não foi possível entrar na sala de vídeo.');
+            }
+        });
 
-    socket.on('user_status_change', (data) => {
-        if (data.userId === currentChatUserId) {
-            updateParticipantStatus(data.isOnline);
-        }
-    });
-}
+        socket.on('video:incoming_invite', (data) => {
+            callerAvatar.src = data.requester.profilePicture || '/default-avatar.png';
+            callerName.innerText = data.requester.nickname;
+            acceptCallBtn.dataset.requesterId = data.requester.id;
+            acceptCallBtn.dataset.channel = data.channel;
+            declineCallBtn.dataset.requesterId = data.requester.id;
+            declineCallBtn.dataset.channel = data.channel;
+            incomingCallModal.style.display = 'flex';
+        });
+
+        socket.on('user_status_change', (data) => {
+            if (data.userId === currentChatUserId) {
+                updateParticipantStatus(data.isOnline);
+            }
+        });
+
+        // --- INÍCIO: NOVOS LISTENERS PARA "DIGITANDO" ---
+        socket.on('dm:typing:start', (data) => {
+            // Mostra o indicador apenas se for da conversa atualmente aberta
+            if (data.senderId === currentChatUserId) {
+                typingUserName.textContent = data.senderNickname;
+                typingIndicator.style.display = 'flex';
+            }
+        });
+
+        socket.on('dm:typing:stop', (data) => {
+            // Esconde o indicador se for da conversa atualmente aberta
+            if (data.senderId === currentChatUserId) {
+                typingIndicator.style.display = 'none';
+            }
+        });
+        // --- FIM: NOVOS LISTENERS PARA "DIGITANDO" ---
+    }
 
 
     // --- SEÇÃO: INICIALIZAÇÃO ---
     async function initializePage() {
-        await fetchLoggedInUser(); // Primeiro, espera os dados do usuário
-        
-        // [CORREÇÃO] Só depois que os dados do usuário existirem, registramos os listeners do socket
+        await fetchLoggedInUser();
         if (loggedInUser) {
             registerSocketListeners();
         }
-
         await loadConversations();
         if (initialChatUserId) {
             loadChat(initialChatUserId);
@@ -310,7 +344,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     initializePage();
 
-    // Função auxiliar para redimensionar imagem (se não a tiver, adicione)
     function resizeImage(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
