@@ -1,141 +1,412 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verbi - Sala de Vídeo</title>
-    <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: sans-serif; background-color: #1a1a1a; color: white; }
-        #video-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1em; width: 100%; height: calc(100% - 80px); padding: 1em; box-sizing: border-box; }
-        .video-player { width: 100%; height: 100%; overflow: hidden; border-radius: 8px; }
-        .video-player > div { width: 100%; height: 100%; }
-        #controls { position: fixed; bottom: 0; left: 0; width: 100%; height: 80px; background-color: #252525; display: flex; justify-content: center; align-items: center; gap: 1em; }
-        #controls button { padding: 1em; border-radius: 50%; border: none; cursor: pointer; font-size: 1.2em; }
-        #leave-btn { background-color: #e63946; color: white; }
-        .call-notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background-color: #ffc107; color: #333; padding: 10px 20px; border-radius: 5px; z-index: 1000; display: none; }
-    </style>
+    <title>Verbi - Chamada de Vídeo</title>
     <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.2.js"></script>
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://download.agora.io/sdk/release/AgoraRTC_AI_Noise_Suppression.js"></script>
+    <style>
+        :root {
+            --dark-bg: #1a1a1a;
+            --control-bg: #2c2c2e;
+            --control-hover: #48484a;
+            --blue: #007aff;
+            --green: #34c759;
+            --red: #ff3b30;
+            --grey: #8e8e93;
+            --white: #ffffff;
+        }
+
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: var(--dark-bg); color: var(--white); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        /* Layout Principal dos Vídeos */
+        #video-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; flex-grow: 1; padding: 1rem; align-items: center; justify-content: center; }
+        .video-player { width: 100%; height: 100%; background-color: #000; border-radius: 12px; overflow: hidden; position: relative; box-shadow: 0 4px 15px rgba(0,0,0,0.4); transition: all 0.3s ease; }
+        .video-player video { width: 100%; height: 100%; object-fit: cover; }
+        .user-label { position: absolute; bottom: 10px; left: 10px; background: rgba(0, 0, 0, 0.6); padding: 5px 10px; border-radius: 5px; font-size: 14px; }
+        
+        /* Câmera Local (Pequena no Canto) */
+        #local-player-wrapper { position: absolute; bottom: calc(80px + 1rem); /* Acima da barra de controle */ right: 1rem; width: 25%; max-width: 280px; min-width: 180px; z-index: 10; border: 2px solid var(--blue); border-radius: 12px; overflow: hidden; }
+
+        /* Barra de Controles Inferior */
+        #controls-wrapper { position: fixed; bottom: 0; left: 0; width: 100%; display: flex; justify-content: center; padding: 15px 0; background-color: var(--control-bg); z-index: 100;}
+        #controls { display: flex; justify-content: center; align-items: center; gap: 15px; }
+        .control-btn { background-color: var(--control-hover); border: none; border-radius: 50%; width: 50px; height: 50px; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: background-color 0.2s ease; position: relative; }
+        .control-btn:hover { background-color: #5a5a5c; }
+        .control-btn svg { fill: var(--white); width: 24px; height: 24px; }
+        .control-btn.danger { background-color: var(--red); }
+        .control-btn.danger:hover { background-color: #ff5555; }
+        .control-btn.toggled-on { background-color: var(--blue); }
+        .tooltip { visibility: hidden; width: 140px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 0; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -70px; opacity: 0; transition: opacity 0.3s; }
+        .control-btn:hover .tooltip { visibility: visible; opacity: 1; }
+
+        /* Painel de Configurações (Modal) */
+        #settings-panel { display: none; position: fixed; z-index: 20; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 400px; background-color: var(--control-bg); border-radius: 12px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .settings-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .settings-header h3 { margin: 0; }
+        #close-settings-btn { background: none; border: none; color: var(--white); font-size: 24px; cursor: pointer; padding: 0; line-height: 1; }
+        .settings-group { margin-bottom: 15px; }
+        .settings-group label { display: block; margin-bottom: 8px; font-size: 14px; color: var(--grey); }
+        .settings-group select, .settings-group input[type="range"] { width: 100%; padding: 8px; background-color: var(--control-hover); border: 1px solid var(--grey); color: var(--white); border-radius: 6px; box-sizing: border-box;}
+
+        /* Toggle Switch */
+        .switch-container { display: flex; align-items: center; justify-content: space-between; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--grey); transition: .4s; border-radius: 28px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--blue); }
+        input:checked + .slider:before { transform: translateX(22px); }
+    </style>
 </head>
 <body>
-    <div id="call-warning" class="call-notification"></div>
     <div id="video-grid">
-        <div id="local-player" class="video-player"></div>
-    </div>
-    <div id="controls">
-        <button id="mic-btn">🎤</button>
-        <button id="cam-btn">📹</button>
-        <button id="leave-btn">🚪</button>
+        <div id="local-player-wrapper">
+            <div id="local-player" class="video-player"></div>
+            <div class="user-label">Você</div>
+        </div>
     </div>
 
-   <script>
-    const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
-    let localTracks = { audioTrack: null, videoTrack: null };
-    const urlParams = new URLSearchParams(window.location.search);
-    const APP_ID = urlParams.get('appId');
-    const CHANNEL = urlParams.get('channel');
-    const TOKEN = urlParams.get('token');
-    // --- ALTERAÇÃO PRINCIPAL: Obter o UID da URL ---
-    const UID_PARAM = urlParams.get('uid'); 
-    // Converte o UID para número, pois ele vem como string da URL
-    const UID = UID_PARAM ? parseInt(UID_PARAM, 10) : null;
-
-    if (!APP_ID || !CHANNEL || !TOKEN || UID === null) {
-        document.body.innerHTML = '<h1>Acesso inválido. Credenciais não encontradas ou UID ausente.</h1>';
-    }
-
- const leaveAndRemoveLocalStream = async () => {
-        // Envia o evento para o servidor ANTES de fechar as tracks
-        if (socket && CHANNEL) {
-            socket.emit('video:leave', { channel: CHANNEL });
-        }
-
-        for (let trackName in localTracks) {
-            let track = localTracks[trackName];
-            if(track) { track.stop(); track.close(); localTracks[trackName] = null; }
-        }
-        await client.leave();
-        window.close();
-    };
+    <div id="controls-wrapper">
+        <div id="controls">
+            <button id="mute-audio-btn" class="control-btn toggled-on">
+                <span class="tooltip">Mutar Áudio</span>
+                <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zm6 9v1a6 6 0 0 1-12 0v-1H4v1a8 8 0 0 0 7 7.93V21h-4v2h10v-2h-4v-2.07A8 8 0 0 0 20 11v-1z"/></svg>
+            </button>
+            <button id="mute-video-btn" class="control-btn toggled-on">
+                <span class="tooltip">Parar Vídeo</span>
+                <svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11z"/></svg>
+            </button>
+            <button id="screen-share-btn" class="control-btn">
+                <span class="tooltip">Compartilhar Tela</span>
+                <svg viewBox="0 0 24 24"><path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2zM4 6h16v10H4z"/></svg>
+            </button>
+            <button id="settings-btn" class="control-btn">
+                <span class="tooltip">Configurações</span>
+                <svg viewBox="0 0 24 24"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
+            </button>
+            <button id="leave-btn" class="control-btn danger">
+                <span class="tooltip">Sair da Chamada</span>
+                <svg viewBox="0 0 24 24"><path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 12zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4z"/></svg>
+            </button>
+        </div>
+    </div>
     
+    <div id="settings-panel">
+        <div class="settings-header">
+            <h3>Configurações</h3>
+            <button id="close-settings-btn">&times;</button>
+        </div>
+        <div class="settings-group">
+            <label for="mic-select">Microfone</label>
+            <select id="mic-select"></select>
+        </div>
+        <div class="settings-group">
+            <label for="mic-volume">Volume do Microfone (saída)</label>
+            <input type="range" id="mic-volume" min="0" max="100" value="100">
+        </div>
+        <div class="settings-group">
+            <label for="cam-select">Câmera</label>
+            <select id="cam-select"></select>
+        </div>
+        <div class="settings-group">
+            <div class="switch-container">
+                <label>Supressão de Ruído por IA</label>
+                <label class="switch">
+                    <input type="checkbox" id="noise-suppression-toggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // --- ELEMENTOS DA UI ---
+    const controls = {
+        micBtn: document.getElementById('mute-audio-btn'),
+        camBtn: document.getElementById('mute-video-btn'),
+        screenShareBtn: document.getElementById('screen-share-btn'),
+        leaveBtn: document.getElementById('leave-btn'),
+        settingsBtn: document.getElementById('settings-btn'),
+        settingsPanel: document.getElementById('settings-panel'),
+        closeSettingsBtn: document.getElementById('close-settings-btn'),
+        micSelect: document.getElementById('mic-select'),
+        camSelect: document.getElementById('cam-select'),
+        micVolume: document.getElementById('mic-volume'),
+        noiseSuppressionToggle: document.getElementById('noise-suppression-toggle'),
+    };
+
+    const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+    const params = new URLSearchParams(window.location.search);
+    const options = {
+        appId: params.get('appId'),
+        channel: params.get('channel'),
+        token: params.get('token'),
+        uid: parseInt(params.get('uid'), 10)
+    };
+
+    // --- VARIÁVEIS DE ESTADO ---
+    let localTracks = { videoTrack: null, audioTrack: null };
+    let screenTrack = null;
+    let isSharingScreen = false;
+    let remoteUsers = {};
+    let isNoiseSuppressionEnabled = false;
+    let noiseSuppressionProcessor = null;
+
+    // --- FUNÇÕES PRINCIPAIS ---
+
     const joinAndDisplayLocalStream = async () => {
         try {
-            // --- ALTERAÇÃO PRINCIPAL: Usar o UID específico no método join ---
-            await client.join(APP_ID, CHANNEL, TOKEN, UID);
-
+            await client.join(options.appId, options.channel, options.token, options.uid);
+            
             localTracks.audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
             localTracks.videoTrack = await AgoraRTC.createCameraVideoTrack();
-            
-            // O ID do container do player agora deve usar o UID que JÁ TEMOS
-            const player = document.getElementById('local-player');
-            player.id = `user-container-${UID}`; 
 
-            localTracks.videoTrack.play(player);
+            document.getElementById('local-player-wrapper').style.display = 'block';
+            localTracks.videoTrack.play('local-player');
+
             await client.publish(Object.values(localTracks));
-        } catch (error) { console.error("Falha ao iniciar a chamada:", error); }
+            console.log("Fluxo local publicado.");
+            
+            await populateDeviceLists();
+
+        } catch (error) {
+            console.error("Falha ao iniciar a chamada:", error);
+            document.getElementById('local-player-wrapper').innerHTML = `<p style="color:red; text-align:center;">${error.message}</p>`;
+        }
     };
 
-    client.on("user-published", async (user, mediaType) => {
-        await client.subscribe(user, mediaType);
-        if (mediaType === "video") {
-            const remoteVideoTrack = user.videoTrack;
-            const playerContainer = document.createElement("div");
-            playerContainer.id = `user-container-${user.uid}`;
-            playerContainer.className = "video-player";
-            document.getElementById("video-grid").append(playerContainer);
-            remoteVideoTrack.play(playerContainer);
+    const populateDeviceLists = async () => {
+        try {
+            const mics = await AgoraRTC.getMicrophones();
+            const cams = await AgoraRTC.getCameras();
+
+            controls.micSelect.innerHTML = '';
+            mics.forEach(mic => {
+                const option = document.createElement('option');
+                option.value = mic.deviceId;
+                option.text = mic.label || `Microfone ${controls.micSelect.length + 1}`;
+                if (localTracks.audioTrack.getTrackLabel() === mic.label) {
+                    option.selected = true;
+                }
+                controls.micSelect.appendChild(option);
+            });
+
+            controls.camSelect.innerHTML = '';
+            cams.forEach(cam => {
+                const option = document.createElement('option');
+                option.value = cam.deviceId;
+                option.text = cam.label || `Câmera ${controls.camSelect.length + 1}`;
+                if (localTracks.videoTrack.getTrackLabel() === cam.label) {
+                    option.selected = true;
+                }
+                controls.camSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error("Erro ao listar dispositivos:", error);
         }
-        if (mediaType === "audio") {
+    };
+
+    const handleUserPublished = async (user, mediaType) => {
+        const id = user.uid;
+        remoteUsers[id] = user;
+        await client.subscribe(user, mediaType);
+        console.log("Inscrito no usuário:", id, "com mídia:", mediaType);
+        
+        if (mediaType === 'video') {
+            let playerWrapper = document.getElementById(`player-wrapper-${id}`);
+            if (!playerWrapper) {
+                playerWrapper = document.createElement('div');
+                playerWrapper.id = `player-wrapper-${id}`;
+                playerWrapper.className = 'video-player';
+                
+                const player = document.createElement('div');
+                player.id = `player-${id}`;
+                player.style.width = '100%';
+                player.style.height = '100%';
+
+                const userLabel = document.createElement('div');
+                userLabel.className = 'user-label';
+                userLabel.textContent = `Usuário Remoto ${id}`;
+
+                playerWrapper.append(player, userLabel);
+                document.getElementById('video-grid').append(playerWrapper);
+            }
+            user.videoTrack.play(`player-${id}`);
+        }
+
+        if (mediaType === 'audio') {
             user.audioTrack.play();
         }
-    });
-
-    client.on("user-left", (user) => { 
-        const playerContainer = document.getElementById(`user-container-${user.uid}`);
-        if (playerContainer) {
-            playerContainer.remove();
-        }
-    });
-
-    document.getElementById('leave-btn').addEventListener('click', leaveAndRemoveLocalStream);
+    };
     
-    document.getElementById('mic-btn').addEventListener('click', async () => {
-        if (localTracks.audioTrack.muted) {
-            await localTracks.audioTrack.setMuted(false);
-            document.getElementById('mic-btn').innerText = '🎤';
+    const handleUserUnpublished = (user) => {
+        const id = user.uid;
+        delete remoteUsers[id];
+        const playerWrapper = document.getElementById(`player-wrapper-${id}`);
+        if (playerWrapper) {
+            playerWrapper.remove();
+        }
+    };
+
+    const leaveCall = async () => {
+        if (isSharingScreen) {
+            await stopScreenShare();
+        }
+        for (let trackName in localTracks) {
+            let track = localTracks[trackName];
+            if (track) {
+                track.stop();
+                track.close();
+                localTracks[trackName] = null;
+            }
+        }
+        await client.leave();
+        document.getElementById('video-grid').innerHTML = '';
+        document.getElementById('controls-wrapper').innerHTML = `<p style="text-align:center;">Você saiu da chamada.</p>`;
+        setTimeout(() => window.close(), 2000);
+    };
+
+    // --- FUNÇÕES DE CONTROLE ---
+
+    const toggleMic = () => {
+        if (localTracks.audioTrack) {
+            const isEnabled = localTracks.audioTrack.enabled;
+            localTracks.audioTrack.setEnabled(!isEnabled);
+            controls.micBtn.classList.toggle('toggled-on', !isEnabled);
+            controls.micBtn.querySelector('.tooltip').textContent = isEnabled ? 'Ativar Áudio' : 'Mutar Áudio';
+        }
+    };
+
+    const toggleCam = async () => {
+        if(isSharingScreen) return; // Não permite ligar a câmera durante o compartilhamento de tela
+        if (localTracks.videoTrack) {
+            const isEnabled = localTracks.videoTrack.enabled;
+            await localTracks.videoTrack.setEnabled(!isEnabled);
+            controls.camBtn.classList.toggle('toggled-on', !isEnabled);
+            controls.camBtn.querySelector('.tooltip').textContent = isEnabled ? 'Iniciar Vídeo' : 'Parar Vídeo';
+        }
+    };
+
+    const handleScreenShare = async () => {
+        if (isSharingScreen) {
+            await stopScreenShare();
         } else {
-            await localTracks.audioTrack.setMuted(true);
-            document.getElementById('mic-btn').innerText = '🔇';
+            await startScreenShare();
         }
-    });
-    
-    document.getElementById('cam-btn').addEventListener('click', async () => {
-        if (localTracks.videoTrack.muted) {
-            await localTracks.videoTrack.setMuted(false);
-            document.getElementById('cam-btn').innerText = '📹';
-        } else {
-            await localTracks.videoTrack.setMuted(true);
-            document.getElementById('cam-btn').innerText = '📸';
-        }
-    });
+    };
 
-    const socket = io();
-    socket.on('video:force_disconnect', (data) => {
-        if (data.channel === CHANNEL) {
-            alert('A sala de vídeo expirou ou foi encerrada.');
-            leaveAndRemoveLocalStream();
-        }
-    });
-    
-    socket.on('video:warning_10_minutes', (data) => {
-        if (data.channel === CHANNEL) {
-            const warningDiv = document.getElementById('call-warning');
-            warningDiv.innerText = 'A chamada terminará em 10 minutos.';
-            warningDiv.style.display = 'block';
-        }
-    });
+    const startScreenShare = async () => {
+        try {
+            screenTrack = await AgoraRTC.createScreenVideoTrack({}, "auto");
+            isSharingScreen = true;
+            controls.screenShareBtn.classList.add('toggled-on');
 
+            // Para o track da câmera e troca pelo da tela
+            await client.unpublish(localTracks.videoTrack);
+            localTracks.videoTrack.stop();
+            localTracks.videoTrack.close();
+            
+            localTracks.videoTrack = screenTrack;
+            await client.publish(localTracks.videoTrack);
+            localTracks.videoTrack.play('local-player');
+            
+            // Quando o usuário clica no botão "Parar de compartilhar" do navegador
+            localTracks.videoTrack.on("track-ended", async () => {
+                await stopScreenShare();
+            });
+
+        } catch (error) {
+            console.error("Falha ao compartilhar a tela:", error);
+            isSharingScreen = false;
+            controls.screenShareBtn.classList.remove('toggled-on');
+        }
+    };
+
+    const stopScreenShare = async () => {
+        try {
+            await client.unpublish(localTracks.videoTrack);
+            localTracks.videoTrack.stop();
+            localTracks.videoTrack.close();
+
+            // Volta para a câmera
+            localTracks.videoTrack = await AgoraRTC.createCameraVideoTrack();
+            await client.publish(localTracks.videoTrack);
+            localTracks.videoTrack.play('local-player');
+            isSharingScreen = false;
+            controls.screenShareBtn.classList.remove('toggled-on');
+        } catch(error) {
+            console.error("Falha ao parar de compartilhar a tela:", error);
+        }
+    };
+
+    const switchDevice = async (type, deviceId) => {
+        if (type === 'audio' && localTracks.audioTrack) {
+            await localTracks.audioTrack.setDevice(deviceId);
+        }
+        if (type === 'video' && localTracks.videoTrack && !isSharingScreen) {
+            await localTracks.videoTrack.setDevice(deviceId);
+        }
+    };
+
+    const adjustMicVolume = () => {
+        if (localTracks.audioTrack) {
+            localTracks.audioTrack.setVolume(parseInt(controls.micVolume.value));
+        }
+    };
+
+    const toggleNoiseSuppression = async () => {
+        if (!AgoraRTC.isNoiseSuppressionSupported()) {
+            console.log("Supressão de ruído não suportada.");
+            controls.noiseSuppressionToggle.disabled = true;
+            return;
+        }
+        
+        isNoiseSuppressionEnabled = controls.noiseSuppressionToggle.checked;
+        
+        try {
+            if (isNoiseSuppressionEnabled) {
+                if (!noiseSuppressionProcessor) {
+                    noiseSuppressionProcessor = AgoraRTC.createNoiseSuppressionProcessor();
+                    await localTracks.audioTrack.pipe(noiseSuppressionProcessor).pipe(localTracks.audioTrack.processorDestination);
+                }
+                await noiseSuppressionProcessor.enable();
+                console.log("Supressão de ruído HABILITADA.");
+            } else {
+                if (noiseSuppressionProcessor) {
+                    await noiseSuppressionProcessor.disable();
+                    console.log("Supressão de ruído DESABILITADA.");
+                }
+            }
+        } catch (error) {
+            console.error("Falha ao alternar supressão de ruído:", error);
+        }
+    };
+
+    // --- INICIALIZAÇÃO E LISTENERS DE EVENTOS ---
+
+    const initEventListeners = () => {
+        client.on("user-published", handleUserPublished);
+        client.on("user-unpublished", handleUserUnpublished);
+
+        controls.leaveBtn.addEventListener('click', leaveCall);
+        controls.micBtn.addEventListener('click', toggleMic);
+        controls.camBtn.addEventListener('click', toggleCam);
+        controls.screenShareBtn.addEventListener('click', handleScreenShare);
+
+        controls.settingsBtn.addEventListener('click', () => controls.settingsPanel.style.display = 'block');
+        controls.closeSettingsBtn.addEventListener('click', () => controls.settingsPanel.style.display = 'none');
+        
+        controls.micSelect.addEventListener('change', () => switchDevice('audio', controls.micSelect.value));
+        controls.camSelect.addEventListener('change', () => switchDevice('video', controls.camSelect.value));
+        controls.micVolume.addEventListener('input', adjustMicVolume);
+        controls.noiseSuppressionToggle.addEventListener('change', toggleNoiseSuppression);
+    };
+
+    initEventListeners();
     joinAndDisplayLocalStream();
+
 </script>
 </body>
 </html>

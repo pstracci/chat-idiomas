@@ -5,82 +5,179 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meu Perfil - Verbi</title>
     <style>
-        :root { --primary-color: #007bff; --light-gray: #f8f9fa; --gray-border: #dee2e6; --green-online: #28a745; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: #f4f7f6; color: #333; }
-        .top-nav { background-color: #343a40; color: white; padding: 8px 40px; text-align: right; }
-        .top-nav a { color: white; text-decoration: none; margin-left: 20px; font-weight: 500; }
-        .container { max-width: 960px; margin: 30px auto; padding: 20px; display: grid; grid-template-columns: 300px 1fr; gap: 30px; }
+        :root {
+            --primary-color: #007bff;
+            --primary-hover: #0056b3;
+            --secondary-color: #6c757d;
+            --green-color: #28a745;
+            --green-hover: #218838;
+            --red-color: #dc3545;
+            --light-bg: #f8f9fa;
+            --border-color: #dee2e6;
+            --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.07);
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            background-color: #f4f7f6;
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .top-nav {
+            background-color: #343a40;
+            color: white;
+            padding: 8px 40px;
+            text-align: right;
+        }
+
+        .top-nav a {
+            color: white;
+            text-decoration: none;
+            margin-left: 20px;
+            font-weight: 500;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 30px auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 30px;
+            align-items: start;
+        }
         
         /* --- ESTILOS DE LOADING (SKELETON) --- */
-        .skeleton {
-            background-color: #e0e0e0;
-            border-radius: 4px;
-            animation: pulse 1.5s infinite ease-in-out;
-        }
-        @keyframes pulse {
-            0% { background-color: #e0e0e0; }
-            50% { background-color: #f0f0f0; }
-            100% { background-color: #e0e0e0; }
-        }
+        .skeleton { background-color: #e0e0e0; border-radius: 4px; animation: pulse 1.5s infinite ease-in-out; }
+        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
         .skeleton-avatar { width: 180px; height: 180px; border-radius: 50%; margin: 0 auto 20px; }
-        .skeleton-text { height: 1em; margin-bottom: 0.75em; }
-        .skeleton-input { height: 45px; margin-bottom: 20px; }
-        .skeleton-button { height: 50px; width: 100%; }
-
-        /* Lógica de visibilidade */
+        .skeleton-text { height: 1em; margin-bottom: 0.75em; border-radius: 4px; }
+        .skeleton-card { height: 150px; margin-bottom: 20px; }
         .loading .skeleton-container { display: block; }
         .loading .profile-content { display: none; }
         .skeleton-container { display: none; }
         .profile-content { display: block; }
-        /* --- FIM DOS ESTILOS DE LOADING --- */
 
-        .profile-sidebar { text-align: center; }
+        /* --- SIDEBAR --- */
+        .profile-sidebar {
+            text-align: center;
+            position: sticky;
+            top: 30px;
+        }
         .profile-picture-container { position: relative; width: 180px; height: 180px; margin: 0 auto 20px; }
         #profilePicture { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 4px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        #uploadButton { position: absolute; bottom: 10px; right: 10px; background-color: var(--primary-color); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        #uploadButton { position: absolute; bottom: 10px; right: 10px; background-color: var(--primary-color); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: background-color 0.2s; }
+        #uploadButton:hover { background-color: var(--primary-hover); }
         #profilePictureInput { display: none; }
-        .user-info h2 { margin: 0; }
-        .user-info p { color: #6c757d; }
         .nickname-container { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px; min-height: 40px; }
+        #nicknameDisplay { font-size: 1.8em; font-weight: 700; }
         .nickname-container button { background: none; border: none; cursor: pointer; font-size: 20px; padding: 5px; color: var(--primary-color); }
-        #editNicknameInputContainer { display: none; align-items: center; gap: 5px; }
-        #nicknameInput { padding: 8px; border: 1px solid #ccc; border-radius: 5px; }
-        .status { display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 500; }
-        .status.online { color: var(--green-online); }
-        .status .dot { width: 12px; height: 12px; border-radius: 50%; background-color: var(--green-online); }
-        .status.offline .dot { background-color: #6c757d; }
-        .card { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; font-weight: 600; margin-bottom: 8px; }
-        .form-group input, .form-group select { width: 100%; padding: 12px; border: 1px solid var(--gray-border); border-radius: 5px; box-sizing: border-box; }
-        .form-group input:disabled, .form-group select:disabled { background-color: #e9ecef; cursor: not-allowed; }
+        .status { display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 500; margin-bottom: 15px; }
+        .status.online { color: var(--green-color); }
+        .status .dot { width: 12px; height: 12px; border-radius: 50%; background-color: var(--green-color); }
+        .status.offline .dot { background-color: var(--text-secondary); }
+        .country-display { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1.1em; }
+        .country-display img { border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+
+        /* --- CARD PRINCIPAL E FORMULÁRIO --- */
+        .card { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: var(--card-shadow); }
+        .section-title { font-size: 1.5em; color: var(--text-primary); border-bottom: 2px solid var(--primary-color); padding-bottom: 10px; margin-bottom: 25px; }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .btn-save { width: 100%; background-color: #28a745; color: white; padding: 15px; border: none; border-radius: 5px; cursor: pointer; font-size: 1.1em; font-weight: 700; }
+        .form-group { margin-bottom: 25px; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 8px; color: #555; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 5px; box-sizing: border-box; transition: all 0.2s ease-in-out; font-size: 1em; }
+        .form-group input:disabled { background-color: #e9ecef; }
+        .btn-save { width: 100%; background-color: var(--green-color); color: white; padding: 15px; border: none; border-radius: 5px; cursor: pointer; font-size: 1.1em; font-weight: 700; transition: background-color 0.2s; }
+        .btn-save:hover { background-color: var(--green-hover); }
         .language-list { list-style: none; padding: 0; }
         .language-item { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-        .language-item input, .language-item select { flex-grow: 1; }
-        .remove-btn { background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; padding: 5px 10px; }
-        .add-btn { background: var(--primary-color); color: white; border: none; border-radius: 5px; cursor: pointer; padding: 5px 10px; }
-        .country-display { display: flex; align-items: center; gap: 10px; font-size: 1.2em; }
-        .country-display img { border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
-		.connection-controls { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
-        .btn-connect { background-color: var(--primary-color); color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 1em; }
-        .btn-connect:disabled { background-color: #6c757d; cursor: not-allowed; }
-        .btn-accept { background-color: #28a745; }
-        .btn-disconnect { background-color: #dc3545; }
-        .call-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); display: none; justify-content: center; align-items: center; z-index: 9999; }
-        .call-modal-content { background-color: #333; color: white; padding: 40px; border-radius: 15px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); animation: fadeIn 0.3s ease-out; width: 320px; }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
-        .call-modal-content img { width: 100px; height: 100px; border-radius: 50%; border: 3px solid white; margin-bottom: 15px; object-fit: cover; }
-        .call-modal-content h3 { margin: 0; font-size: 1.5em; }
-        .call-modal-content p { margin: 5px 0 25px 0; font-size: 1.1em; opacity: 0.8; }
-        .call-modal-actions button { padding: 12px 25px; border: none; border-radius: 25px; font-size: 1em; font-weight: bold; cursor: pointer; margin: 0 10px; transition: transform 0.2s; }
-        .call-modal-actions button:hover { transform: scale(1.05); }
-        #accept-call-btn { background-color: #28a745; color: white; }
-        #decline-call-btn { background-color: #dc3545; color: white; }
+        .remove-btn { background: var(--red-color); color: white; border: none; border-radius: 5px; cursor: pointer; padding: 5px 10px; }
+        .add-btn { background: var(--primary-color); color: white; border: none; border-radius: 5px; cursor: pointer; padding: 8px 12px; font-size: 0.9em; }
+
+        /* --- NOVO DESIGN PARA MODO DE VISUALIZAÇÃO --- */
+        .profile-card {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border-color);
+        }
+        .profile-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .profile-card-header .icon {
+            font-size: 1.8em;
+            color: var(--primary-color);
+        }
+        .profile-card-header h3 {
+            margin: 0;
+            font-size: 1.3em;
+            color: var(--text-primary);
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        .info-display-group label {
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.9em;
+            margin-bottom: 5px;
+            display: block;
+        }
+        .info-display-group .info-text {
+            color: var(--text-primary);
+            font-size: 1.1em;
+            margin: 0;
+            white-space: pre-wrap;
+        }
+        .info-display-group .info-text.empty {
+            color: #999;
+            font-style: italic;
+        }
+        .language-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .lang-pill {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+            color: white;
+            display: inline-block;
+        }
+        .lang-pill.speaks {
+            background-color: var(--green-color);
+        }
+        .lang-pill.learning {
+            background-color: var(--primary-color);
+        }
+
+        /* --- BOTÕES DE CONEXÃO --- */
+        .connection-controls { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .btn-connect { background-color: var(--primary-color); color: white; border: none; padding: 12px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 1em; transition: background-color 0.2s; }
+        .btn-connect:hover { background-color: var(--primary-hover); }
+        .btn-connect:disabled { background-color: var(--text-secondary); cursor: not-allowed; }
+        .btn-accept { background-color: var(--green-color); }
+        .btn-accept:hover { background-color: var(--green-hover); }
+        .btn-disconnect { background-color: var(--red-color); }
     </style>
 </head>
-<body>
+<body class="loading">
+
     <div class="top-nav">
         <a href="/">Página Inicial</a>
         <a href="/logout">Sair</a>
@@ -92,10 +189,7 @@
                 <div class="skeleton skeleton-avatar"></div>
                 <div class="skeleton skeleton-text" style="width: 60%; margin: 0 auto 10px;"></div>
                 <div class="skeleton skeleton-text" style="width: 40%; margin: 0 auto;"></div>
-                <hr>
-                <div class="skeleton skeleton-text" style="width: 50%; margin: 0 auto;"></div>
             </div>
-
             <div class="profile-content">
                 <div class="profile-picture-container">
                     <img id="profilePicture" src="default-avatar.png" alt="Foto de Perfil">
@@ -103,14 +197,15 @@
                     <button id="uploadButton" title="Trocar imagem">✏️</button>
                 </div>
                 <div class="user-info">
-                    <div class="nickname-container">
-                        <h2 id="nicknameDisplay">[Nickname]</h2>
-                        <button id="editNicknameBtn" title="Editar nickname">✏️</button>
-                        <div id="editNicknameInputContainer">
-                            <input type="text" id="nicknameInput" maxlength="10">
-                            <button id="saveNicknameBtn" title="Salvar nickname">✔️</button>
-                        </div>
-                    </div>
+                   <div class="nickname-container">
+    <h2 id="nicknameDisplay">[Nickname]</h2>
+    <div id="editNicknameInputContainer" style="display: none;">
+        <input type="text" id="nicknameInput" maxlength="10" placeholder="Novo nickname">
+        <button id="saveNicknameBtn" title="Salvar">✔️</button>
+        <button id="cancelNicknameBtn" title="Cancelar">❌</button>
+    </div>
+    <button id="editNicknameBtn" title="Editar nickname">✏️</button>
+</div>
                     <div id="statusDisplay" class="status offline"><div class="dot"></div><span>Offline</span></div>
                     <hr>
                     <div id="countryDisplay" class="country-display">
@@ -118,99 +213,83 @@
                         <span id="countryName"></span>
                     </div>
                     <div id="connection-controls" class="connection-controls" style="display: none;">
+                        <button id="chat-btn" class="btn-connect" style="background-color: #17a2b8;">Conversar</button>
                         <button id="connect-btn" class="btn-connect"></button>
-                        <button id="disconnect-btn" class="btn-connect btn-disconnect" style="display: none;">Desconectar</button>
                     </div>
                 </div>
             </div>
         </aside>
 
-        <main class="profile-details card">
+        <main id="profile-details" class="profile-details">
             <div class="skeleton-container">
-                <div class="skeleton skeleton-text" style="height: 24px; width: 150px; margin-bottom: 25px;"></div>
-                <div class="form-row">
-                    <div>
-                        <div class="skeleton skeleton-text" style="width: 50px; height: 18px;"></div>
-                        <div class="skeleton skeleton-input"></div>
-                    </div>
-                    <div>
-                        <div class="skeleton skeleton-text" style="width: 80px; height: 18px;"></div>
-                        <div class="skeleton skeleton-input"></div>
-                    </div>
-                </div>
-                <div class="skeleton skeleton-text" style="width: 50px; height: 18px;"></div>
-                <div class="skeleton skeleton-input"></div>
-                <hr style="margin: 20px 0;">
-                <div class="skeleton skeleton-text" style="height: 24px; width: 100px; margin-bottom: 25px;"></div>
-                <div class="skeleton skeleton-input"></div>
-                <div class="skeleton skeleton-button"></div>
+                <div class="skeleton skeleton-card"></div>
+                <div class="skeleton skeleton-card"></div>
             </div>
             
             <div class="profile-content">
-                <form id="profileForm">
-                    <h3>Dados Gerais</h3>
+
+                <div id="view-mode-container">
+                    <div class="profile-card">
+                        <div class="profile-card-header">
+                            <span class="icon">👤</span>
+                            <h3>Dados Gerais</h3>
+                        </div>
+                        <div class="info-grid">
+                            <div id="fullNameDisplay" class="info-display-group"></div>
+                            <div id="ageDisplay" class="info-display-group"></div>
+                        </div>
+                    </div>
+
+                    <div class="profile-card">
+                        <div class="profile-card-header">
+                            <span class="icon">🌎</span>
+                            <h3>Idiomas</h3>
+                        </div>
+                        <div id="languagesSpokenDisplay" class="info-display-group"></div>
+                        <div id="languagesLearningDisplay" class="info-display-group"></div>
+                    </div>
+
+                    <div class="profile-card">
+                        <div class="profile-card-header">
+                            <span class="icon">💬</span>
+                            <h3>Sobre</h3>
+                        </div>
+                        <div id="aboutMeDisplay" class="info-display-group"></div>
+                        <div id="perfectPartnerDisplay" class="info-display-group"></div>
+                        <div id="learningReasonDisplay" class="info-display-group"></div>
+                    </div>
+                </div>
+
+                <form id="profileForm" class="card" style="display: none;">
+                    <h3 class="section-title">Editar Perfil</h3>
                     <div class="form-row">
-                        <div class="form-group">
-                            <label for="firstName">Nome</label>
-                            <input type="text" id="firstName" name="firstName">
-                        </div>
-                        <div class="form-group">
-                            <label for="lastName">Sobrenome</label>
-                            <input type="text" id="lastName" name="lastName">
-                        </div>
+                        <div class="form-group"><label for="firstName">Nome</label><input type="text" id="firstName" name="firstName"></div>
+                        <div class="form-group"><label for="lastName">Sobrenome</label><input type="text" id="lastName" name="lastName"></div>
                     </div>
-                    <div class="form-group">
-                        <label for="email">E-mail</label>
-                        <input type="email" id="email" name="email" disabled title="O e-mail não pode ser alterado.">
-                    </div>
+                    <div class="form-group"><label for="email">E-mail (não pode ser alterado)</label><input type="email" id="email" name="email" disabled></div>
                     <div class="form-row">
-                        <div class="form-group">
-                            <label for="dateOfBirth">Data de Nascimento</label>
-                            <input type="date" id="dateOfBirth" name="dateOfBirth">
-                        </div>
-                        <div class="form-group">
-                            <label for="phone">Telefone</label>
-                            <input type="tel" id="phone" name="phone" placeholder="(Opcional)">
-                        </div>
+                        <div class="form-group"><label for="dateOfBirth">Data de Nascimento</label><input type="date" id="dateOfBirth" name="dateOfBirth"></div>
+                        <div class="form-group"><label for="country">País</label><select id="country" name="country"><option value="">Não especificado</option></select></div>
                     </div>
-                    <div class="form-group">
-                        <label for="country">País de Nascimento</label>
-                        <input type="text" id="country" name="country" placeholder="Ex: Brasil">
-                    </div>
-                    <hr>
-                    <h3>Idiomas</h3>
+                    
+                    <h3 class="section-title" style="margin-top: 40px;">Idiomas</h3>
                     <div class="form-row">
-                        <div class="form-group">
-                            <label>Eu falo:</label>
-                            <ul id="languagesSpokenList" class="language-list"></ul>
-                            <button type="button" class="add-btn" id="addSpokenLanguageBtn">Adicionar</button>
-                        </div>
-                        <div class="form-group">
-                            <label>Quero aprender:</label>
-                            <ul id="languagesLearningList" class="language-list"></ul>
-                            <button type="button" class="add-btn" id="addLearningLanguageBtn">Adicionar</button>
-                        </div>
+                        <div class="form-group"><label>Eu falo:</label><ul id="languagesSpokenList" class="language-list"></ul><button type="button" class="add-btn" id="addSpokenLanguageBtn">Adicionar</button></div>
+                        <div class="form-group"><label>Quero aprender:</label><ul id="languagesLearningList" class="language-list"></ul><button type="button" class="add-btn" id="addLearningLanguageBtn">Adicionar</button></div>
                     </div>
+
+                    <h3 class="section-title" style="margin-top: 40px;">Informações Adicionais</h3>
+                    <div class="form-group"><label for="aboutMe">Sobre mim</label><textarea id="aboutMe" name="aboutMe" rows="6"></textarea></div>
+                    <div class="form-group"><label for="perfectPartner">Como seria sua parceria linguística perfeita?</label><input type="text" id="perfectPartner" name="perfectPartner"></div>
+                    <div class="form-group"><label for="learningReason">Por que você decidiu aprender novos idiomas?</label><input type="text" id="learningReason" name="learningReason"></div>
+                    
                     <button type="submit" class="btn-save">Salvar Alterações</button>
                 </form>
             </div>
         </main>
     </div>
-
-    <div id="incoming-call-modal" class="call-modal-overlay" style="display: none;">
-        <div class="call-modal-content">
-            <img id="caller-avatar" src="/default-avatar.png" alt="Avatar">
-            <h3 id="caller-name"></h3>
-            <p>está te ligando...</p>
-            <div class="call-modal-actions">
-                <button id="accept-call-btn">✅ Aceitar</button>
-                <button id="decline-call-btn">❌ Recusar</button>
-            </div>
-        </div>
-    </div>
-	
-	<script src="/socket.io/socket.io.js"></script>
-    <script src="/js/global.js"></script>
+    
+    <script src="/socket.io/socket.io.js"></script>
     <script src="profile.js"></script>
 </body>
 </html>

@@ -1,0 +1,277 @@
+/* /css/dm.css */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    background-color: #f4f7f6;
+    color: #333;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.conversation-item .conversation-details p {
+    
+    /* 1. Impede que o texto quebre para a próxima linha */
+    white-space: nowrap;
+
+    /* 2. Esconde o texto que transborda para fora do container */
+    overflow: hidden;
+
+    /* 3. Adiciona os '...' no final do texto que foi cortado */
+    text-overflow: ellipsis;
+
+    /* Bônus: É uma boa prática definir uma largura máxima para garantir que o corte funcione.
+       Ajuste este valor conforme necessário para o seu design. */
+    max-width: 170px; 
+}
+
+/* Adicione este CSS para o novo link de perfil */
+.view-profile-link {
+    font-size: 0.75em; /* Tamanho pequeno e sutil */
+    color: var(--primary-color, #007aff); /* Usa a cor primária do seu site */
+    text-decoration: none;
+    margin-left: 12px; /* Espaçamento em relação ao status */
+    font-weight: 500;
+    transition: text-decoration 0.2s ease-in-out;
+    align-self: center; /* Alinha verticalmente com o status */
+}
+
+.view-profile-link:hover {
+    text-decoration: underline;
+}
+
+.main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    height: 60px;
+    background: linear-gradient(to right, #007bff, #0056b3);
+    color: white;
+    flex-shrink: 0;
+}
+.logo { font-size: 1.8em; font-weight: bold; color: white; text-decoration: none; }
+.user-profile a { display: flex; align-items: center; text-decoration: none; color: white; }
+.user-profile img { width: 40px; height: 40px; border-radius: 50%; margin-left: 10px; object-fit: cover; border: 2px solid white; }
+
+.dm-container {
+    display: flex;
+    flex-grow: 1;
+    height: calc(100vh - 60px);
+}
+
+.conversations-sidebar {
+    width: 320px;
+    flex-shrink: 0;
+    border-right: 1px solid #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    background-color: #fff;
+}
+.sidebar-header { padding: 20px; border-bottom: 1px solid #e0e0e0; }
+.sidebar-header h2 { margin: 0; font-size: 1.5em; }
+#conversations-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; }
+.conversation-item { display: flex; align-items: center; padding: 15px 20px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
+.conversation-item:hover { background-color: #f8f9fa; }
+.conversation-item.active { background-color: #e9f5ff; }
+.conversation-item img { width: 50px; height: 50px; border-radius: 50%; margin-right: 15px; object-fit: cover; }
+.conversation-details h4 { margin: 0; font-size: 1.1em; }
+.conversation-details p { margin: 5px 0 0; color: #6c757d; font-size: 0.9em; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
+
+
+/* --- AJUSTE PRINCIPAL --- */
+.chat-main {
+    flex-grow: 1;
+    display: flex; /* Mantemos flex aqui para centralizar a mensagem de boas-vindas */
+    flex-direction: column;
+    height: 100%;
+}
+
+/* O contêiner do chat ATIVO é que se torna o flex container principal */
+#chat-content {
+    display: flex; /* Esta propriedade é ativada via JS, mas garantimos aqui */
+    flex-direction: column;
+    flex-grow: 1;
+    height: 100%;
+}
+
+
+.chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px 20px;
+    border-bottom: 1px solid #e0e0e0;
+    background-color: #f8f9fa;
+    flex-shrink: 0; /* Impede que o header do chat encolha */
+}
+.chat-header .user-info { display: flex; align-items: center; gap: 10px; }
+.chat-header img { width: 45px; height: 45px; border-radius: 50%; }
+.status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+.status-dot.online { background-color: #28a745; }
+.status-dot.offline { background-color: #6c757d; }
+
+#messages-container {
+    flex-grow: 1; /* A MÁGICA: empurra o input para baixo */
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.message-wrapper {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    max-width: 80%;
+}
+.message-avatar { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.message { padding: 10px 15px; border-radius: 20px; line-height: 1.4; word-break: break-word; }
+
+/* Estilos para o balão da mensagem */
+.message-wrapper.sent .message {
+    background-color: #007bff;
+    color: white;
+    border-bottom-right-radius: 5px;
+}
+.message-wrapper.received .message {
+    background-color: #e9ecef;
+    color: #333;
+    border-bottom-left-radius: 5px;
+}
+
+/* Alinha o wrapper inteiro (balão + avatar) */
+.message-wrapper.sent {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+}
+.message-wrapper.received {
+    align-self: flex-start;
+}
+
+
+.chat-input-area {
+    position: relative; /* FUNDAMENTAL para que o #emoji-picker seja posicionado corretamente */
+    display: flex; /* Garante que os elementos dentro do input-area fiquem em linha */
+    align-items: center;
+    padding: 15px 20px;
+    border-top: 1px solid #e0e0e0;
+    background-color: #f8f9fa;
+    flex-shrink: 0;
+    gap: 10px; /* Adicionado para um melhor espaçamento entre os botões e input */
+}
+
+.chat-input-area button { background: none; border: none; font-size: 1.5em; cursor: pointer; color: #6c757d; padding: 10px; }
+#message-input { flex-grow: 1; border: 1px solid #ccc; border-radius: 20px; padding: 12px 20px; font-size: 1em; }
+.send-btn { transform: rotate(90deg); color: #007bff !important; }
+
+/* Estilos adicionais */
+.welcome-message {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+}
+
+/* Estilos para a nova barra de busca de conversas */
+.sidebar-search-container {
+    position: relative;
+    padding: 15px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.sidebar-search-container .search-icon {
+    position: absolute;
+    left: 25px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #999;
+}
+
+#search-conversations {
+    width: 100%;
+    padding: 10px 10px 10px 35px; /* Espaço para o ícone */
+    border-radius: 20px;
+    border: 1px solid #ccc;
+    background-color: #f0f2f5;
+    box-sizing: border-box; /* Garante que o padding não aumente a largura total */
+}
+
+#search-conversations:focus {
+    outline: none;
+    border-color: #007bff;
+    background-color: #fff;
+}
+
+.clear-search-btn {
+    position: absolute;
+    right: 25px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    color: #999;
+    cursor: pointer;
+}
+
+/* Estilos do seletor de emoji */
+.chat-input-area {
+    position: relative; /* Necessário para posicionar o picker em relação a esta área */
+}
+
+#emoji-picker {
+    display: none; /* Inicia escondido */
+    position: absolute; /* Posicionamento flutuante */
+    bottom: calc(100% + 10px); /* Ajustado para 10px acima da borda superior do input-area */
+    left: 10px; /* Alinha à esquerda da área de input */
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+    z-index: 10;
+    padding: 10px;
+    max-height: 300px; /* Altura máxima para permitir scroll */
+    overflow-y: auto; /* Adiciona scroll se houver muitos emojis */
+    width: 300px; /* Largura para acomodar a grade */
+}
+.emoji-category {
+    font-weight: bold;
+    font-size: 0.9em;
+    color: #6c757d;
+    margin-top: 10px;
+    margin-bottom: 5px;
+    padding-left: 5px;
+    display: block; /* Garante que a categoria ocupe a largura total */
+}
+
+.emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr); /* Ajustado para mais colunas */
+    gap: 5px;
+}
+
+.emoji-grid span {
+    cursor: pointer;
+    font-size: 1.5em;
+    padding: 5px;
+    text-align: center;
+    border-radius: 5px;
+    transition: background-color 0.2s;
+}
+
+.emoji-grid span:hover {
+    background-color: #f0f0f0;
+}
+
+.message .chat-image {
+    max-width: 100%;       /* A imagem não vai ultrapassar a largura do balão da mensagem */
+    max-height: 300px;     /* Altura máxima para não ocupar muito espaço vertical */
+    height: auto;          /* Mantém a proporção da imagem */
+    border-radius: 12px;
+    object-fit: cover;     /* Garante que a imagem preencha o espaço sem distorcer */
+    cursor: pointer;       /* Indica que a imagem é clicável para ver em tamanho original */
+}

@@ -10,9 +10,12 @@ function isAuthenticated(req, res, next) {
         return next();
     }
     res.status(401).json({ error: 'Não autorizado' });
+	
 }
 
+
 // Rota para buscar o perfil do próprio utilizador logado
+// NENHUMA ALTERAÇÃO NECESSÁRIA AQUI - JÁ BUSCA OS NOVOS CAMPOS AUTOMATICAMENTE
 router.get('/me', isAuthenticated, async (req, res) => {
     try {
         const profile = await prisma.profile.findUnique({
@@ -37,15 +40,37 @@ router.get('/me', isAuthenticated, async (req, res) => {
     }
 });
 
-// Rota para atualizar o perfil do utilizador logado
 router.put('/me', isAuthenticated, async (req, res) => {
-    const { nickname, firstName, lastName, dateOfBirth, phone, country, profilePicture, languagesSpoken, languagesLearning } = req.body;
-    
+    // --- NOSSO TESTE COMEÇA AQUI ---
+    console.log('--- [DEBUG] EXECUTANDO A VERSÃO MAIS RECENTE DA ROTA PUT /me ---');
+    console.log('[DEBUG] Dados recebidos do frontend (req.body):', req.body);
+    // --- FIM DO TESTE ---
+
+    const {
+        nickname,
+        firstName,
+        lastName,
+        dateOfBirth,
+        country,
+        profilePicture,
+        languagesSpoken,
+        languagesLearning,
+        aboutMe,
+        perfectPartner,
+        learningReason
+    } = req.body;
+
     try {
-        const [, updatedProfile] = await prisma.$transaction([
+        if (!nickname || nickname.trim() === '') {
+            return res.status(400).json({ error: 'O nickname não pode estar vazio.' });
+        }
+
+        const [updatedUser, updatedProfile] = await prisma.$transaction([
             prisma.user.update({
                 where: { id: req.user.id },
-                data: { nickname: nickname },
+                data: {
+                    nickname: nickname 
+                },
             }),
             prisma.profile.update({
                 where: { userId: req.user.id },
@@ -53,19 +78,25 @@ router.put('/me', isAuthenticated, async (req, res) => {
                     firstName,
                     lastName,
                     dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-                    phone,
                     country,
                     profilePicture,
                     languagesSpoken,
-                    languagesLearning
+                    languagesLearning,
+                    aboutMe,
+                    perfectPartner,
+                    learningReason
                 },
             })
         ]);
         
         res.json(updatedProfile);
+
     } catch (error) {
         console.error("Erro ao atualizar perfil:", error);
-        res.status(500).json({ error: 'Erro interno do servidor' });
+        if (error.code === 'P2002' && error.meta?.target?.includes('nickname')) {
+             return res.status(409).json({ error: 'Este nickname já está em uso.' });
+        }
+        res.status(500).json({ error: 'Erro interno do servidor ao atualizar o perfil.' });
     }
 });
 
@@ -102,7 +133,9 @@ router.get('/search', async (req, res) => {
 });
 
 
-router.get('/:userId', async (req, res) => { // Removido o middleware isAuthenticated
+// Rota para buscar o perfil de um utilizador específico (público)
+// NENHUMA ALTERAÇÃO NECESSÁRIA AQUI - JÁ BUSCA OS NOVOS CAMPOS AUTOMATICAMENTE
+router.get('/:userId', async (req, res) => {
     try {
         const loggedInUser = req.user; // Pode ser undefined se não estiver logado
         const profileUserId = req.params.userId;

@@ -211,30 +211,6 @@ router.get('/logout', (req, res, next) => {
     });
 });
 
-// Rota para verificar status de login
-router.get('/api/user/status', async (req, res) => {
-    if (req.isAuthenticated()) {
-        try {
-            const userId = req.user.id;
-            const [userWithProfile, connections, pendingRequests] = await Promise.all([
-                prisma.user.findUnique({ where: { id: userId }, include: { profile: true } }),
-                prisma.connection.findMany({ where: { status: 'ACCEPTED', OR: [{ requesterId: userId }, { addresseeId: userId }] }, include: { requester: { select: { id: true, nickname: true, profile: { select: { profilePicture: true } } } }, addressee: { select: { id: true, nickname: true, profile: { select: { profilePicture: true } } } } } }),
-                prisma.connection.findMany({ where: { addresseeId: userId, status: 'PENDING' }, include: { requester: { select: { id: true, nickname: true, profile: { select: { profilePicture: true } } } } } })
-            ]);
-            const friends = connections.map(conn => {
-                const friend = conn.requesterId === userId ? conn.addressee : conn.requester;
-                return { connectionId: conn.id, friendInfo: { id: friend.id, nickname: friend.nickname, profilePicture: friend.profile?.profilePicture } };
-            });
-            res.json({ loggedIn: true, user: { id: userWithProfile.id, nickname: userWithProfile.nickname, role: req.user.role, profile: userWithProfile.profile }, connections: friends, pendingRequests: pendingRequests });
-        } catch (error) {
-            console.error("Erro ao buscar status completo do usuário:", error);
-            res.status(500).json({ loggedIn: false, error: 'Erro interno do servidor' });
-        }
-    } else {
-        res.json({ loggedIn: false });
-    }
-});
-
 
 // Rota de Recuperação de Senha (MODIFICADA para usar a API SendGrid)
 

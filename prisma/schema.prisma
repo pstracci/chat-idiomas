@@ -1,5 +1,3 @@
-// prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,6 +5,143 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id                            String          @id @default(uuid())
+  nickname                      String          @db.VarChar(10)
+  email                         String          @unique
+  password                      String?
+  googleId                      String?         @unique
+  facebookId                    String?         @unique
+  createdAt                     DateTime        @default(now())
+  updatedAt                     DateTime        @updatedAt
+  emailConsent                  Boolean         @default(false)
+  passwordResetExpires          DateTime?
+  passwordResetToken            String?         @unique
+  isOnline                      Boolean         @default(false)
+  lastSeen                      DateTime        @default(now())
+  credits                       Int             @default(10)
+  role                          Role            @default(USER)
+  emailConfirmationToken        String?         @unique
+  emailConfirmationTokenExpires DateTime?
+  isVerified                    Boolean         @default(false)
+  receivedConnections           Connection[]    @relation("receivedConnections")
+  sentConnections               Connection[]    @relation("sentConnections")
+  notifications                 Notification[]
+  profile                       Profile?
+  storyProgresses               StoryProgress[]
+  participants                  participants[]
+  sentMessages                  Message[]
+
+  @@index([email])
+}
+
+model Profile {
+  id                String    @id @default(uuid())
+  userId            String    @unique
+  firstName         String?
+  lastName          String?
+  dateOfBirth       DateTime?
+  phone             String?
+  country           String?
+  profilePicture    String?
+  languagesSpoken   Json      @default("[]")
+  languagesLearning String[]  @default([])
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  aboutMe           String?
+  perfectPartner    String?
+  learningReason    String?
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+model Session {
+  sid    String   @id
+  sess   Json
+  expire DateTime
+
+  @@map("session")
+}
+
+model Connection {
+  id            String           @id @default(uuid())
+  requesterId   String
+  addresseeId   String
+  status        ConnectionStatus @default(PENDING)
+  createdAt     DateTime         @default(now())
+  addressee     User             @relation("receivedConnections", fields: [addresseeId], references: [id], onDelete: Cascade)
+  requester     User             @relation("sentConnections", fields: [requesterId], references: [id], onDelete: Cascade)
+  notifications Notification[]
+
+  @@unique([requesterId, addresseeId])
+  @@index([requesterId])
+  @@index([addresseeId])
+}
+
+model Notification {
+  id                String           @id @default(uuid())
+  userId            String
+  type              NotificationType
+  content           String
+  relatedId         String?
+  read              Boolean          @default(false)
+  createdAt         DateTime         @default(now())
+  relatedConnection Connection?      @relation(fields: [relatedId], references: [id])
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Conversation {
+  id           String         @id @default(uuid())
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  participants participants[]
+  messages     Message[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  createdAt      DateTime     @default(now())
+  text           String?
+  imageUrl       String?
+  conversationId String
+  senderId       String
+  read           Boolean      @default(false)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  // --- ÍNDICES ADICIONADOS PARA PERFORMANCE ---
+  //@@index([senderId])
+  //@@index([conversationId, read, senderId], name: "conversation_read_sender_index") // Otimiza a contagem de não lidas
+  @@map("messages")
+}
+
+model StoryProgress {
+  id              String   @id @default(cuid())
+  userId          String
+  storyId         String
+  unlockedEndings String[]
+  updatedAt       DateTime @default(now()) @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, storyId])
+}
+
+model participants {
+  A             String
+  B             String
+  conversations Conversation @relation(fields: [A], references: [id], onDelete: Cascade)
+  User          User         @relation(fields: [B], references: [id], onDelete: Cascade)
+
+  @@unique([A, B], map: "_participants_AB_unique")
+  @@index([B], map: "_participants_B_index")
+  @@map("_participants")
 }
 
 enum Role {
@@ -19,123 +154,8 @@ enum NotificationType {
   SYSTEM_MESSAGE
 }
 
-model User {
-  id        String    @id @default(uuid())
-  nickname  String    @db.VarChar(10)
-  email     String    @unique
-  password  String?
-  googleId   String?   @unique
-  facebookId String?   @unique
-  emailConsent Boolean @default(false)
-
-  passwordResetToken   String?   @unique
-  passwordResetExpires DateTime?
-
-  isOnline  Boolean   @default(false)
-  lastSeen  DateTime  @default(now())
-  credits   Int       @default(10)
-  role      Role      @default(USER)
-  
-  profile   Profile?
-  sentConnections     Connection[]     @relation("sentConnections")
-  receivedConnections Connection[]     @relation("receivedConnections")
-  
-  conversations       Conversation[]   @relation("participants")
-  sentMessages        Message[]
-  notifications       Notification[]
-  
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  
-  isVerified                    Boolean    @default(false)
-  emailConfirmationToken        String?    @unique
-  emailConfirmationTokenExpires DateTime?
-  @@index([email])
-}
-
-model Profile {
-  id                String    @id @default(uuid())
-  userId            String    @unique
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  firstName         String?
-  lastName          String?
-  dateOfBirth       DateTime?
-  phone             String?
-  country           String?
-  profilePicture    String?
-  languagesSpoken   Json      @default("[]") 
-  languagesLearning String[]  @default([])
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  @@index([userId])
-}
-
-model Session {
-  sid    String   @id
-  sess   Json
-  expire DateTime
-  @@map("session")
-}
-
 enum ConnectionStatus {
   PENDING
   ACCEPTED
   BLOCKED
-}
-
-model Connection {
-  id          String           @id @default(uuid())
-  requesterId String
-  addresseeId String
-  status      ConnectionStatus @default(PENDING)
-  requester   User             @relation("sentConnections", fields: [requesterId], references: [id], onDelete: Cascade)
-  addressee   User             @relation("receivedConnections", fields: [addresseeId], references: [id], onDelete: Cascade)
-  createdAt   DateTime         @default(now())
-  @@unique([requesterId, addresseeId])
-  @@index([requesterId])
-  @@index([addresseeId])
-}
-
-model Notification {
-  id         String           @id @default(uuid())
-  userId     String           
-  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type       NotificationType
-  content    String           
-  relatedId  String?
-  read       Boolean          @default(false)
-  createdAt  DateTime         @default(now())
-
-  @@index([userId])
-}
-
-model Conversation {
-  id           String    @id @default(uuid())
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  participants User[]    @relation("participants")
-  messages     Message[]
-
-  @@map("conversations")
-}
-
-model Message {
-  id             String       @id @default(uuid())
-  createdAt      DateTime     @default(now())
-  
-  text           String?      
-  imageUrl       String?      
-
-  // --- CAMPO ADICIONADO ---
-  read           Boolean      @default(false) // Para rastrear se a mensagem foi lida
-
-  conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-
-  senderId       String
-  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
-
-  @@index([conversationId])
-  @@map("messages")
 }

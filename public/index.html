@@ -1,414 +1,1075 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-<head>
+  <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<meta name="description" content="Encontre parceiros para praticar inglês, espanhol, francês e mais! Salas de chat gratuitas para conversação e aprendizado de idiomas com pessoas do mundo todo. Entre no Verbi e acelere sua fluência!">
-    <title>Verbi - Jogue, conecte-se  e pratique Idiomas com nativos do mundo todo!</title>
+    <meta
+          name="description"
+          content="Encontre parceiros para praticar inglês, espanhol, francês e mais! Salas de chat gratuitas para conversação e aprendizado de idiomas com pessoas do mundo todo. Entre no Verbi e acelere sua fluência!">
+    <title>Verbi - Jogue, conecte-se e pratique Idiomas com nativos do mundo todo!</title>
     <style>
-        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0;background-color:#f4f7f6;color:#333;line-height:1.6}
-        .top-nav{background-color:#343a40;color:white;padding:8px 40px;display:flex;justify-content:flex-end;align-items:center;font-size:.9em}
-        #logged-in-view {display: none; align-items: center; gap: 15px;}
-        .top-nav a{color:white;text-decoration:none;margin:0;font-weight:500}.top-nav a:hover{text-decoration:underline}#logged-in-view span{margin:0}
-        header{background:linear-gradient(to right,#007bff,#0056b3);color:white;padding:30px 20px;text-align:center;box-shadow:0 4px 8px rgba(0,0,0,.1)}
-        header h1{margin:0;font-size:2.5em}
-        header p{margin-top:5px;font-size:1.2em;opacity:.9}
-        .hero{display:flex;align-items:center;justify-content:center;padding:50px 20px;gap:40px}
-        .hero-content{flex-basis:50%;max-width:500px;display: flex;flex-direction: column;gap: 25px;}
-        .hero-image-container{flex-basis:40%;max-width:400px;text-align:center;position:relative;display:flex;align-items:center;justify-content:center}
-        .hero-image{max-width:100%;height:auto;border-radius:50%;box-shadow:0 8px 25px rgba(0,86,179,.2);object-fit:cover}
-        .speech-bubble{position:absolute;background-color:#28a745;color:white;padding:8px 15px;border-radius:20px;font-size:.9em;font-weight:700;box-shadow:0 4px 6px rgba(0,0,0,.1);opacity:0;animation-fill-mode:forwards;animation-duration:1.5s;animation-timing-function:ease-out}.bubble-en{top:15%;left:10%;animation-name:floatBubble;animation-delay:.2s}.bubble-es{top:30%;right:0;background-color:#ffc107;color:#333;animation-name:floatBubble;animation-delay:.5s}.bubble-fr{bottom:25%;left:5%;background-color:#dc3545;animation-name:floatBubble;animation-delay:.8s}.bubble-pt{bottom:10%;right:10%;background-color:#17a2b8;animation-name:floatBubble;animation-delay:1.1s}@keyframes floatBubble{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-        .form-container{background-color:#fff;padding:30px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,.1)}
-        .form-group{margin-bottom:20px}
-        .form-group label{display:block;margin-bottom:8px;color:#555;font-weight:700}
-        .form-group input,.form-group select{width:100%;padding:12px;border:1px solid #ccc;border-radius:5px;box-sizing:border-box;font-size:1em}
-        button[type=submit]{width:100%;background-color:#28a745;color:white;padding:15px;border:none;border-radius:5px;cursor:pointer;font-size:1.1em;font-weight:700;transition:background-color .3s ease}
-        button[type=submit]:hover{background-color:#218838}
-        main{padding:20px;max-width:960px;margin:20px auto; display: flex; gap: 30px; align-items: flex-start;}
-        .main-content { flex: 2; }
-        .sidebar-content { flex: 1; }
-        section{background-color:#fff;padding:30px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,.08);margin-bottom:30px}
-        section h2{text-align:center;margin-top:0;margin-bottom:25px;color:#0056b3}
-        .room-item{background-color:#f8f9fa;padding:15px;margin-bottom:10px;border:1px solid #e9ecef;border-radius:5px;display:flex;justify-content:space-between;align-items:center;transition:transform .2s ease,box-shadow .2s ease; cursor: pointer;}
-        .room-item:hover{transform:translateY(-2px);box-shadow:0 4px 8px rgba(0,0,0,.05)}
-        .room-name{font-weight:700;color:#495057;flex-grow:1}
-        .room-count{color:#6c757d;font-size:.9em;white-space:nowrap}
-        footer{text-align:center;padding:20px;margin-top:20px;color:#777;background-color:#e9ecef}
-        footer a{color:#007bff;text-decoration:none}
-        footer a:hover{text-decoration:underline}
-        .color-picker-container{position:relative}
-        .color-picker-wrapper{display:flex;align-items:center;gap:10px}
-        #selectedColorPreview{width:30px;height:30px;border-radius:5px;border:1px solid #ccc}
-        #colorPickerBtn{padding:8px 12px;font-size:.9em;background-color:#6c757d;color:white;border:none;border-radius:5px;cursor:pointer}
-        #colorPickerBtn:hover{background-color:#5a6268}
-        #colorSelector{display:none;position:absolute;top:100%;left:0;width:100%;box-sizing:border-box;z-index:10;grid-template-columns:repeat(8,1fr);gap:5px;margin-top:5px;padding:10px;background:#fff;border:1px solid #dee2e6;border-radius:5px;box-shadow:0 5px 15px rgba(0,0,0,.1)}
-        .color-swatch{width:100%;padding-bottom:100%;border-radius:5px;cursor:pointer;border:2px solid transparent;box-sizing:border-box;transition:transform .2s}
-        .color-swatch:hover{transform:scale(1.1)}
-        .color-swatch.selected{border-color:#007bff}
-        .game-card{background:linear-gradient(to right,#6f42c1,#4a148c);color:white;padding:25px;border-radius:8px;text-align:center;cursor:pointer;transition:transform .3s ease,box-shadow .3s ease}
-        .game-card:hover{transform:scale(1.03);box-shadow:0 10px 20px rgba(0,0,0,.2)}
-        .game-card h3{margin:0 0 10px 0;font-size:1.5em;color:white}
-        .game-card p{margin:0;font-size:1em;opacity:.9}
-        #searchResults{position:absolute;background:white;border:1px solid #ccc;border-top:none;width:100%;box-sizing:border-box;z-index:100;max-height:200px;overflow-y:auto}
-        .search-result-item{display:flex;align-items:center;padding:10px;cursor:pointer;border-bottom:1px solid #f0f0f0}
-        .search-result-item:hover{background-color:#f8f9fa}
-        .search-result-item img{width:40px;height:40px;border-radius:50%;margin-right:10px;object-fit:cover}
-        .user-search-container { position: relative; }
-        @media (max-width:960px){ main { flex-direction: column; } }
-        @media (max-width:768px){ .hero{flex-direction:column;text-align:center}header h1{font-size:2em}.hero-image-container{margin-top:30px;min-height:250px} }
-        
-        .connections-widget, .dm-widget { position: fixed; bottom: 20px; width: 280px; max-height: 400px; background: #fff; border-radius: 8px; box-shadow: 0 5px 20px rgba(0,0,0,0.15); z-index: 1000; display: none; flex-direction: column; }
-        .connections-widget { left: 20px; }
-        .dm-widget { left: 320px; width: 320px; }
-        
-        .widget-header { padding: 10px 15px; background-color: #343a40; color: white; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center; }
-        .widget-header h3 { margin: 0; font-size: 1.1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: white; }
-        .widget-header .user-info { display: flex; align-items: center; gap: 10px; min-width: 0; }
-        .widget-header .user-info img { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; }
-        .widget-header .controls { display: flex; align-items: center; }
-        .widget-control { cursor: pointer; font-size: 1.5em; line-height: 1; background: none; border: none; color: white; padding: 0 5px; }
+	
+/* Ajusta o padding da área de mensagens para evitar sobreposição */
+.messages {
+    padding-top: 0; 
+}
 
-        .widget-body { overflow-y: auto; padding: 5px; flex-grow: 1; }
-        .connections-list { list-style: none; padding: 0; margin: 0; }
-        .connection-item { display: flex; align-items: center; padding: 8px 10px; border-radius: 5px; position: relative; padding-left: 30px; }
-        .connection-item-link { text-decoration: none; color: inherit; display: flex; align-items: center; flex-grow: 1; }
-        .connection-item:hover { background-color: #f1f1f1; }
-        .connection-item img { width: 35px; height: 35px; border-radius: 50%; margin-right: 10px; object-fit: cover; }
-        .connection-item .action-buttons { margin-left: auto; display: flex; align-items: center;}
-        .btn-video { background: none; border: none; font-size: 1.2em; cursor: pointer; padding: 5px; transition: color 0.3s; color: #28a745;}
-        .btn-video:hover { opacity: 0.7; }
-        .btn-chat { background: none; border: none; font-size: 1.2em; cursor: pointer; color: #007bff; padding: 5px; position: relative; }
-        .btn-chat:hover { opacity: 0.7; }
+	/* --- ESTILOS PARA O FORMULÁRIO DE BUSCA COMPACTO --- */
+.filter-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Cria duas colunas de largura igual */
+    gap: 15px 20px; /* Espaçamento vertical e horizontal */
+    margin-bottom: 20px; /* Espaço antes do botão "Buscar" */
+}
 
-        .dm-notification-badge { position: absolute; top: 0; right: 0; width: 16px; height: 16px; background-color: #dc3545; color: white; border-radius: 50%; font-size: 10px; font-weight: bold; display: flex; align-items: center; justify-content: center; line-height: 1; border: 1px solid white; }
-        
-        .dm-body { padding: 10px; display: flex; flex-direction: column; gap: 10px; }
-        .dm-message { max-width: 80%; padding: 8px 12px; border-radius: 18px; line-height: 1.4; word-wrap: break-word; }
-        .dm-message.sent { background-color: #007bff; color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
-        .dm-message.received { background-color: #e9ecef; color: #333; align-self: flex-start; border-bottom-left-radius: 4px; }
-        .dm-footer { padding: 10px; border-top: 1px solid #eee; position: relative; }
-        .dm-form { display: flex; align-items: center; gap: 5px; }
-        .dm-form input { flex-grow: 1; border: 1px solid #ccc; border-radius: 20px; padding: 10px 15px; font-size: 1em; }
-        .dm-form .dm-send-btn { background: none; border: none; cursor: pointer; font-size: 1.5em; color: #007bff; padding: 5px; transform: rotate(90deg); }
-        
-        /* --- ESTILO ADICIONADO PARA O BOTÃO DE EMOJI E O PAINEL --- */
-        .dm-control-btn { background: none; border: none; cursor: pointer; font-size: 1.5em; padding: 5px; color: #6c757d; }
-        .emoji-picker { display: none; position: absolute; bottom: 100%; left: 10px; width: 300px; background: #fff; border-radius: 8px; box-shadow: 0 -5px 15px rgba(0,0,0,0.1); z-index: 1001; padding: 10px; display: none; grid-template-columns: repeat(auto-fill, minmax(35px, 1fr)); gap: 5px; }
-        .emoji-picker span { cursor: pointer; text-align: center; padding: 5px; font-size: 1.5em; border-radius: 5px; }
-        .emoji-picker span:hover { background-color: #f1f1f1; }
+.filter-grid .form-group {
+    margin-bottom: 0; /* Remove a margem padrão para o grid controlar */
+}
 
-        .notification-container { position: relative; }
-        #notification-bell { cursor: pointer; display: flex; align-items: center; }
-        #notification-bell .icon { font-size: 1.5em; line-height: 1; }
-        .notification-badge { position: absolute; top: -5px; right: -8px; background-color: #dc3545; color: white; border-radius: 50%; font-size: 0.75em; font-weight: bold; display: none; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 2px; box-sizing: border-box; }
-        .notifications-dropdown { display: none; position: absolute; top: 40px; right: 0; width: 350px; background: #fff; border-radius: 8px; box-shadow: 0 5px 25px rgba(0,0,0,0.2); z-index: 2000; color: #333; }
-        .notifications-dropdown.active { display: block; }
-        .notifications-dropdown h2 { padding: 15px; margin: 0; font-size: 1.1em; border-bottom: 1px solid #eee; }
-        .requests-list { list-style: none; padding: 0; margin: 0; max-height: 300px; overflow-y: auto; }
-        .request-item { display: flex; align-items: center; padding: 10px 15px; border-bottom: 1px solid #eee; }
-        .request-item:last-child { border-bottom: none; }
-        .request-item img { width: 40px; height: 40px; border-radius: 50%; margin-right: 15px; }
-        .request-item .info { flex-grow: 1; font-size: 0.9em; }
-        .request-item .actions button { margin-left: 5px; padding: 5px 10px; border-radius: 5px; cursor: pointer; border: none; color: white; }
-        .btn-accept { background-color: #28a745; }
-        .btn-reject { background-color: #6c757d; }
-        .connections-widget, .hero, header, main, footer { z-index: 1; }
-        .status-dot { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); height: 10px; width: 10px; border-radius: 50%; border: 2px solid #fff; z-index: 2; }
-        .status-dot.online { background-color: #28a745; }
-        .status-dot.offline { background-color: #6c757d; }
-        .call-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); display: none; justify-content: center; align-items: center; z-index: 9999; }
-        .call-modal-content { background-color: #333; color: white; padding: 40px; border-radius: 15px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); animation: fadeIn 0.3s ease-out; width: 320px; }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
-        .call-modal-content img { width: 100px; height: 100px; border-radius: 50%; border: 3px solid white; margin-bottom: 15px; object-fit: cover; }
-        .call-modal-content h3 { margin: 0; font-size: 1.5em; }
-        .call-modal-content p { margin: 5px 0 25px 0; font-size: 1.1em; opacity: 0.8; }
-        .call-modal-actions button { padding: 12px 25px; border: none; border-radius: 25px; font-size: 1em; font-weight: bold; cursor: pointer; margin: 0 10px; transition: transform 0.2s; }
-        .call-modal-actions button:hover { transform: scale(1.05); }
-        #accept-call-btn { background-color: #28a745; color: white; }
-        #decline-call-btn { background-color: #dc3545; color: white; }
-		#preloader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #f4f7f6; z-index: 9999; display: flex; justify-content: center; align-items: center; transition: opacity 0.5s ease, visibility 0.5s ease; }
-        .spinner { width: 50px; height: 50px; border: 5px solid #ccc; border-top-color: #007bff; border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .content-hidden { visibility: hidden; opacity: 0; }
-        .content-visible { visibility: visible; opacity: 1; transition: opacity 0.5s ease; }
+/* Garante que o container de resultados tenha rolagem */
+#search-results-list {
+    max-height: 450px; /* Altura máxima antes da rolagem aparecer */
+    overflow-y: auto;  /* Adiciona a barra de rolagem vertical quando necessário */
+    padding-right: 5px; /* Evita que a barra de rolagem cole no conteúdo */
+}
+
+      /* Estilos para os botões de notificação */
+      .notification-actions {
+        display: flex;
+        gap: 8px;
+        margin-left: auto;
+        /* Alinha os botões à direita */
+        align-items: center;
+      }
+      .btn-notification {
+        background: none;
+        border: 1px solid transparent;
+        border-radius: 5px;
+        padding: 4px 8px;
+        cursor: pointer;
+        font-size: 0.8em;
+        font-weight: bold;
+        transition: background-color 0.2s;
+      }
+      .btn-notification-accept {
+        background-color: #e4f2e9;
+        color: #28a745;
+      }
+      .btn-notification-accept:hover {
+        background-color: #d1ebd5;
+      }
+      .btn-notification-decline {
+        background-color: #fbeae9;
+        color: #dc3545;
+      }
+      .btn-notification-decline:hover {
+        background-color: #f8d7d5;
+      }
+      .btn-notification-dismiss {
+        font-size: 1.4em;
+        color: #6c757d;
+        padding: 0 8px;
+      }
+      .btn-notification-dismiss:hover {
+        color: #343a40;
+      }
+      /* --- Estilos para o Sininho de Notificação --- */
+      #logged-in-view {
+        gap: 20px;
+        /* Aumenta o espaço para acomodar o sino */
+      }
+      .notification-container {
+        position: relative;
+      }
+      @keyframes shake {
+        10%, 90% {
+          transform: translate3d(-1px, 0, 0);
+        }
+        20%, 80% {
+          transform: translate3d(2px, 0, 0);
+        }
+        30%, 50%, 70% {
+          transform: translate3d(-4px, 0, 0);
+        }
+        40%, 60% {
+          transform: translate3d(4px, 0, 0);
+        }
+      }
+      #notification-bell {
+        background: none;
+        border: none;
+        font-size: 1.5em;
+        /* Aumenta o tamanho do ícone */
+        cursor: pointer;
+        color: white;
+        padding: 0;
+      }
+      #notification-count {
+        position: absolute;
+        top: -5px;
+        right: -8px;
+        background-color: #dc3545;
+        color: white;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        font-size: 12px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #343a40;
+        /* Cor de fundo da top-nav */
+      }
+      #notifications-dropdown {
+        position: absolute;
+        top: 180%;
+        /* Ajusta a distância do dropdown */
+        right: 0;
+        background-color: white;
+        color: #333;
+        border-radius: 8px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+        width: 320px;
+        z-index: 100;
+        overflow: hidden;
+        /* Por padrão o global.js controla o display, mas podemos garantir aqui */
+        display: none;
+      }
+      #notifications-dropdown ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+      #requests-list li {
+        padding: 10px 15px;
+        border-bottom: 1px solid #eee;
+      }
+      #requests-list li:last-child {
+        border-bottom: none;
+      }
+      /* --- ESTILOS GERAIS --- */
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        margin: 0;
+        background-color: #f4f7f6;
+        color: #333;
+        line-height: 1.6
+      }
+      .top-nav {
+        background-color: #343a40;
+        color: white;
+        padding: 8px 40px;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        font-size: .9em
+      }
+      #logged-in-view {
+        display: none;
+        align-items: center;
+        gap: 15px;
+      }
+      .top-nav a {
+        color: white;
+        text-decoration: none;
+        margin: 0;
+        font-weight: 500
+      }
+      .top-nav a:hover {
+        text-decoration: underline
+      }
+      #logged-in-view span {
+        margin: 0
+      }
+      header {
+        background: linear-gradient(to right, #007bff, #0056b3);
+        color: white;
+        padding: 30px 20px;
+        text-align: center;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, .1)
+      }
+      header h1 {
+        margin: 0;
+        font-size: 2.5em
+      }
+      header p {
+        margin-top: 5px;
+        font-size: 1.2em;
+        opacity: .9
+      }
+      .form-container {
+        background-color: #fff;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, .1)
+      }
+      .form-group {
+        margin-bottom: 20px
+      }
+      .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        color: #555;
+        font-weight: 700
+      }
+      .form-group input, .form-group select {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        box-sizing: border-box;
+        font-size: 1em
+      }
+      /* Estilo para inputs desabilitados */
+      .form-group input:disabled {
+        background-color: #e9ecef;
+        cursor: not-allowed;
+        opacity: 0.7;
+      }
+      button[type=submit] {
+        width: 100%;
+        background-color: #28a745;
+        color: white;
+        padding: 15px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1.1em;
+        font-weight: 700;
+        transition: background-color .3s ease
+      }
+      button[type=submit]:hover {
+        background-color: #218838
+      }
+      section h2 {
+        text-align: center;
+        margin-top: 0;
+        margin-bottom: 25px;
+        color: #0056b3
+      }
+      footer {
+        text-align: center;
+        padding: 20px;
+        margin-top: 40px;
+        color: #777;
+        background-color: #e9ecef
+      }
+      footer a {
+        color: #007bff;
+        text-decoration: none
+      }
+      footer a:hover {
+        text-decoration: underline
+      }
+      .color-picker-container {
+        position: relative
+      }
+      .color-picker-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 10px
+      }
+      #selectedColorPreview {
+        width: 30px;
+        height: 30px;
+        border-radius: 5px;
+        border: 1px solid #ccc
+      }
+      #colorPickerBtn {
+        padding: 8px 12px;
+        font-size: .9em;
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer
+      }
+      #colorPickerBtn:hover {
+        background-color: #5a6268
+      }
+      #colorSelector {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        box-sizing: border-box;
+        z-index: 10;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 5px;
+        margin-top: 5px;
+        padding: 10px;
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, .1)
+      }
+      .color-swatch {
+        width: 100%;
+        padding-bottom: 100%;
+        border-radius: 5px;
+        cursor: pointer;
+        border: 2px solid transparent;
+        box-sizing: border-box;
+        transition: transform .2s
+      }
+      .color-swatch:hover {
+        transform: scale(1.1)
+      }
+      .color-swatch.selected {
+        border-color: #007bff
+      }
+      .game-card {
+        background: linear-gradient(to right, #6f42c1, #4a148c);
+        color: white;
+        padding: 25px;
+        border-radius: 8px;
+        text-align: center;
+        cursor: pointer;
+        transition: transform .3s ease, box-shadow .3s ease;
+      }
+      .game-card:hover {
+        transform: scale(1.03);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, .2)
+      }
+      .game-card h3 {
+        margin: 0 0 10px 0;
+        font-size: 1.5em;
+        color: white
+      }
+      .game-card p {
+        margin: 0;
+        font-size: 1em;
+        opacity: .9
+      }
+      #preloader {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #f4f7f6;
+        z-index: 9999;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        transition: opacity 0.5s ease, visibility 0.5s ease;
+      }
+      .spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid #ccc;
+        border-top-color: #007bff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .content-hidden {
+        visibility: hidden;
+        opacity: 0;
+      }
+      .content-visible {
+        visibility: visible;
+        opacity: 1;
+        transition: opacity 0.5s ease;
+      }
+      /* --- AJUSTES DE LAYOUT (3 COLUNAS) --- */
+      .page-container {
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+        max-width: 1400px;
+        margin: 20px auto;
+        padding: 0 20px;
+        align-items: flex-start;
+      }
+      .left-sidebar {
+        flex: 0 0 340px;
+      }
+      .main-content {
+        flex: 1;
+        max-width: 600px;
+      }
+      .right-sidebar {
+        flex: 0 0 340px;
+      }
+      @media (max-width:1200px) {
+        .page-container {
+          flex-direction: column;
+          align-items: center;
+        }
+        .left-sidebar, .main-content, .right-sidebar {
+          width: 100%;
+          max-width: 600px;
+        }
+        .right-sidebar {
+          margin-top: 30px;
+        }
+      }
+      .sidebar-widget {
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, .08);
+        overflow: hidden;
+      }
+      .sidebar-tabs {
+        display: flex;
+        border-bottom: 1px solid #e9ecef;
+      }
+      .tab-button {
+        flex: 1;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border: none;
+        cursor: pointer;
+        font-size: 1em;
+        font-weight: 600;
+        color: #6c757d;
+        transition: all 0.2s ease;
+      }
+      .tab-button.active {
+        background-color: #fff;
+        color: #0056b3;
+        border-bottom: 3px solid #007bff;
+      }
+      .tab-button:not(.active):hover {
+        background-color: #e9ecef;
+      }
+      .sidebar-panel {
+        display: none;
+        padding: 20px;
+      }
+      .sidebar-panel.active {
+        display: block;
+      }
+      .age-range {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .age-range input {
+        text-align: center;
+      }
+      .age-range span {
+        color: #6c757d;
+      }
+      #search-results-container {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #eee;
+        display: none;
+      }
+      #search-results-container p {
+        text-align: center;
+        color: #6c757d;
+      }
+      .search-result-item {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 10px;
+        border-radius: 5px;
+        transition: background-color 0.2s;
+      }
+      .search-result-item:hover {
+        background-color: #f1f1f1;
+      }
+      .search-result-item img {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        object-fit: cover;
+      }
+      .search-result-item-info {
+        flex-grow: 1;
+      }
+      .search-result-item-info strong {
+        display: block;
+      }
+      .search-result-item-info span {
+        font-size: 0.9em;
+        color: #6c757d;
+      }
+      .search-result-item a {
+        text-decoration: none;
+        background-color: #007bff;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 5px;
+        font-size: 0.9em;
+        font-weight: bold;
+      }
+      .search-result-item a:hover {
+        background-color: #0056b3;
+      }
+      .connections-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+      .connection-item {
+        display: flex;
+        align-items: center;
+        padding: 8px 10px;
+        border-radius: 5px;
+        position: relative;
+        padding-left: 25px;
+      }
+      .connection-item-link {
+        text-decoration: none;
+        color: inherit;
+        display: flex;
+        align-items: center;
+        flex-grow: 1;
+      }
+      .connection-item:hover {
+        background-color: #f1f1f1;
+      }
+      .connection-item img {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        margin-right: 10px;
+        object-fit: cover;
+      }
+      .action-buttons {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+      }
+		.btn-video, .btn-chat {
+		background: none;
+		border: none;
+		font-size: 1.7em; /* <-- Valor aumentado */
+		cursor: pointer;
+		padding: 5px 8px; /* Ajustei o padding para melhor espaçamento */
+		position: relative;
+		}
+      .dm-notification-badge {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 16px;
+        height: 16px;
+        background-color: #dc3545;
+        color: white;
+        border-radius: 50%;
+        font-size: 10px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        border: 1px solid white;
+      }
+      .status-dot {
+        position: absolute;
+        left: 5px;
+        top: 50%;
+        transform: translateY(-50%);
+        height: 10px;
+        width: 10px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+      }
+      .status-dot.online {
+        background-color: #28a745;
+      }
+      .status-dot.offline {
+        background-color: #6c757d;
+      }
+      #captcha-modal {
+        display: none;
+        position: fixed;
+        z-index: 10000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.6);
+        align-items: center;
+        justify-content: center;
+      }
+      .captcha-content {
+        background-color: #fff;
+        padding: 25px 30px;
+        border-radius: 8px;
+        box-shadow: 0 5px 25px rgba(0, 0, 0, 0.2);
+        text-align: center;
+        width: auto;
+      }
+      .captcha-content h3 {
+        margin-top: 0;
+        margin-bottom: 15px;
+        color: #333;
+      }
+      #captcha-close-btn {
+        margin-top: 15px;
+        padding: 8px 16px;
+        border: 1px solid #ccc;
+        background-color: #f8f8f8;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 0.9em;
+      }
+      #captcha-close-btn:hover {
+        background-color: #eee;
+      }
+      /* WIDGETS FLUTUANTES (DM E CHAMADA) */
+      .dm-widget, .call-modal-overlay {
+        display: none;
+      }
+      /* O global.js controla a exibição */
     </style>
-</head>
-<body>
-
+    <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+  </head>
+  <body>
     <div id="preloader">
-        <div class="spinner"></div>
+      <div class="spinner"></div>
     </div>
-
     <div class="top-nav content-hidden">
-        <div id="logged-out-view">
-            <a href="/login.html">Login</a>
-            <a href="/register.html">Cadastre-se</a>
+      <div id="logged-out-view">
+        <a href="/login.html">Login</a>
+        <a href="/register.html">Cadastre-se</a>
+      </div>
+      <div id="logged-in-view">
+        <span id="welcome-message"></span>
+        <span id="admin-link-container"></span>
+        <div class="notification-container">
+          <button id="notification-bell" title="Notificações">🔔</button>
+          <span id="notification-count" style="display:none;">0</span>
+          <div id="notifications-dropdown" style="display:none;">
+            <ul id="requests-list"></ul>
+          </div>
         </div>
-        <div id="logged-in-view">
-            <span id="welcome-message"></span>
-			<span id="admin-link-container"></span>
-            <div class="notification-container">
-                <div id="notification-bell" title="Notificações">
-                    <span class="icon">🔔</span>
-                    <span id="notification-count" class="notification-badge"></span>
-                </div>
-                <div id="notifications-dropdown" class="notifications-dropdown">
-                    <h2>Notificações</h2>
-                    <ul id="requests-list" class="requests-list"></ul>
-                </div>
-            </div>
-            <a href="/profile.html">Meu Perfil</a>
-            <a href="/logout">Sair</a>
-        </div>
+        <a href="/profile.html">Meu Perfil</a>
+        <a href="/logout">Sair</a>
+      </div>
     </div>
-
     <header class="content-hidden">
-        <h1>Verbi</h1>
-        <p>Jogue, pratique idiomas e conecte-se com o mundo!</p>
+      <h1>Verbi</h1>
+      <p>Jogue, pratique idiomas e conecte-se com o mundo!</p>
     </header>
+    <div class="page-container content-hidden">
+      <aside class="left-sidebar">
+        <div id="sidebar-widget" class="sidebar-widget">
+          <div class="sidebar-tabs">
+            <button class="tab-button active" data-tab="connections-panel">Conexões</button>
+            <button class="tab-button" data-tab="filter-panel">Buscar Usuários</button>
+          </div>
+          <div id="connections-panel" class="sidebar-panel active">
+            <ul id="connections-list" class="connections-list"></ul>
+          </div>
+<div id="filter-panel" class="sidebar-panel">
+<form id="user-filter-form">
 
-    <div class="hero content-hidden">
-        <div class="hero-content">
-            <div class="form-container">
-                <h2>Encontre Praticantes</h2>
-                <div class="form-group user-search-container">
-                    <label for="userSearch">Buscar usuário por nickname, nome ou sobrenome:</label>
-                    <input type="text" id="userSearch" placeholder="Digite para buscar...">
-                    <div id="searchResults"></div>
-                </div>
-            </div>
-            <div class="form-container">
-                <h2>Entre em uma Sala de Chat (Acesso Livre)</h2>
-                <form id="join-form">
-                    <div class="form-group">
-                        <label for="nickname">Seu Nickname:</label>
-                        <input type="text" id="nickname" name="nick" required placeholder="Máximo 20 caracteres" maxlength="20">
-                    </div>
-                    <div class="form-group">
-                        <label for="age">Sua Idade:</label>
-                        <input type="number" id="age" name="idade" required placeholder="Apenas maiores de 18 anos">
-                    </div>
-                    <div class="form-group color-picker-container">
-                        <label>Cor do Nickname:</label>
-                        <div class="color-picker-wrapper">
-                            <div id="selectedColorPreview"></div>
-                            <button type="button" id="colorPickerBtn">Escolher Cor</button>
-                        </div>
-                        <div class="color-selector" id="colorSelector"></div>
-                        <input type="hidden" id="nicknameColor" name="color">
-                    </div>
-                    <div class="form-group">
-                        <label for="room">Escolha uma Sala:</label>
-                        <select id="room" name="sala">
-                            <option value="ingles">Inglês</option>
-                            <option value="espanhol">Espanhol</option>
-                            <option value="frances">Francês</option>
-                            <option value="portugues">Português</option>
-                            <option value="mandarim">Mandarim</option>
-                            <option value="alemao">Alemão</option>
-                            <option value="italiano">Italiano</option>
-                            <option value="japones">Japonês</option>
-                            <option value="coreano">Coreano</option>
-                            <option value="arabe">Árabe</option>
-                        </select>
-                    </div>
-                    <button type="submit">Entrar na Sala</button>
-                </form>
-            </div>
+    <div class="filter-grid">
+        <div class="form-group">
+            <label for="name-filter">Nome:</label>
+            <input type="text" id="name-filter" name="name" placeholder="Primeiro ou último nome">
+        </div>
+
+        <div class="form-group">
+            <label for="nickname-filter">Nickname:</label>
+            <input type="text" id="nickname-filter" name="nickname" placeholder="Nickname do usuário">
         </div>
         
-        <div class="hero-image-container">
-            <img src="globe.png" alt="Globo Terrestre" class="hero-image">
-            <div class="speech-bubble bubble-en">Hello!</div>
-            <div class="speech-bubble bubble-es">¡Hola!</div>
-            <div class="speech-bubble bubble-fr">Bonjour!</div>
-            <div class="speech-bubble bubble-pt">Olá!</div>
+        <div class="form-group">
+            <label for="email-filter">E-mail:</label>
+            <input type="email" id="email-filter" name="email" placeholder="email@exemplo.com">
+        </div>
+
+        <div class="form-group">
+            <label for="country-filter">País:</label>
+            <select id="country-filter" name="country">
+                <option value="">Qualquer</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="spoken-language-filter">Idioma que fala:</label>
+            <select id="spoken-language-filter" name="languageSpoken">
+                <option value="">Qualquer</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="learning-language-filter">Quer aprender:</label>
+            <select id="learning-language-filter" name="languageLearning">
+                <option value="">Qualquer</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="age-range-filter">Faixa de Idade:</label>
+            <select id="age-range-filter" name="ageRange">
+                <option value="">Qualquer</option>
+                <option value="18-30">18 a 30 anos</option>
+                <option value="30-50">30 a 50 anos</option>
+                <option value="50-70">50 a 70 anos</option>
+                <option value="70-999">70+ anos</option>
+            </select>
+        </div>
+    </div> <div class="form-group" style="margin-top: 15px; display: flex; align-items: center; gap: 10px;">
+        <input type="checkbox" id="online-filter" name="isOnline" value="true" style="width: auto;">
+        <label for="online-filter" style="margin-bottom: 0; font-weight: normal;">Apenas usuários online</label>
+    </div>
+    
+    <button type="submit">Buscar</button>
+    
+</form>
+
+    <div id="search-results-container" style="display: none;">
+        <div style="display: flex; align-items: center; margin-bottom: 15px;">
+            <button id="back-to-filters-btn" style="background:none; border:none; font-size: 1.2em; cursor:pointer; padding: 5px 10px;">←</button>
+            <h3 style="margin: 0; font-size: 1.1em;">Resultados da Busca</h3>
+        </div>
+        <div id="search-results-list">
         </div>
     </div>
-
-    <main class="content-hidden">
-        <div class="main-content">
-            <section class="room-list">
-                <h2>Salas de Idiomas Ativas</h2>
-                <div id="dynamic-room-list"></div>
-            </section>
+</div>
         </div>
-        <div class="sidebar-content">
-            <section>
-                <h2>Novo Jogo!</h2>
-                <div class="game-card">
-                    <h3>Jogar STOP! Online</h3>
-                    <p>Jogadores online: <span id="stop-player-count">0</span></p>
-                </div>
-            </section>
+      </aside>
+      <main class="main-content">
+        <section class="form-container">
+          <h2>Entre em uma Sala de Chat (Acesso Livre)</h2>
+          <form id="join-form">
+            <div class="form-group">
+              <label for="nickname">Seu Nickname:</label>
+              <input type="text" id="nickname" name="nick" required placeholder="Máximo 20 caracteres" maxlength="20">
+            </div>
+            <div class="form-group">
+              <label for="age">Sua Idade:</label>
+              <input type="number" id="age" name="idade" required placeholder="Apenas maiores de 18 anos" min="18" max="99">
+            </div>
+            <div class="form-group color-picker-container">
+              <label>Cor do Nickname:</label>
+              <div class="color-picker-wrapper">
+                <div id="selectedColorPreview"></div>
+                <button type="button" id="colorPickerBtn">Escolher Cor</button>
+              </div>
+              <div class="color-selector" id="colorSelector"></div>
+              <input type="hidden" id="nicknameColor" name="color">
+            </div>
+            <div class="form-group">
+  <label for="room">Escolha uma Sala:</label>
+  <select id="room" name="sala">
+    <option value="ingles">Inglês</option>
+    <option value="espanhol">Espanhol</option>
+    <option value="frances">Francês</option>
+    <option value="italiano">Italiano</option>
+    <option value="arabe">Árabe</option>
+    <option value="alemao">Alemão</option>
+    <option value="japones">Japonês</option>
+    <option value="sueco">Sueco</option>
+    <option value="portugues">Português</o ption>
+  </select>
+</div>
+            <button type="submit">Entrar na Sala</button>
+          </form>
+        </section>
+      </main>
+      <aside class="right-sidebar">
+        <div class="game-card">
+          <h3>Jogar STOP! Online</h3>
+          <p>
+            Jogadores online:
+            <span id="stop-player-count">0</span>
+          </p>
         </div>
-    </main>
-    
+      </aside>
+    </div>
     <footer class="content-hidden">
-        <p>&copy; 2025 Verbi. Todos os direitos reservados.</p>
-        <p>Desenvolvido por <a href="mailto:paulo.stracci@gmail.com">Paulo Stracci</a></p>
+      <p>&copy; 2025 Verbi. Todos os direitos reservados.</p>
     </footer>
-    
-    <div id="connections-widget" class="connections-widget content-hidden">
-        <div class="widget-header">
-            <h3>Minhas Conexões</h3>
-            <div class="controls">
-                <button id="toggle-connections-widget" class="widget-control">-</button>
-            </div>
-        </div>
-        <div id="connections-widget-body" class="widget-body">
-            <ul id="connections-list" class="connections-list">
-            </ul>
-        </div>
+    <div id="captcha-modal" style="display: none;">
+      <div class="captcha-content">
+        <h3>Verificação de Segurança</h3>
+        <p>Por favor, complete o desafio para continuar.</p>
+        <div id="h-captcha-container"></div>
+        <button id="captcha-close-btn">Cancelar</button>
+      </div>
     </div>
-
-    <div id="dm-widget" class="dm-widget content-hidden">
-        <div class="widget-header">
-            <div class="user-info">
-                <img id="dm-recipient-avatar" src="/default-avatar.png" alt="">
-                <h3 id="dm-recipient-name"></h3>
-            </div>
-            <div class="controls">
-                <button id="toggle-dm-widget" class="widget-control">-</button>
-                <button id="close-dm-widget" class="widget-control">×</button>
-            </div>
+    <div id="dm-widget" class="dm-widget" style="display: none;">
+      <div class="widget-header">
+        <div class="user-info">
+          <img id="dm-recipient-avatar" src="/default-avatar.png" alt="">
+          <h3 id="dm-recipient-name"></h3>
         </div>
-        <div id="dm-widget-body" class="widget-body dm-body">
+        <div class="controls">
+          <button id="toggle-dm-widget" class="widget-control">-</button>
+          <button id="close-dm-widget" class="widget-control">×</button>
         </div>
-        <div class="dm-footer">
-            <div id="dm-emoji-picker" class="emoji-picker"></div>
-            <form id="dm-form" class="dm-form">
-                <button type="button" id="dm-emoji-btn" class="dm-control-btn">😊</button>
-                <input type="text" id="dm-input" placeholder="Digite sua mensagem" autocomplete="off">
-                <button type="submit" class="dm-send-btn" title="Enviar">▲</button>
-            </form>
-        </div>
+      </div>
+      <div id="dm-widget-body" class="widget-body dm-body"></div>
+      <div class="dm-footer">
+        <div id="dm-emoji-picker" class="emoji-picker"></div>
+        <form id="dm-form" class="dm-form">
+          <button type="button" id="dm-emoji-btn" class="dm-control-btn">😊</button>
+          <input type="text" id="dm-input" placeholder="Digite sua mensagem" autocomplete="off">
+          <button type="submit" class="dm-send-btn" title="Enviar">▲</button>
+        </form>
+      </div>
     </div>
-
-
     <div id="incoming-call-modal" class="call-modal-overlay">
-        <div class="call-modal-content">
-            <img id="caller-avatar" src="/default-avatar.png" alt="Avatar">
-            <h3 id="caller-name"></h3>
-            <p>está te ligando...</p>
-            <div class="call-modal-actions">
-                <button id="accept-call-btn">✅ Aceitar</button>
-                <button id="decline-call-btn">❌ Recusar</button>
-            </div>
+      <div class="call-modal-content">
+        <img id="caller-avatar" src="/default-avatar.png" alt="Avatar">
+        <h3 id="caller-name"></h3>
+        <p>está te ligando...</p>
+        <div class="call-modal-actions">
+          <button id="accept-call-btn">✅ Aceitar</button>
+          <button id="decline-call-btn">❌ Recusar</button>
         </div>
+      </div>
     </div>
-
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/global.js"></script>
     <script>
+      function onCaptchaSuccess(token) {
+            document.getElementById('captcha-modal').style.display = 'none';
+            const nick = document.getElementById('nickname').value;
+            const age = parseInt(document.getElementById('age').value);
+            const selectedRoom = document.getElementById('room').value;
+            const color = document.getElementById('nicknameColor').value;
+            window.location.href = `chat.html?sala=${selectedRoom}&nick=${nick}&idade=${age}&color=${encodeURIComponent(color)}`;
+        }
+      
+function displaySearchResults(users) {
+    const listContainer = document.getElementById('search-results-list');
+    listContainer.innerHTML = ''; // Limpa resultados antigos
+
+    if (!users || users.length === 0) {
+        listContainer.innerHTML = `<p>Nenhum usuário encontrado com esses critérios.</p>`;
+        return;
+    }
+
+    users.forEach(user => {
+        const item = document.createElement('div');
+        item.className = 'search-result-item';
+
+        let langInfo = 'Idioma não informado';
+        
+        if (user.profile && Array.isArray(user.profile.languagesSpoken) && user.profile.languagesSpoken.length > 0) {
+            // Corrige para lidar com strings e objetos
+            const languageNames = user.profile.languagesSpoken.map(lang => {
+                if (typeof lang === 'string') {
+                    return lang; // Se for string, retorna a própria string
+                }
+                return lang.language || 'idioma'; // Se for objeto, acessa a propriedade 'language'
+            });
+            langInfo = `Fala: ${languageNames.join(', ')}`;
+        }
+
+        item.innerHTML = `
+            <img src="${user.profile?.profilePicture || '/default-avatar.png'}" alt="Avatar de ${user.nickname}">
+            <div class="search-result-item-info">
+                <strong>${user.nickname}</strong>
+                <span>${langInfo}</span>
+            </div>
+            <a href="/profile.html?userId=${user.id}">Ver Perfil</a>
+        `;
+        listContainer.appendChild(item);
+    });
+}
+      
         document.addEventListener('DOMContentLoaded', () => {
-            const form = document.getElementById('join-form');
+            const joinForm = document.getElementById('join-form');
             const roomSelect = document.getElementById('room');
-            const dynamicRoomListContainer = document.getElementById('dynamic-room-list');
-            const stopGameCard = document.querySelector('.game-card');
-            const userSearchInput = document.getElementById('userSearch');
-            const searchResultsDiv = document.getElementById('searchResults');
             const nicknameInput = document.getElementById('nickname');
             const ageInput = document.getElementById('age');
-            const colorSelector = document.getElementById('colorSelector');
             const nicknameColorInput = document.getElementById('nicknameColor');
+            const colorSelector = document.getElementById('colorSelector');
             const colorPickerBtn = document.getElementById('colorPickerBtn');
             const selectedColorPreview = document.getElementById('selectedColorPreview');
-            
-            function populateRoomList() {
-                if (!dynamicRoomListContainer) return;
-                dynamicRoomListContainer.innerHTML = '';
-                const roomOptions = roomSelect.querySelectorAll('option');
-                roomOptions.forEach(option => {
-                    const roomName = option.textContent;
-                    const roomValue = option.value;
-                    const roomItem = document.createElement('div');
-                    roomItem.className = 'room-item';
-                    roomItem.dataset.value = roomValue;
-                    roomItem.innerHTML = `<span class="room-name">${roomName}</span><span class="room-count">Participantes: <span id="count-${roomValue}">0</span> / 20</span>`;
-                    roomItem.addEventListener('click', () => {
-                        roomSelect.value = roomValue;
-                        form.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    });
-                    dynamicRoomListContainer.appendChild(roomItem);
-                });
-            }
-            
-            populateRoomList();
+            const stopGameCard = document.querySelector('.game-card');
+            const sidebarWidget = document.getElementById('sidebar-widget');
+            const userFilterForm = document.getElementById('user-filter-form');
+            const searchResultsContainer = document.getElementById('search-results-container');
+            const captchaModal = document.getElementById('captcha-modal');
+            const captchaCloseBtn = document.getElementById('captcha-close-btn');
+			
+			// --- CÓDIGO CORRIGIDO E ADICIONADO A PARTIR DAQUI ---
 
-            form.addEventListener('submit', function(event) {
+            // Função para calcular a idade a partir da data de nascimento
+            function calculateAge(dateString) {
+                if (!dateString) return '';
+                const birthDate = new Date(dateString);
+                const today = new Date();
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const m = today.getMonth() - birthDate.getMonth();
+                if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+                    age--;
+                }
+                return age;
+            }
+
+            // Escuta o evento 'authReady' que é disparado pelo global.js
+            document.addEventListener('authReady', () => {
+                // window.loggedInUser é definido em global.js
+                if (window.loggedInUser) {
+                    const user = window.loggedInUser;
+
+                    // Preenche e desabilita o campo de nickname
+                    nicknameInput.value = user.nickname;
+                    nicknameInput.disabled = true;
+
+                    // Preenche e desabilita o campo de idade, se a informação existir no perfil
+                    if (user.profile && user.profile.dateOfBirth) {
+                        ageInput.value = calculateAge(user.profile.dateOfBirth);
+                        ageInput.disabled = true;
+                    } else {
+                        // Caso não tenha data de nascimento, deixa editável para o usuário preencher
+                        ageInput.disabled = false;
+                        ageInput.placeholder = "Por favor, informe sua idade";
+                    }
+                }
+            });
+
+			// Lista de Países
+const countries = ["Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burundi", "Cabo Verde", "Cambodia", "Cameroon", "Canada", "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros", "Congo", "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czech Republic", "Denmark", "Djibouti", "Dominica", "Dominican Republic", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia", "Fiji", "Finland", "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Honduras", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy", "Ivory Coast", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar", "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Korea", "North Macedonia", "Norway", "Oman", "Pakistan", "Palau", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia", "Rwanda", "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenian", "Solomon Islands", "Somalia", "South Africa", "South Korea", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria", "Taiwan", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "United States", "Uruguay", "Uzbekistan", "Vanuatu", "Vatican City", "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe"];
+const countrySelect = document.getElementById('country-filter');
+
+countries.forEach(country => {
+    const option = document.createElement('option');
+    option.value = country;
+    option.textContent = country;
+    countrySelect.appendChild(option);
+});
+
+// Lista de Idiomas
+const languages = ["Afrikaans", "Albanian", "Amharic", "Arabic", "Armenian", "Azerbaijani", "Basque", "Belarusian", "Bengali", "Bosnian", "Bulgarian", "Burmese", "Catalan", "Cebuano", "Chechen", "Chinese (Mandarin)", "Corsican", "Croatian", "Czech", "Danish", "Dutch", "English", "Esperanto", "Estonian", "Finnish", "French", "Frisian", "Galician", "Georgian", "German", "Greek", "Gujarati", "Haitian Creole", "Hausa", "Hawaiian", "Hebrew", "Hindi", "Hmong", "Hungarian", "Icelandic", "Igbo", "Indonesian", "Irish", "Italian", "Japanese", "Javanese", "Kannada", "Kazakh", "Khmer", "Kinyarwanda", "Korean", "Kurdish", "Kyrgyz", "Lao", "Latin", "Latvian", "Lithuanian", "Luxembourgish", "Macedonian", "Malagasy", "Malay", "Malayalam", "Maltese", "Maori", "Marathi", "Mongolian", "Nepali", "Norwegian", "Nyanja (Chichewa)", "Odia (Oriya)", "Pashto", "Persian", "Polish", "Portuguese", "Punjabi", "Romanian", "Russian", "Samoan", "Scots Gaelic", "Serbian", "Sesotho", "Shona", "Sindhi", "Sinhala (Sinhalese)", "Slovak", "Slovenian", "Somali", "Spanish", "Sundanese", "Swahili", "Swedish", "Tagalog (Filipino)", "Tajik", "Tamil", "Tatar", "Telugu", "Thai", "Turkish", "Turkmen", "Ukrainian", "Urdu", "Uyghur", "Uzbek", "Vietnamese", "Welsh", "Xhosa", "Yiddish", "Yoruba", "Zulu"];
+const spokenLanguageSelect = document.getElementById('spoken-language-filter');
+const learningLanguageSelect = document.getElementById('learning-language-filter');
+
+languages.forEach(lang => {
+    // Adiciona ao "Idioma que fala"
+    const spokenOption = document.createElement('option');
+    spokenOption.value = lang;
+    spokenOption.textContent = lang;
+    spokenLanguageSelect.appendChild(spokenOption);
+
+    // Adiciona ao "Quer aprender"
+    const learningOption = document.createElement('option');
+    learningOption.value = lang;
+    learningOption.textContent = lang;
+    learningLanguageSelect.appendChild(learningOption);
+});
+// --- FIM DO CÓDIGO ---
+      
+            sidebarWidget.addEventListener('click', (e) => {
+                if (e.target.classList.contains('tab-button')) {
+                    sidebarWidget.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                    sidebarWidget.querySelectorAll('.sidebar-panel').forEach(panel => panel.classList.remove('active'));
+                    e.target.classList.add('active');
+                    document.getElementById(e.target.dataset.tab).classList.add('active');
+                }
+            });
+      
+            userFilterForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+
+                const searchButton = userFilterForm.querySelector('button[type="submit"]');
+                const formContainer = document.getElementById('user-filter-form');
+                const resultsContainer = document.getElementById('search-results-container');
+                const resultsList = document.getElementById('search-results-list');
+
+                // Prepara a interface para a busca
+                resultsList.innerHTML = `<p>Buscando usuários...</p>`;
+                formContainer.style.display = 'none'; // <-- ESCONDE O FORMULÁRIO
+                resultsContainer.style.display = 'block'; // <-- MOSTRA O CONTAINER DE RESULTADOS
+                searchButton.disabled = true;
+                searchButton.textContent = 'Buscando...';
+
+                const formData = new FormData(userFilterForm);
+                const params = new URLSearchParams();
+
+                for (const [key, value] of formData.entries()) {
+                    if (value) {
+                        params.append(key, value);
+                    }
+                }
+
+                try {
+                    const response = await fetch(`/api/users/search?${params.toString()}`);
+                    if (!response.ok) {
+                        throw new Error('A resposta do servidor não foi OK.');
+                    }
+                    const users = await response.json();
+                    displaySearchResults(users);
+                } catch (error) {
+                    console.error('Erro ao buscar usuários:', error);
+                    resultsList.innerHTML = `<p>Ocorreu um erro ao buscar usuários. Tente novamente.</p>`;
+                } finally {
+                    searchButton.disabled = false;
+                    searchButton.textContent = 'Buscar';
+                }
+            });
+
+            // Adiciona o Event Listener para o botão "Voltar"
+            document.getElementById('back-to-filters-btn').addEventListener('click', () => {
+                document.getElementById('user-filter-form').style.display = 'block';
+                document.getElementById('search-results-container').style.display = 'none';
+            });
+            
+            joinForm.addEventListener('submit', function(event) {
                 event.preventDefault();
                 const nick = nicknameInput.value;
                 const age = parseInt(ageInput.value);
-                const selectedRoom = roomSelect.value;
-                const color = nicknameColorInput.value;
-                if (!nick.trim()) { alert('Por favor, insira um nickname.'); return; }
-                if (nick.length > 20) { alert('O nickname não pode ter mais de 20 caracteres.'); return; }
-                if (isNaN(age) || age < 18) { alert('Você precisa ter 18 anos ou mais para entrar no chat.'); return; }
-                window.location.href = `chat.html?sala=${selectedRoom}&nick=${nick}&idade=${age}&color=${encodeURIComponent(color)}`;
-            });
-
-            let searchTimeout;
-            userSearchInput.addEventListener('input', () => {
-                clearTimeout(searchTimeout);
-                const query = userSearchInput.value.trim();
-                if (query.length < 2) {
-                    searchResultsDiv.innerHTML = '';
-                    searchResultsDiv.style.display = 'none';
+                if (!nick.trim() || nick.length > 20 || isNaN(age) || age < 18) {
+                    alert('Por favor, preencha todos os campos corretamente. Nickname (máx 20 chars) e Idade (mín 18).');
                     return;
                 }
-                searchTimeout = setTimeout(async () => {
-                    try {
-                        const response = await fetch(`/api/profile/search?q=${encodeURIComponent(query)}`);
-                        const users = await response.json();
-                        searchResultsDiv.innerHTML = '';
-                        if (users.length === 0) {
-                            searchResultsDiv.innerHTML = '<div class="search-result-item" style="cursor:default;">Nenhum usuário encontrado.</div>';
-                        } else {
-                            users.forEach(user => {
-                                const item = document.createElement('div');
-                                item.className = 'search-result-item';
-                                item.onclick = () => { window.location.href = `/profile.html?userId=${user.id}`; };
-                                item.innerHTML = `<img src="${user.profile?.profilePicture || '/default-avatar.png'}" alt="${user.nickname}"><span>${user.nickname}</span>`;
-                                searchResultsDiv.appendChild(item);
-                            });
-                        }
-                        searchResultsDiv.style.display = 'block';
-                    } catch (error) { console.error('Erro na busca:', error); }
-                }, 300);
-            });
-            document.addEventListener('click', (e) => {
-                if (!userSearchInput.contains(e.target)) {
-                    searchResultsDiv.style.display = 'none';
+                // Lógica de captcha ajustada: só mostra para quem NÃO está logado
+                if (window.loggedInUser) {
+                    // Se estiver logado, vai direto para o chat
+                    window.location.href = `chat.html?sala=${roomSelect.value}&nick=${nick}&idade=${age}&color=${encodeURIComponent(nicknameColorInput.value)}`;
+                } else {
+                    // Se não, mostra o captcha
+                    captchaModal.style.display = 'flex';
+                    hcaptcha.render('h-captcha-container', {
+                        sitekey: 'fbac0a4a-66d2-4f66-88bc-7feaf26e1fd4',
+                        callback: 'onCaptchaSuccess'
+                    });
                 }
+            });
+            captchaCloseBtn.addEventListener('click', () => {
+                captchaModal.style.display = 'none';
+                if (typeof hcaptcha !== 'undefined') hcaptcha.reset();
             });
             
             if (stopGameCard) {
-                 fetch('/api/user/status').then(res => res.json()).then(data => {
-                    stopGameCard.onclick = () => { location.href = data.loggedIn ? 'stop-lobby.html' : 'login.html'; };
-                 });
+                stopGameCard.onclick = () => {
+                    // A decisão de onde ir agora depende do `authReady` ter rodado
+                    location.href = window.loggedInUser ? 'stop-lobby.html' : 'login.html';
+                };
             }
-
-            const colors = ['#000000', '#E53935', '#D81B60', '#8E24AA', '#5E35B1', '#3949AB', '#1E88E5', '#039BE5', '#00ACC1', '#00897B', '#43A047', '#7CB342', '#FDD835', '#FB8C00', '#FB8C00', '#F4511E'];
-            const defaultColor = '#000000';
-            nicknameColorInput.value = defaultColor;
-            selectedColorPreview.style.backgroundColor = defaultColor;
-            colors.forEach(color => { const swatch = document.createElement('div'); swatch.className = 'color-swatch'; swatch.style.backgroundColor = color; swatch.dataset.color = color; if (color === defaultColor) swatch.classList.add('selected'); colorSelector.appendChild(swatch); });
-            colorPickerBtn.addEventListener('click', () => { const isHidden = colorSelector.style.display === 'none' || colorSelector.style.display === ''; colorSelector.style.display = isHidden ? 'grid' : 'none'; });
+      
+            const colors = ['#000000', '#E53935', '#D81B60', '#8E24AA', '#5E35B1', '#3949AB', '#1E88E5', '#039BE5', '#00ACC1', '#00897B', '#43A047', '#7CB342', '#FDD835', '#FB8C00', '#F4511E'];
+            nicknameColorInput.value = '#000000';
+            selectedColorPreview.style.backgroundColor = '#000000';
+            colors.forEach(color => { const swatch = document.createElement('div'); swatch.className = 'color-swatch'; swatch.style.backgroundColor = color; swatch.dataset.color = color; if (color === '#000000') swatch.classList.add('selected'); colorSelector.appendChild(swatch); });
+            colorPickerBtn.addEventListener('click', () => { colorSelector.style.display = (colorSelector.style.display === 'none' || colorSelector.style.display === '') ? 'grid' : 'none'; });
             colorSelector.addEventListener('click', (e) => { if (e.target.classList.contains('color-swatch')) { colorSelector.querySelector('.selected')?.classList.remove('selected'); e.target.classList.add('selected'); const newColor = e.target.dataset.color; nicknameColorInput.value = newColor; selectedColorPreview.style.backgroundColor = newColor; colorSelector.style.display = 'none'; } });
         });
-    </script>
-<script>
+    
         document.addEventListener('authReady', () => {
             const preloader = document.getElementById('preloader');
             const contentElements = document.querySelectorAll('.content-hidden');
-
             setTimeout(() => {
                 if (preloader) {
                     preloader.style.opacity = '0';
                     preloader.style.visibility = 'hidden';
                 }
-
                 contentElements.forEach(el => {
                     el.classList.add('content-visible');
                     el.classList.remove('content-hidden');
@@ -416,6 +1077,5 @@
             }, 100);
         });
     </script>
- 
-</body>
+  </body>
 </html>

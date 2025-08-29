@@ -1,0 +1,122 @@
+{
+  "id": "coffee-shop-story",
+  "title": "First Day at the Coffee Shop",
+  "description": "It's your first day as a barista! Can you impress your boss and keep the customers happy? Learn essential English for customer service.",
+  "imageUrl": "/images/stories/coffee-shop-cover.jpg",
+  "scenes": {
+    "start": {
+      "type": "multiple-choice", "image": "/images/scenes/coffee-shop-boss.jpg",
+      "text": [ "You arrive at 'The Daily Grind' cafe for your first day. Your boss, a friendly woman named Maria, smiles.", "'Good morning! Welcome. Are you ready for your first day?'" ],
+      "options": [
+        { "text": "'Yes, I am ready!'", "nextScene": "shift_start", "scores": { "efficiency": 1 } },
+        { "text": "'I am a little nervous.'", "nextScene": "nervous_reply", "scores": { "friendliness": 1 } }
+      ]
+    },
+    "nervous_reply": {
+        "type": "multiple-choice", "image": "/images/scenes/coffee-shop-boss.jpg",
+        "text": [ "'Don't worry, it's normal. Just be polite and listen carefully.'", "'When you are ready, call your first customer.'" ],
+        "options": [ {"text": "Okay, I am ready now.", "nextScene": "shift_start", "scores": { "friendliness": 1 }} ]
+    },
+    "shift_start": {
+      "type": "multiple-choice", "image": "/images/scenes/coffee-shop-boss.jpg",
+      "text": "The morning rush is about to begin. The counter is clean.",
+      "options": [ { "text": "Call 'Next customer, please!'", "nextScene": "customer_1_start" } ]
+    },
+    "customer_1_start": {
+      "type": "multiple-choice", "image": "/images/scenes/coffee-shop-customer1.jpg",
+      "text": "A friendly man walks up. 'Good morning. Can I get a large black coffee, please?'",
+      "options": [ { "text": "Smile and say 'Of course!'", "nextScene": "customer_1_challenge_1_copy", "scores": { "friendliness": 1 } } ]
+    },
+    "customer_1_challenge_1_copy": {
+        "type": "text-input", "image": "/images/scenes/coffee-cup-writing.jpg",
+        "text": "Challenge 1: Copy. Write 'large black coffee'.",
+        "correctAnswer": ["large black coffee"], "attempts": 2, "nextScene": "customer_1_challenge_2_unscramble", "failScene": "customer_1_challenge_2_unscramble", "failScores": {"efficiency": -1, "chaos": 1},
+        "feedback": { "success": "Perfeito!", "fail": "Não foi bem isso. O pedido foi 'large black coffee'. Tente de novo." }
+    },
+    "customer_1_challenge_2_unscramble": {
+        "type": "unscramble", "image": "/images/scenes/coffee-shop-customer1.jpg",
+        "text": "Challenge 2: Unscramble. The man asks how much it costs. Ask him 'Can you pay at the cashier?'.",
+        "words": ["you", "pay", "can", "at", "cashier", "the", "?"],
+        "correctAnswer": "can you pay at the cashier?", "attempts": 2, "nextScene": "customer_1_challenge_3_fill", "failScene": "customer_1_challenge_3_fill", "failScores": {"efficiency": -1, "chaos": 1},
+        "feedback": { "success": "Excelente! A ordem está perfeita.", "fail": "Quase lá! A ordem das palavras é muito importante." }
+    },
+    "customer_1_challenge_3_fill": {
+        "type": "fill-in-the-blank", "image": "/images/scenes/coffee-shop-customer1-happy.jpg",
+        "text": "Challenge 3: Fill the Blank. He nods. 'Of course. You are very helpful. Have a good ____.'",
+        "correctAnswer": "day", "attempts": 2, "nextScene": "customer_1_success", "failScene": "customer_1_success", "failScores": {"efficiency": -1, "chaos": 1},
+        "feedback": { "success": "Isso mesmo! 'Day' é a palavra correta.", "fail": "Uma palavra comum para desejar algo bom para alguém é 'day' (dia)." }
+    },
+    "customer_1_success": {
+        "type": "multiple-choice", "image": "/images/scenes/coffee-shop-customer1-happy.jpg",
+        "text": "First customer done! That went well.",
+        "options": [ { "text": "Call the next customer.", "nextScene": "customer_2_start", "scores": { "friendliness": 1, "efficiency": 1 } } ]
+    },
+    "customer_2_start": {
+      "type": "multiple-choice", "image": "/images/scenes/coffee-shop-customer2.jpg",
+      "text": "A tourist with a camera looks at you. 'Hello. I want one small tea.'",
+      "options": [ { "text": "Nod and prepare the order.", "nextScene": "customer_2_challenge_1_copy" } ]
+    },
+    "customer_2_challenge_1_copy": {
+        "type": "text-input", "image": "/images/scenes/coffee-cup-writing2.jpg",
+        "text": "Challenge 1: Copy. Write 'small tea'.",
+        "correctAnswer": ["small tea"], "attempts": 2, "nextScene": "customer_2_challenge_2_unscramble", "failScene": "customer_2_challenge_2_unscramble", "failScores": {"efficiency": -1, "chaos": 1},
+        "feedback": { "success": "Correto!", "fail": "Lembre-se, o pedido foi 'small tea'." }
+    },
+    "customer_2_challenge_2_unscramble": {
+        "type": "unscramble", "image": "/images/scenes/coffee-shop-customer2.jpg",
+        "text": "Challenge 2: Unscramble. She asks for something to eat. Ask her 'Anything else?'.",
+        "words": ["anything", "else", "?"],
+        "correctAnswer": "anything else?", "attempts": 2, "nextScene": "customer_2_challenge_3_fill", "failScene": "customer_2_challenge_3_fill", "failScores": {"efficiency": -1, "chaos": 1},
+        "feedback": { "success": "Perfeito!", "fail": "Tente de novo. É uma pergunta com duas palavras." }
+    },
+    "customer_2_challenge_3_fill": {
+        "type": "fill-in-the-blank", "image": "/images/scenes/coffee-shop-customer2.jpg",
+        "text": "Challenge 3: Fill the Blank. She points to a cake. 'Yes, that looks very ____. I will take one.'",
+        "correctAnswer": "good", "attempts": 2, "nextScene": "customer_2_success", "failScene": "customer_2_success", "failScores": {"efficiency": -1, "chaos": 1},
+        "feedback": { "success": "Exato! 'Good' (bom) é a palavra perfeita aqui.", "fail": "Uma palavra simples para dizer que algo parece saboroso é 'good'." }
+    },
+    "customer_2_success": {
+        "type": "multiple-choice", "image": "/images/scenes/coffee-shop-customer2-happy.jpg",
+        "text": "You give the tea and cake to the tourist. She is very happy. 'Thank you!'",
+        "options": [ { "text": "Say 'You're welcome!' and call the next customer.", "nextScene": "customer_3_start", "scores": { "efficiency": 1, "friendliness": 1 } } ]
+    },
+    "customer_3_start": {
+      "type": "multiple-choice", "image": "/images/scenes/coffee-shop-customer3.jpg",
+      "text": "A teenager looking at his phone says quickly: 'I need to charge my phone.'",
+      "options": [ { "text": "Show him where the outlet is.", "nextScene": "customer_3_challenge_1_copy" } ]
+    },
+    "customer_3_challenge_1_copy": {
+        "type": "text-input", "image": "/images/scenes/coffee-shop-customer3.jpg",
+        "text": "Challenge 1: Copy. He says 'Thank you'. You should reply 'You're welcome'. Write that down.",
+        "correctAnswer": ["you're welcome"], "attempts": 2, "nextScene": "customer_3_challenge_2_unscramble", "failScene": "customer_3_challenge_2_unscramble", "failScores": {"efficiency": -1, "chaos": 1},
+        "feedback": { "success": "Muito bem!", "fail": "A resposta para 'Thank you' é 'You're welcome'." }
+    },
+    "customer_3_challenge_2_unscramble": {
+        "type": "unscramble", "image": "/images/scenes/coffee-shop-customer3.jpg",
+        "text": "Challenge 2: Unscramble. Now he wants to order. Ask him 'What can I get for you?'.",
+        "words": ["what", "can", "I", "get", "for", "you", "?"],
+        "correctAnswer": "what can I get for you?", "attempts": 2, "nextScene": "customer_3_challenge_3_fill", "failScene": "customer_3_challenge_3_fill", "failScores": {"efficiency": -1, "chaos": 1},
+        "feedback": { "success": "Correto!", "fail": "Essa é uma frase muito comum em atendimento." }
+    },
+    "customer_3_challenge_3_fill": {
+        "type": "fill-in-the-blank", "image": "/images/scenes/coffee-shop-customer3.jpg",
+        "text": "Challenge 3: Fill the Blank. He says, 'Just a bottle of ____, please.'",
+        "correctAnswer": "water", "attempts": 2, "nextScene": "customer_3_success", "failScene": "customer_3_success", "failScores": {"efficiency": -1, "chaos": 1},
+        "feedback": { "success": "Isso mesmo, 'water' (água).", "fail": "A palavra que falta é 'water' (água)." }
+    },
+    "customer_3_success": {
+        "type": "multiple-choice", "image": "/images/scenes/coffee-shop-customer3-happy.jpg",
+        "text": "You give him the water. He nods. 'Thanks.'",
+        "options": [ { "text": "End the shift.", "nextScene": "end_of_day_checkpoint", "scores": { "efficiency": 1, "friendliness": 1 } } ]
+    },
+ "end_of_day_checkpoint": { "type": "score-check", "conditions": [
+            { "if": { "efficiency": ">3", "friendliness": ">3" }, "nextScene": "ending_perfect" },
+            { "if": { "chaos": ">2" }, "nextScene": "ending_bad" },
+            { "nextScene": "ending_medium", "default": true }
+        ]
+    },
+    "ending_perfect": { "isEnding": true, "title": "Final Perfeito: Barista Natural!", "image": "/images/scenes/ending-true.jpg", "text": "You were fast, correct, and friendly with every customer. Maria is very impressed. 'Amazing work today! You are a natural.' Congratulations!" },
+    "ending_medium": { "isEnding": true, "title": "Final Mediano: Bom Começo", "image": "/images/scenes/ending-happy.jpg", "text": "You survived your first day. You made some mistakes, but you helped your customers and learned a lot. Tomorrow is a new day to improve. Good job." },
+    "ending_bad": { "isEnding": true, "title": "Final Ruim: Um Dia Caótico", "image": "/images/scenes/ending-bad.jpg", "text": "Your first day was a mess. Customers were confused and you made many mistakes. You have a lot to learn, but at least you finished the day." }
+  }
+}

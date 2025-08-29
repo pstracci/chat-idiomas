@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo de História - Verbi</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background-color: #f4f7f6; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; box-sizing: border-box; }
+        #game-container { background: #fff; width: 100%; max-width: 600px; border-radius: 8px; box-shadow: 0 5px 25px rgba(0,0,0,0.15); overflow: hidden; display: flex; flex-direction: column; }
+        #scene-image-container { width: 100%; height: 250px; background-color: #000; }
+        #scene-image { width: 100%; height: 100%; object-fit: cover; }
+        #game-content { padding: 25px; }
+        #scene-title { font-size: 1.5em; font-weight: bold; color: #28a745; text-align: center; margin-bottom: 15px; min-height: 30px; }
+        #scene-text { font-size: 1.2em; line-height: 1.6; color: #333; margin-bottom: 25px; min-height: 80px; }
+        #challenge-container { display: flex; flex-direction: column; gap: 10px; }
+        .option-btn, .submit-btn, .dialogue-continue-btn { background-color: #007bff; color: white; border: none; border-radius: 5px; padding: 15px; text-align: center; font-size: 1em; cursor: pointer; transition: background-color 0.3s; width: 100%; }
+        .option-btn:hover, .submit-btn:hover, .dialogue-continue-btn:hover { background-color: #0056b3; }
+        .option-btn:disabled { background-color: #6c757d; cursor: not-allowed; }
+        #text-input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 1em; margin-bottom: 10px; }
+        .unscramble-area { border: 1px solid #ccc; background-color: #f8f9fa; min-height: 50px; padding: 10px; border-radius: 5px; margin-bottom: 10px; font-size: 1.1em; color: #333; }
+        .word-pills-container { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; padding: 10px 0; }
+        .word-pill { background-color: #6c757d; color: white; padding: 8px 15px; border-radius: 20px; cursor: pointer; transition: background-color 0.2s; user-select: none; }
+        .word-pill:hover { background-color: #5a6268; }
+        .word-pill.disabled { background-color: #ccc; cursor: not-allowed; opacity: 0.5; }
+        .unscramble-controls { display: flex; gap: 10px; margin-top: 10px; }
+        .unscramble-controls .submit-btn { background-color: #28a745; flex-grow: 2; }
+        .unscramble-controls .clear-btn { background-color: #dc3545; color: white; border:none; border-radius: 5px; padding: 15px; font-size: 1em; cursor: pointer; flex-grow: 1; text-align: center; }
+        #feedback-container { display: flex; align-items: center; justify-content: space-between; margin-top: 15px; min-height: 50px; }
+        #feedback-text { font-style: italic; color: #555; flex-grow: 1; }
+        #continue-btn { background-color: #28a745; color: white; border: none; border-radius: 5px; padding: 10px 20px; font-size: 1em; font-weight: bold; cursor: pointer; margin-left: 15px; display: none; }
+        .back-link { display: block; text-align: center; margin-top: 20px; color: #007bff; text-decoration: none; font-size: 1.1em; font-weight: bold; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        .shake-error { animation: shake 0.3s linear; }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="scene-image-container"><img id="scene-image" src="" alt="Cena da história"></div>
+        <div id="game-content">
+            <div id="scene-title"></div>
+            <div id="scene-text">Carregando história...</div>
+            <div id="challenge-container"></div>
+            <div id="feedback-container">
+                <div id="feedback-text"></div>
+                <button id="continue-btn">Continuar →</button>
+            </div>
+            <a href="/learn" class="back-link">Voltar para a seleção de histórias</a>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const storyId = '<%= storyId %>';
+            let storyData = null;
+            let playerStats = { efficiency: 0, friendliness: 0, chaos: 0 };
+            let currentAttempts = 0;
+            let dialogueIndex = 0;
+
+            const gameContainer = document.getElementById('game-container');
+            const imageEl = document.getElementById('scene-image');
+            const titleEl = document.getElementById('scene-title');
+            const textEl = document.getElementById('scene-text');
+            const challengeEl = document.getElementById('challenge-container');
+            const feedbackEl = document.getElementById('feedback-text');
+            const continueBtn = document.getElementById('continue-btn');
+
+            async function startGame() {
+                try {
+                    const response = await fetch(`/api/stories/${storyId}`);
+                    if (!response.ok) throw new Error('História não encontrada.');
+                    storyData = await response.json();
+                    renderScene('start');
+                } catch (error) {
+                    textEl.textContent = `Erro ao carregar a história: ${error.message}`;
+                }
+            }
+
+            function renderScene(sceneId) {
+                const scene = storyData.scenes[sceneId];
+                if (!scene) {
+                    // --- LINHA DE DIAGNÓSTICO ADICIONADA ---
+                    console.error(`DEBUG: Tentativa de renderizar a cena com o ID '${sceneId}', mas ela não foi encontrada no JSON.`);
+                    textEl.textContent = "Fim da história. Erro: cena não encontrada."; return;
+                }
+                imageEl.src = scene.image || storyData.imageUrl;
+                challengeEl.innerHTML = '';
+                feedbackEl.textContent = '';
+                titleEl.textContent = '';
+                continueBtn.style.display = 'none';
+                dialogueIndex = 0;
+                if (scene.isEnding) {
+                    titleEl.textContent = scene.title || 'Fim da História';
+                    textEl.innerHTML = scene.text;
+                    handleGameEnd(sceneId);
+                    return;
+                }
+                if (Array.isArray(scene.text)) {
+                    showDialogue(scene);
+                } else {
+                    textEl.innerHTML = scene.text;
+                    renderChallenge(scene);
+                }
+            }
+            
+            function showDialogue(scene) {
+                textEl.innerHTML = scene.text[dialogueIndex];
+                challengeEl.innerHTML = ''; 
+                if (dialogueIndex < scene.text.length - 1) {
+                    const dialogueBtn = document.createElement('button');
+                    dialogueBtn.className = 'dialogue-continue-btn';
+                    dialogueBtn.innerHTML = 'Continuar diálogo...';
+                    dialogueBtn.onclick = () => {
+                        dialogueIndex++;
+                        showDialogue(scene);
+                    };
+                    challengeEl.appendChild(dialogueBtn);
+                } else {
+                    renderChallenge(scene);
+                }
+            }
+
+            function renderChallenge(scene) {
+                 switch (scene.type) {
+                    case 'multiple-choice': renderMultipleChoice(scene); break;
+                    case 'text-input': renderTextInput(scene); break;
+                    case 'fill-in-the-blank': renderTextInput(scene, true); break;
+                    case 'unscramble': renderUnscramble(scene); break;
+                    case 'object-click': renderObjectClick(scene); break;
+                    case 'score-check': renderScoreCheck(scene); break;
+                    default: textEl.textContent = "Erro: tipo de cena desconhecido.";
+                }
+            }
+
+            function updateScores(scores) {
+                if (!scores) return;
+                for (const key in scores) {
+                    if (playerStats.hasOwnProperty(key)) {
+                        playerStats[key] += scores[key];
+                    }
+                }
+            }
+
+            function renderMultipleChoice(scene) {
+                scene.options.forEach(option => {
+                    const button = document.createElement('button');
+                    button.textContent = option.text;
+                    button.className = 'option-btn';
+                    button.onclick = () => {
+                        updateScores(option.scores);
+                        handleFeedback(option.nextScene, scene.feedback ? scene.feedback[option.nextScene] : null, true);
+                    };
+                    challengeEl.appendChild(button);
+                });
+            }
+
+            function renderTextInput(scene, isFillInTheBlank = false) {
+                currentAttempts = 0;
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.id = 'text-input';
+                input.placeholder = isFillInTheBlank ? 'Digite a palavra que falta...' : 'Digite sua resposta aqui...';
+                const button = document.createElement('button');
+                button.textContent = 'Enviar';
+                button.className = 'submit-btn';
+                button.onclick = () => {
+                    const userAnswer = input.value.toLowerCase().trim();
+                    const correctKeywords = Array.isArray(scene.correctAnswer) ? scene.correctAnswer.map(k => k.toLowerCase()) : [scene.correctAnswer.toLowerCase()];
+                    const isCorrect = correctKeywords.every(keyword => userAnswer.includes(keyword));
+                    if (isCorrect) {
+                        updateScores(scene.scores);
+                        handleFeedback(scene.nextScene, scene.feedback.success, false);
+                    } else {
+                        currentAttempts++;
+                        feedbackEl.textContent = scene.feedback.fail;
+                        input.value = '';
+                        gameContainer.classList.add('shake-error');
+                        setTimeout(() => gameContainer.classList.remove('shake-error'), 300);
+                        if (currentAttempts >= scene.attempts) {
+                            updateScores(scene.failScores);
+                            handleFeedback(scene.failScene, "Você errou muitas vezes. Vamos para o próximo desafio.", false);
+                        }
+                    }
+                };
+                challengeEl.appendChild(input);
+                challengeEl.appendChild(button);
+            }
+            
+            function renderUnscramble(scene) {
+                currentAttempts = 0;
+                let selectedWords = [];
+                const answerArea = document.createElement('div');
+                answerArea.className = 'unscramble-area';
+                const pillsContainer = document.createElement('div');
+                pillsContainer.className = 'word-pills-container';
+                const controls = document.createElement('div');
+                controls.className = 'unscramble-controls';
+                const submitBtn = document.createElement('button');
+                submitBtn.textContent = 'Verificar';
+                submitBtn.className = 'submit-btn';
+                const clearBtn = document.createElement('button');
+                clearBtn.textContent = 'Limpar';
+                clearBtn.className = 'clear-btn';
+
+                const createPills = () => {
+                    pillsContainer.innerHTML = '';
+                    selectedWords = [];
+                    answerArea.textContent = '';
+                    const shuffledWords = [...scene.words].sort(() => Math.random() - 0.5);
+                    shuffledWords.forEach(word => {
+                        const pill = document.createElement('div');
+                        pill.textContent = word;
+                        pill.className = 'word-pill';
+                        pill.onclick = () => {
+                            if (pill.classList.contains('disabled')) return;
+                            pill.classList.add('disabled');
+                            selectedWords.push(word);
+                            answerArea.textContent = selectedWords.join(' ');
+                        };
+                        pillsContainer.appendChild(pill);
+                    });
+                };
+                
+                clearBtn.onclick = createPills;
+                
+                submitBtn.onclick = () => {
+                    const normalize = (str) => str.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+                    const userAnswer = normalize(selectedWords.join(' '));
+                    const correctAnswer = normalize(scene.correctAnswer);
+                    
+                    if (userAnswer === correctAnswer) {
+                        updateScores(scene.scores);
+                        handleFeedback(scene.nextScene, scene.feedback.success, false);
+                    } else {
+                        currentAttempts++;
+                        feedbackEl.textContent = scene.feedback.fail;
+                        gameContainer.classList.add('shake-error');
+                        setTimeout(() => gameContainer.classList.remove('shake-error'), 300);
+                        createPills();
+                        if (currentAttempts >= scene.attempts) {
+                            updateScores(scene.failScores);
+                            handleFeedback(scene.failScene, "Você errou muitas vezes. Vamos para o próximo desafio.", false);
+                        }
+                    }
+                };
+                controls.appendChild(submitBtn);
+                controls.appendChild(clearBtn);
+                challengeEl.appendChild(answerArea);
+                challengeEl.appendChild(pillsContainer);
+                challengeEl.appendChild(controls);
+                createPills();
+            }
+
+            function renderObjectClick(scene) { /* ...código anterior sem alterações... */ }
+            function renderScoreCheck(scene) { /* ...código anterior sem alterações... */ }
+            function handleFeedback(nextScene, feedbackText, disableOptions) { /* ...código anterior sem alterações... */ }
+            async function handleGameEnd(endingId) { /* ...código anterior sem alterações... */ }
+            
+            function renderObjectClick(scene) {
+                const objectsContainer = document.createElement('div');
+                objectsContainer.id = 'objects-container';
+                scene.objects.forEach(obj => {
+                    const objDiv = document.createElement('div');
+                    objDiv.className = 'clickable-object';
+                    objDiv.innerHTML = `<img src="${obj.imageUrl}" alt="${obj.name}">`;
+                    objDiv.onclick = () => {
+                        updateScores(obj.scores);
+                        if (obj.isCorrect) {
+                            handleFeedback(scene.nextScene, scene.feedback.correct, false);
+                        } else {
+                            feedbackEl.textContent = scene.feedback.incorrect;
+                            gameContainer.classList.add('shake-error');
+                            setTimeout(() => gameContainer.classList.remove('shake-error'), 300);
+                        }
+                    };
+                    objectsContainer.appendChild(objDiv);
+                });
+                challengeEl.appendChild(objectsContainer);
+            }
+
+            function renderScoreCheck(scene) {
+                let nextScene = null;
+                const defaultCondition = scene.conditions.find(c => c.default);
+                for (const condition of scene.conditions) {
+                    if (condition.if) {
+                        let conditionMet = true;
+                        for (const key in condition.if) {
+                            const rule = condition.if[key];
+                            const operator = rule.charAt(0);
+                            const value = parseInt(rule.substring(1));
+                            if (operator === '>' && !(playerStats[key] > value)) conditionMet = false;
+                            else if (operator === '<' && !(playerStats[key] < value)) conditionMet = false;
+                            else if (operator === '=' && !(playerStats[key] === value)) conditionMet = false;
+                        }
+                        if (conditionMet) {
+                            nextScene = condition.nextScene;
+                            break;
+                        }
+                    }
+                }
+                if (nextScene) {
+                    renderScene(nextScene);
+                } else if (defaultCondition) {
+                    renderScene(defaultCondition.nextScene);
+                }
+            }
+
+            function handleFeedback(nextScene, feedbackText, disableOptions) {
+                if (disableOptions) {
+                    challengeEl.querySelectorAll('.option-btn').forEach(btn => btn.disabled = true);
+                } else {
+                    challengeEl.innerHTML = '';
+                }
+                if (feedbackText) {
+                    feedbackEl.textContent = feedbackText;
+                }
+                if (nextScene) {
+                    continueBtn.style.display = 'block';
+                    continueBtn.onclick = () => renderScene(nextScene);
+                }
+            }
+
+            async function handleGameEnd(endingId) {
+                try {
+                    await fetch('/api/stories/complete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ storyId: storyId, endingId: endingId })
+                    });
+                } catch (error) {
+                    console.error('Falha ao salvar o progresso:', error);
+                }
+            }
+            
+            startGame();
+        });
+    </script>
+
+</body>
+</html>

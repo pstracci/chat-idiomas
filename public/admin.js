@@ -1,121 +1,216 @@
-// public/admin.js
-document.addEventListener('DOMContentLoaded', () => {
-    const usersTableBody = document.querySelector('#users-table tbody');
-    const notificationForm = document.getElementById('notification-form');
-    const notificationMessage = document.getElementById('notification-message');
+// routes/admin.js
+const express = require('express');
+const router = express.Router();
+const { PrismaClient, Role } = require('@prisma/client');
+const prisma = new PrismaClient();
+const crypto = require('crypto');
+const sgMail = require('@sendgrid/mail');
 
-    // --- GESTÃO DE UTILIZADORES ---
+// O module.exports agora é uma função que recebe a instância 'io' do Socket.IO.
+module.exports = function(io) {
 
-    async function loadUsers() {
-        try {
-            const response = await fetch('/api/admin/users');
-            if (!response.ok) throw new Error('Falha ao carregar utilizadores.');
-            const users = await response.json();
-            
-            usersTableBody.innerHTML = ''; // Limpa a tabela
-            users.forEach(user => {
-                const tr = document.createElement('tr');
-                tr.id = `user-${user.id}`;
-                tr.innerHTML = `
-                    <td>${user.nickname}</td>
-                    <td>${user.email}</td>
-                    <td class="credits-cell">${user.credits}</td>
-                    <td>${new Date(user.createdAt).toLocaleDateString('pt-BR')}</td>
-                    <td class="actions-cell">
-                        <button class="btn btn-edit" data-userid="${user.id}" data-nickname="${user.nickname}" data-credits="${user.credits}">Editar Créditos</button>
-                        <button class="btn btn-delete" data-userid="${user.id}" data-nickname="${user.nickname}">Apagar</button>
-                    </td>
-                `;
-                usersTableBody.appendChild(tr);
-            });
-        } catch (error) {
-            alert(error.message);
+    // Middleware para garantir que o utilizador está autenticado
+    function isAuthenticated(req, res, next) {
+        if (req.isAuthenticated()) {
+            return next();
         }
+        res.status(401).json({ error: 'Não autorizado' });
     }
 
-    async function updateCredits(userId, currentCredits) {
-        const newCredits = prompt(`Alterar créditos para o utilizador (atual: ${currentCredits}):`, currentCredits);
-        if (newCredits === null || isNaN(newCredits) || newCredits < 0) {
-            return; // Cancelado ou inválido
+    // Middleware para garantir que o utilizador é um Administrador
+    function isAdmin(req, res, next) {
+        if (req.user && req.user.role === Role.ADMIN) {
+            return next();
         }
-        try {
-            const response = await fetch(`/api/admin/users/${userId}/credits`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ credits: parseInt(newCredits) }),
-            });
-            if (!response.ok) throw new Error('Falha ao atualizar créditos.');
+        res.status(403).json({ error: 'Acesso negado. Recurso apenas para administradores.' });
+    }
 
-            // Atualiza a tabela visualmente sem recarregar a página
-            const userRow = document.getElementById(`user-${userId}`);
-            if (userRow) {
-                userRow.querySelector('.credits-cell').textContent = newCredits;
-                userRow.querySelector('.btn-edit').dataset.credits = newCredits;
+    // Aplica a verificação de autenticação e de admin a TODAS as rotas neste ficheiro
+    router.use(isAuthenticated, isAdmin);
+
+    // --- LÓGICA DE ENVIO DE E-MAIL ---
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+    async function resendAdminVerificationEmail(user, req) {
+        const token = crypto.randomBytes(32).toString('hex');
+        const expires = new Date(Date.now() + 3600000 * 24);
+
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                emailConfirmationToken: token,
+                emailConfirmationTokenExpires: expires,
+            },
+        });
+
+        const verificationURL = `${req.protocol}://${req.get('host')}/verify-email?token=${token}`;
+       
+        const msg = {
+            to: user.email,
+            from: {
+                name: 'Verbi',
+                email: process.env.SENDER_EMAIL
+            },
+            subject: 'Confirme seu E-mail no Verbi',
+            html: `
+                <p>Olá ${user.profile.firstName},</p>
+                <p>Um administrador solicitou o reenvio do e-mail de ativação para a sua conta no Verbi. Por favor, clique no link abaixo para ativar sua conta:</p>
+                <a href="${verificationURL}">${verificationURL}</a>
+                <p>Este link expirará em 24 horas.</p>
+            `
+        };
+
+        try {
+            await sgMail.send(msg);
+            console.log(`E-mail de verificação (admin) enviado para ${user.email} via SendGrid API.`);
+        } catch (error) {
+            console.error('Erro ao reenviar e-mail de verificação (admin) pelo SendGrid:', error);
+            if (error.response) {
+                console.error(error.response.body);
             }
-            alert('Créditos atualizados com sucesso!');
-        } catch (error) {
-            alert(error.message);
+            throw new Error('Falha ao reenviar e-mail de verificação.');
         }
     }
 
-    async function deleteUser(userId, nickname) {
-        if (!confirm(`Tem a certeza ABSOLUTA que deseja apagar o utilizador ${nickname}? Esta ação é irreversível.`)) {
-            return;
-        }
+    // --- ROTAS DE GESTÃO DE UTILIZADORES ---
+
+    router.get('/users', async (req, res) => {
         try {
-            const response = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
-            if (!response.ok) throw new Error('Falha ao apagar utilizador.');
-            
-            // Remove o utilizador da tabela visualmente
-            const userRow = document.getElementById(`user-${userId}`);
-            if (userRow) userRow.remove();
-            
-            alert(`Utilizador ${nickname} apagado com sucesso.`);
-        } catch (error) {
-            alert(error.message);
-        }
-    }
-
-    // Listener de eventos para os botões na tabela
-    usersTableBody.addEventListener('click', (e) => {
-        const target = e.target;
-        if (target.matches('.btn-edit')) {
-            const { userid, nickname, credits } = target.dataset;
-            updateCredits(userid, credits);
-        }
-        if (target.matches('.btn-delete')) {
-            const { userid, nickname } = target.dataset;
-            deleteUser(userid, nickname);
-        }
-    });
-
-    // --- GESTÃO DE NOTIFICAÇÕES ---
-
-    notificationForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const message = notificationMessage.value;
-        if (!message.trim()) return alert('A mensagem não pode estar vazia.');
-
-        if (!confirm("Tem a certeza que deseja enviar esta notificação para TODOS os utilizadores?")) {
-            return;
-        }
-
-        try {
-            const response = await fetch('/api/admin/notifications', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message }),
+            const users = await prisma.user.findMany({
+                orderBy: { createdAt: 'desc' },
+                select: {
+                    id: true,
+                    nickname: true,
+                    email: true,
+                    credits: true,
+                    isVerified: true,
+                    createdAt: true,
+                }
             });
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.error || 'Falha ao enviar notificação.');
-            
-            alert(result.message);
-            notificationMessage.value = '';
+            res.json(users);
         } catch (error) {
-            alert(error.message);
+            console.error("Erro ao buscar utilizadores:", error);
+            res.status(500).json({ error: 'Erro interno do servidor' });
         }
     });
 
-    // Carrega os utilizadores quando a página é aberta
-    loadUsers();
-});
+    router.delete('/users/:userId', async (req, res) => {
+        const { userId } = req.params;
+        try {
+            if (req.user.id === userId) {
+                return res.status(400).json({ error: 'Um administrador não se pode apagar a si mesmo.' });
+            }
+            await prisma.user.delete({ where: { id: userId } });
+            res.status(204).send();
+        } catch (error) {
+            console.error(`Erro ao apagar utilizador ${userId}:`, error);
+            res.status(500).json({ error: 'Erro ao apagar utilizador.' });
+        }
+    });
+
+    router.put('/users/:userId/credits', async (req, res) => {
+        const { userId } = req.params;
+        const { credits } = req.body;
+
+        if (typeof credits !== 'number' || credits < 0) {
+            return res.status(400).json({ error: 'A quantidade de créditos deve ser um número positivo.' });
+        }
+
+        try {
+            const updatedUser = await prisma.user.update({
+                where: { id: userId },
+                data: { credits: credits },
+            });
+            res.json({ id: updatedUser.id, credits: updatedUser.credits });
+        } catch (error) {
+            console.error(`Erro ao atualizar créditos do utilizador ${userId}:`, error);
+            res.status(500).json({ error: 'Erro ao atualizar créditos.' });
+        }
+    });
+
+    router.post('/users/:userId/resend-verification', async (req, res) => {
+        const { userId } = req.params;
+        try {
+            const user = await prisma.user.findUnique({
+                where: { id: userId },
+                include: { profile: true }
+            });
+
+            if (!user) {
+                return res.status(404).json({ error: 'Usuário não encontrado.' });
+            }
+            if (user.isVerified) {
+                return res.status(400).json({ error: 'Este usuário já verificou o e-mail.' });
+            }
+            
+            await resendAdminVerificationEmail(user, req);
+            res.status(200).json({ success: true, message: `E-mail de verificação reenviado para ${user.email}.` });
+        } catch (error) {
+            console.error(`Erro ao reenviar e-mail de verificação para ${userId}:`, error);
+            res.status(500).json({ error: 'Erro no servidor ao reenviar e-mail.' });
+        }
+    });
+
+    // --- ROTAS DE NOTIFICAÇÃO ---
+
+    router.post('/notifications', async (req, res) => {
+        const { message } = req.body;
+        if (!message || typeof message !== 'string' || message.trim() === '') {
+            return res.status(400).json({ error: 'A mensagem da notificação não pode estar vazia.' });
+        }
+        try {
+            const users = await prisma.user.findMany({
+                where: { id: { not: req.user.id } },
+                select: { id: true },
+            });
+            const notificationsData = users.map(user => ({
+                userId: user.id,
+                type: 'SYSTEM_MESSAGE',
+                content: message.trim(),
+                relatedId: req.user.id,
+            }));
+            await prisma.notification.createMany({ data: notificationsData });
+
+            users.forEach(user => {
+                io.to(user.id).emit('new_notification');
+            });
+
+            res.status(201).json({ success: true, message: `Notificação enviada para ${users.length} utilizadores.` });
+        } catch (error) {
+            console.error("Erro ao enviar notificação global:", error);
+            res.status(500).json({ error: 'Erro ao enviar notificação.' });
+        }
+    });
+
+    router.post('/notifications/user/:userId', async (req, res) => {
+        const { userId } = req.params;
+        const { message } = req.body;
+        if (!message || typeof message !== 'string' || message.trim() === '') {
+            return res.status(400).json({ error: 'A mensagem não pode estar vazia.' });
+        }
+        try {
+            const user = await prisma.user.findUnique({ where: { id: userId } });
+            if (!user) {
+                return res.status(404).json({ error: 'Usuário não encontrado.' });
+            }
+            await prisma.notification.create({
+                data: {
+                    userId: userId,
+                    type: 'SYSTEM_MESSAGE',
+                    content: message.trim(),
+                    relatedId: req.user.id,
+                }
+            });
+
+            io.to(userId).emit('new_notification');
+
+            res.status(201).json({ success: true, message: `Notificação enviada para ${user.nickname}.` });
+        } catch (error) {
+            console.error(`Erro ao enviar notificação para ${userId}:`, error);
+            res.status(500).json({ error: 'Erro ao enviar notificação.' });
+        }
+    });
+
+    // --- CORREÇÃO --- Garante que o router configurado é retornado.
+    return router;
+};

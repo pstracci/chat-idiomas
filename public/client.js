@@ -1,346 +1,469 @@
-// client.js
-function limparNomeSala(nome) {
-  return nome.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-');
-}
+// client.js (COMPLETO E COM A LÓGICA DE DATA INTEGRADA)
 
-const params = new URLSearchParams(window.location.search);
-let sala = params.get('sala') || '';
-const nickname = params.get('nick');
-const idade = params.get('idade');
-const color = decodeURIComponent(params.get('color')) || '#000000';
+document.addEventListener('DOMContentLoaded', () => {
 
-const salaLimpa = limparNomeSala(sala);
-const socket = io();
+    function limparNomeSala(nome) {
+        return nome.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-');
+    }
 
-// Elementos da UI
-const backBtn = document.getElementById('backBtn');
-const messagesDiv = document.getElementById('messages');
-const msgInput = document.getElementById('msgInput');
-const sendBtn = document.getElementById('sendBtn');
-const usersDiv = document.getElementById('users');
-const statusSelect = document.getElementById('statusSelect');
-const emojiBtn = document.getElementById('emojiBtn');
-const emojiPicker = document.getElementById('emojiPicker');
-const mentionSound = document.getElementById('mentionSound');
-const mentionList = document.getElementById('mentionSuggestions');
-const roomTitleEl = document.getElementById('roomTitle');
-const imageBtn = document.getElementById('imageBtn');
-const imageInput = document.getElementById('imageInput');
-const imagePreviewContainer = document.getElementById('imagePreviewContainer');
-const imagePreview = document.getElementById('imagePreview');
-const removeImageBtn = document.getElementById('removeImageBtn');
-const usersBtn = document.getElementById('usersBtn');
-const overlay = document.getElementById('overlay');
+    const params = new URLSearchParams(window.location.search);
+    let sala = params.get('sala') || 'geral';
+    const guestNickname = params.get('nick');
+    const guestIdade = params.get('idade');
+    const guestColor = decodeURIComponent(params.get('color')) || '#000000';
 
-if (roomTitleEl && sala) {
-    const formattedRoomName = sala.charAt(0).toUpperCase() + sala.slice(1);
-    roomTitleEl.textContent = `Sala de ${formattedRoomName}`;
-}
+    const salaLimpa = limparNomeSala(sala);
+    const socket = io();
 
-let isAudioUnlocked = false;
-let usersOnline = [];
-let mentionMode = false;
-let mentionQuery = '';
-let selectedImageData = null;
+    // Elementos da UI
+    const messagesDiv = document.getElementById('messages');
+    const msgInput = document.getElementById('msgInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const usersDiv = document.getElementById('users');
+    const userListContainer = document.getElementById('user-list-container');
+    const statusSelect = document.getElementById('statusSelect');
+    const emojiBtn = document.getElementById('emojiBtn');
+    const emojiPickerContainer = document.getElementById('emojiPickerContainer');
+    const mentionSound = document.getElementById('mentionSound');
+    const mentionList = document.getElementById('mentionSuggestions');
+    const roomTitleEl = document.getElementById('roomTitle');
+    const imageBtn = document.getElementById('imageBtn');
+    const imageInput = document.getElementById('imageInput');
+    const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+    const imagePreview = document.getElementById('imagePreview');
+    const removeImageBtn = document.getElementById('removeImageBtn');
+    const usersBtn = document.getElementById('usersBtn');
+    const overlay = document.getElementById('overlay');
+    const headerUserProfile = document.querySelector('.user-profile');
+    const headerUserName = document.getElementById('header-user-name');
+    const headerUserAvatar = document.getElementById('header-user-avatar');
 
-backBtn.addEventListener('click', () => { window.location.href = '/'; });
+    if (roomTitleEl) {
+        roomTitleEl.textContent = sala.charAt(0).toUpperCase() + sala.slice(1);
+    }
 
-function toggleUsersPanel() {
-    usersDiv.classList.toggle('show');
-    overlay.classList.toggle('show');
-}
+    let isAudioUnlocked = false;
+    let usersOnline = [];
+    let allRoomUsers = [];
+    let mentionMode = false;
+    let mentionQuery = '';
+    let selectedImageData = null;
+    let loggedInUser = null;
+    let currentNickname = guestNickname;
+    let lastMessageDate = null; // NOVO: Variável para controlar a divisória de data
 
-usersBtn.addEventListener('click', toggleUsersPanel);
-overlay.addEventListener('click', toggleUsersPanel);
+    // --- INÍCIO: NOVAS FUNÇÕES DE DATA E HORA ---
 
+    // Formata o timestamp para 'DD/MM/YYYY HH:MM:SS'
+    function formatTimestamp(dateString) {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+    }
 
-// LÓGICA DE IMAGEM
-imageBtn.addEventListener('click', () => {
-    imageInput.click();
-});
+    // Cria e insere a divisória de data no chat
+    function createDateDivider(dateString) {
+        const date = new Date(dateString);
+        const today = new Date();
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
 
-imageInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) handleImageFile(file);
-});
+        let label = '';
+        if (date.toDateString() === today.toDateString()) {
+            label = 'Hoje';
+        } else if (date.toDateString() === yesterday.toDateString()) {
+            label = 'Ontem';
+        } else {
+            label = date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+        }
 
-msgInput.addEventListener('paste', (e) => {
-    const items = e.clipboardData.items;
-    for (const item of items) {
-        if (item.type.indexOf('image') !== -1) {
-            const file = item.getAsFile();
-            handleImageFile(file);
-            e.preventDefault();
-            break; 
+        const divider = document.createElement('div');
+        divider.className = 'date-divider';
+        divider.textContent = label;
+        messagesDiv.appendChild(divider);
+    }
+
+    // --- FIM: NOVAS FUNÇÕES DE DATA E HORA ---
+
+    async function fetchLoggedInUser() {
+        try {
+            const response = await fetch('/api/user/status');
+            const data = await response.json();
+            if (data.loggedIn) {
+                loggedInUser = data.user;
+                currentNickname = loggedInUser.nickname; // Usa o nickname do usuário logado
+                headerUserName.textContent = loggedInUser.nickname;
+                headerUserAvatar.src = loggedInUser.profile?.profilePicture || loggedInUser.avatar || '/default-avatar.png';
+                headerUserProfile.style.display = 'block';
+            } else {
+                headerUserProfile.style.display = 'none';
+            }
+        } catch (error) {
+            console.error('Não foi possível verificar o status de login:', error);
+            headerUserProfile.style.display = 'none'; // Esconde se der erro
         }
     }
-});
 
-function handleImageFile(file) {
-    if (!file.type.startsWith('image/')) {
-        alert('Por favor, selecione um arquivo de imagem.');
-        return;
+    function toggleUsersPanel() {
+        usersDiv.classList.toggle('show');
+        overlay.classList.toggle('show');
     }
-    if (file.size > 5 * 1024 * 1024) { // 5MB
-        alert('A imagem é muito grande. O tamanho máximo é de 5MB.');
-        return;
+    usersBtn.addEventListener('click', toggleUsersPanel);
+    overlay.addEventListener('click', toggleUsersPanel);
+
+    window.addEventListener('resize', () => {
+        const logo = document.querySelector('.main-header .logo');
+        logo.style.display = window.innerWidth > 768 ? 'block' : 'none';
+    });
+    window.dispatchEvent(new Event('resize'));
+
+    imageBtn.addEventListener('click', () => imageInput.click());
+    imageInput.addEventListener('change', (e) => e.target.files[0] && handleImageFile(e.target.files[0]));
+    msgInput.addEventListener('paste', (e) => {
+        const file = Array.from(e.clipboardData.items).find(item => item.type.includes('image'))?.getAsFile();
+        if (file) {
+            handleImageFile(file);
+            e.preventDefault();
+        }
+    });
+
+    function handleImageFile(file) {
+        if (!file.type.startsWith('image/')) return alert('Por favor, selecione um arquivo de imagem.');
+        if (file.size > 5 * 1024 * 1024) return alert('A imagem é muito grande (máx 5MB).');
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            selectedImageData = e.target.result;
+            imagePreview.src = selectedImageData;
+            imagePreviewContainer.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+        imageInput.value = '';
     }
+    removeImageBtn.addEventListener('click', () => {
+        selectedImageData = null;
+        imagePreviewContainer.style.display = 'none';
+        imagePreview.src = '';
+    });
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        selectedImageData = e.target.result;
-        imagePreview.src = selectedImageData;
-        imagePreviewContainer.style.display = 'block';
-    };
-    reader.readAsDataURL(file);
-    imageInput.value = '';
-}
-
-removeImageBtn.addEventListener('click', () => {
-    selectedImageData = null;
-    imagePreviewContainer.style.display = 'none';
-    imagePreview.src = '';
-});
-
-
-// LÓGICA DE SOCKET
-socket.emit('joinRoom', { sala: salaLimpa, nickname, idade, color });
-
-socket.on('roomFull', () => {
-  alert('A sala está cheia. Por favor, tente outra.');
-  window.location.href = '/';
-});
-
-socket.on('nicknameTaken', (data) => {
-  alert(`O nickname "${data.nickname}" já está em uso nesta sala. Por favor, escolha outro.`);
-  window.location.href = '/';
-});
-
-socket.on('invalidData', (data) => {
-    alert(`Erro: ${data.message}`);
-    window.location.href = '/';
-});
-
-socket.on('idleKick', () => {
-    alert('Você foi desconectado por inatividade de 30 minutos.');
-    window.location.href = '/';
-});
-
-socket.on('chatHistory', (history) => {
-  messagesDiv.innerHTML = '';
-  history.forEach(msg => addMessage(msg));
-});
-
-socket.on('message', (msg) => {
-  addMessage(msg);
-});
-
-socket.on('userList', (users) => {
-  usersOnline = users.map(u => u.nickname);
-  updateUserList(users);
-});
-
-
-function mentionUser(username) {
-    if (msgInput.value.length > 0 && msgInput.value.slice(-1) !== ' ') {
-        msgInput.value += ' ';
-    }
-    msgInput.value += `@${username} `;
-    msgInput.focus();
-    if (window.innerWidth <= 768) {
-        toggleUsersPanel();
-    }
-}
-
-function addMessage(msg) {
-  const p = document.createElement('p');
-  
-  if (msg.mentions && msg.mentions.includes(nickname)) {
-    p.classList.add('mention-highlight');
-    const meuStatusAtual = statusSelect.value;
-    if (meuStatusAtual !== 'ocupado' && mentionSound && isAudioUnlocked) {
-      mentionSound.play().catch(e => console.error("Erro ao tocar áudio de notificação:", e));
-    }
-  }
-
-  p.innerHTML = `<strong style="color: ${msg.color || '#000000'};">${msg.nickname}:</strong>`;
-
-  if (msg.imageData) {
-      const img = document.createElement('img');
-      img.src = msg.imageData;
-      img.className = 'chat-image';
-      img.onclick = () => window.open(msg.imageData, '_blank');
-      p.appendChild(img);
-  }
-
-  if (msg.text) {
-      const textNode = document.createTextNode(` ${msg.text}`);
-      p.appendChild(textNode);
-  }
-  
-  messagesDiv.appendChild(p);
-  messagesDiv.scrollTop = messagesDiv.scrollHeight;
-}
-
-function sendMsg() {
-  const text = msgInput.value.trim();
-  if (!text && !selectedImageData) return;
-
-  if (!isAudioUnlocked && mentionSound) {
-    mentionSound.play().then(() => {
-      mentionSound.pause();
-      isAudioUnlocked = true;
-    }).catch(() => { isAudioUnlocked = true; });
-  }
-  const mentions = usersOnline.filter(u => text.includes('@' + u));
-
-  const messagePayload = {
-      text: text,
-      mentions: mentions,
-      imageData: selectedImageData
-  };
-
-  socket.emit('message', messagePayload);
-
-  msgInput.value = '';
-  mentionList.style.display = 'none';
-  mentionMode = false;
-  removeImageBtn.click();
-}
-
-function updateUserList(users) {
-  const statusContainer = document.getElementById('statusContainer');
-  usersDiv.innerHTML = '';
-  usersDiv.appendChild(statusContainer);
-  const title = document.createElement('h3');
-  title.textContent = 'Participantes';
-  usersDiv.appendChild(title);
-
-  const selfUser = users.find(u => u.nickname === nickname);
-  const otherUsers = users.filter(u => u.nickname !== nickname);
-
-  const createUserElement = (user, isSelf) => {
-    let colorClass = 'status-online-dot';
-    let statusText = 'Online';
-    switch (user.status) {
-      case 'voltoja': colorClass = 'status-voltoja-dot'; statusText = 'Volto Já'; break;
-      case 'ocupado': colorClass = 'status-ocupado-dot'; statusText = 'Ocupado'; break;
-    }
-    const userDiv = document.createElement('div');
-    userDiv.className = 'user-item';
-    // CORREÇÃO: Adicionado o <span> com a classe do "status-dot" de volta
-    userDiv.innerHTML = `<span><span class="status-dot ${colorClass}"></span><strong style="color: ${user.color || '#000000'};">${user.nickname}</strong> (${user.idade})</span> <span class="status-text">(${statusText})</span>`;
+    socket.on('roomFull', () => { alert('A sala está cheia.'); window.location.href = '/'; });
+    socket.on('nicknameTaken', (data) => { alert(`O nickname "${data.nickname}" já está em uso.`); window.location.href = '/'; });
+    socket.on('invalidData', (data) => { alert(`Erro: ${data.message}`); window.location.href = '/'; });
+    socket.on('idleKick', () => { alert('Você foi desconectado por inatividade.'); window.location.href = '/'; });
     
-    if (!isSelf) {
-        userDiv.title = `Mencionar @${user.nickname}`;
-        userDiv.onclick = () => mentionUser(user.nickname);
+    // ATUALIZADO: Reseta a data ao carregar o histórico
+    socket.on('chatHistory', (history) => {
+        messagesDiv.innerHTML = '';
+        lastMessageDate = null; // Reinicia a data para renderizar o histórico corretamente
+        history.forEach(msg => addMessage(msg));
+    });
+
+    socket.on('message', (msg) => addMessage(msg));
+    socket.on('spamBlocked', (data) => alert(`Aguarde ${Math.ceil((data.until - Date.now()) / 1000)}s.`));
+
+    socket.on('userList', (users) => {
+        const verbiTutor = {
+            nickname: 'Verbi',
+            idade: 'IA',
+            color: '#FF6347',
+            status: 'online',
+            avatar: `https://api.dicebear.com/8.x/bottts/svg?seed=Verbi&backgroundColor=e3f2fd,c8e6f5&backgroundType=gradientLinear`
+        };
+        const combinedUsers = [verbiTutor, ...users.filter(u => u.nickname !== verbiTutor.nickname)];
+        allRoomUsers = combinedUsers;
+        usersOnline = combinedUsers.map(u => u.nickname);
+        updateUserList(combinedUsers);
+    });
+
+    function getUserAvatar(user) {
+        if (user && user.avatar && user.avatar.trim() !== '') {
+            return user.avatar;
+        }
+        return `https://ui-avatars.com/api/?name=${user.nickname.charAt(0)}&background=random&color=fff`;
     }
-    return userDiv;
-  };
 
-  if (selfUser) {
-    const selfElement = createUserElement(selfUser, true);
-    usersDiv.appendChild(selfElement);
-  }
-
-  if (otherUsers.length > 0) {
-    const divider = document.createElement('hr');
-    divider.className = 'user-list-divider';
-    usersDiv.appendChild(divider);
-  }
-  otherUsers.forEach(user => {
-    const userElement = createUserElement(user, false);
-    usersDiv.appendChild(userElement);
-  });
-}
-
-statusSelect.addEventListener('change', () => {
-  const newStatus = statusSelect.value;
-  socket.emit('updateStatus', newStatus);
-});
-
-const emojis = ["😀", "😂", "😊", "😍", "🤔", "👍", "👎", "❤️", "🔥", "🎉", "😎", "😭", "🙏", "🚀", "💡", "💯", "👀", "👋", "🥳", "🤯"];
-emojis.forEach(e => {
-  const span = document.createElement('span');
-  span.textContent = e;
-  span.onclick = () => {
-    msgInput.value += e;
-    msgInput.focus();
-    emojiPicker.style.display = 'none';
-  };
-  emojiPicker.appendChild(span);
-});
-
-emojiBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
-  emojiPicker.style.display = emojiPicker.style.display === 'flex' ? 'none' : 'flex';
-});
-
-msgInput.addEventListener('input', () => {
-  const value = msgInput.value;
-  const cursorPos = msgInput.selectionStart;
-  const textBeforeCursor = value.slice(0, cursorPos);
-  const atIndex = textBeforeCursor.lastIndexOf('@');
-  if (atIndex !== -1 && (atIndex === 0 || /\s/.test(value[atIndex - 1]))) {
-    mentionQuery = textBeforeCursor.slice(atIndex + 1).toLowerCase();
-    if (/\s/.test(mentionQuery)) {
-      mentionMode = false;
-      mentionList.style.display = 'none';
-      return;
+    function mentionUser(username) {
+        if (msgInput.value.length > 0 && !/\s$/.test(msgInput.value)) msgInput.value += ' ';
+        msgInput.value += `@${username} `;
+        msgInput.focus();
+        if (window.innerWidth <= 768) toggleUsersPanel();
     }
-    mentionMode = true;
-    showMentionList();
-  } else {
-    mentionMode = false;
-    mentionList.style.display = 'none';
-  }
-});
 
-function showMentionList() {
-  const filteredUsers = usersOnline.filter(user => 
-    user.toLowerCase().startsWith(mentionQuery) && user !== nickname
-  );
-  if (filteredUsers.length === 0 || !mentionMode) {
-    mentionList.style.display = 'none';
-    return;
-  }
-  mentionList.innerHTML = '';
-  filteredUsers.forEach(user => {
-    const div = document.createElement('div');
-    div.textContent = user;
-    div.onclick = () => insertMention(user);
-    mentionList.appendChild(div);
-  });
-  mentionList.style.display = 'block';
+    // ATUALIZADO: Função addMessage agora inclui a lógica de data e timestamp
+   function addMessage(msg) {
+    // Lógica da divisória de data
+    if (msg.timestamp) {
+        const messageDate = new Date(msg.timestamp).toDateString();
+        if (messageDate !== lastMessageDate) {
+            createDateDivider(msg.timestamp);
+            lastMessageDate = messageDate;
+        }
+    }
+
+    const isMentioned = msg.mentions && msg.mentions.includes(currentNickname);
+    if (isMentioned) {
+        const meuStatusAtual = statusSelect.value;
+        if (meuStatusAtual !== 'ocupado' && mentionSound && isAudioUnlocked) {
+            mentionSound.play().catch(e => console.error("Erro ao tocar áudio:", e));
+        }
+    }
+
+    const isSelf = msg.nickname === currentNickname;
+    const author = allRoomUsers.find(u => u.nickname === msg.nickname) || { nickname: msg.nickname };
+
+    // Cria o contêiner principal da mensagem
+    const messageRow = document.createElement('div');
+    messageRow.classList.add('message-row', isSelf ? 'self' : 'other');
+
+    if (isMentioned) {
+        messageRow.classList.add('mention-full-highlight');
+    }
+
+    // Avatar
+    const avatarDiv = document.createElement('div');
+    avatarDiv.classList.add('message-avatar');
+    const img = document.createElement('img');
+    img.src = getUserAvatar(author);
+    img.alt = msg.nickname.charAt(0).toUpperCase();
+    avatarDiv.appendChild(img);
+
+    // Wrapper para o conteúdo (que agora só contém o balão)
+    const messageContentWrapper = document.createElement('div');
+    messageContentWrapper.classList.add('message-content-wrapper');
+
+    // Header (Nickname + Timestamp)
+    const messageHeader = document.createElement('div');
+    messageHeader.classList.add('message-header');
+    const nicknameEl = document.createElement('strong');
+    nicknameEl.textContent = msg.nickname;
+    nicknameEl.style.color = msg.color || '#000000';
+    if (isSelf && !isMentioned) {
+        nicknameEl.style.color = 'rgba(255,255,255,0.8)';
+    }
+    const timestampEl = document.createElement('span');
+    timestampEl.classList.add('message-timestamp');
+    timestampEl.textContent = formatTimestamp(msg.timestamp);
+    messageHeader.appendChild(nicknameEl);
+    messageHeader.appendChild(timestampEl);
+
+    // Bubble (agora contém o Header, Texto e Imagem)
+    const messageBubble = document.createElement('div');
+    messageBubble.classList.add('message-bubble');
+
+    // *** A CORREÇÃO PRINCIPAL ESTÁ AQUI ***
+    // Movemos o Header para DENTRO do Bubble
+    messageBubble.appendChild(messageHeader);
+
+    if (msg.imageData) {
+        const imgContent = document.createElement('img');
+        imgContent.src = msg.imageData;
+        imgContent.classList.add('chat-image');
+        imgContent.onclick = () => window.open(msg.imageData, '_blank');
+        messageBubble.appendChild(imgContent);
+    }
+    if (msg.text) {
+        const textSpan = document.createElement('span');
+        textSpan.textContent = msg.text;
+        messageBubble.appendChild(textSpan);
+    }
+
+    // Montagem final
+    messageContentWrapper.appendChild(messageBubble); // O wrapper agora só tem o bubble
+    messageRow.appendChild(avatarDiv);
+    messageRow.appendChild(messageContentWrapper);
+
+    messagesDiv.appendChild(messageRow);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-function insertMention(username) {
-  const value = msgInput.value;
-  const cursorPos = msgInput.selectionStart;
-  const textBeforeCursor = value.slice(0, cursorPos);
-  const textAfterCursor = value.slice(cursorPos);
-  const atIndex = textBeforeCursor.lastIndexOf('@');
-  msgInput.value = textBeforeCursor.slice(0, atIndex) + `@${username} ` + textAfterCursor;
-  mentionList.style.display = 'none';
-  mentionMode = false;
-  msgInput.focus();
-  const newCursorPos = atIndex + username.length + 2;
-  msgInput.setSelectionRange(newCursorPos, newCursorPos);
-}
+    function sendMsg() {
+        const text = msgInput.value.trim();
+        if (!text && !selectedImageData) return;
+        if (!isAudioUnlocked && mentionSound) {
+            mentionSound.play().then(() => {
+                mentionSound.pause();
+                isAudioUnlocked = true;
+            }).catch(() => {
+                isAudioUnlocked = true;
+            });
+        }
+        const mentions = usersOnline.filter(u => text.includes('@' + u));
+        const messagePayload = {
+            text,
+            mentions,
+            imageData: selectedImageData
+        };
+        socket.emit('message', messagePayload);
+        msgInput.value = '';
+        mentionList.style.display = 'none';
+        mentionMode = false;
+        removeImageBtn.click();
+    }
 
-sendBtn.onclick = sendMsg;
+    function updateUserList(users) {
+        const sortedUsers = users.sort((a, b) => {
+            if (a.nickname === 'Verbi') return -1;
+            if (b.nickname === 'Verbi') return 1;
+            return a.nickname.localeCompare(b.nickname);
+        });
+        
+        userListContainer.innerHTML = '';
+        
+        sortedUsers.forEach(user => {
+            const isSelf = user.nickname === currentNickname;
+            let statusText = 'Online';
+            if (user.status === 'voltoja') statusText = 'Volto Já';
+            if (user.status === 'ocupado') statusText = 'Ocupado';
+            
+            const userDiv = document.createElement('div');
+            userDiv.className = 'user-item';
+            if (isSelf) userDiv.classList.add('active');
+            
+            const userAvatarUrl = getUserAvatar(user);
+
+            let displayName = user.nickname;
+            if (user.nickname !== 'Verbi' && user.idade && user.idade !== 'N/A') {
+                displayName += ` (${user.idade})`;
+            }
+
+            userDiv.innerHTML = `
+                <div class="user-avatar"><img src="${userAvatarUrl}" alt="${user.nickname.charAt(0)}"></div>
+                <div class="user-info">
+                    <span class="user-name" style="color: ${isSelf ? 'white' : (user.color || '#333')}">${displayName}</span>
+                    <span class="user-status-text">
+                        <span class="status-dot status-${user.status || 'online'}-dot"></span>${statusText}
+                    </span>
+                </div>`;
+                
+            if (!isSelf) {
+                userDiv.title = `Mencionar @${user.nickname}`;
+                userDiv.onclick = () => mentionUser(user.nickname);
+            }
+            
+            userListContainer.appendChild(userDiv);
+        });
+    }
+
+    statusSelect.addEventListener('change', () => socket.emit('updateStatus', statusSelect.value));
+
+    const emojiPicker = document.querySelector('emoji-picker');
+    emojiBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        emojiPickerContainer.style.display = emojiPickerContainer.style.display === 'block' ? 'none' : 'block';
+    });
+    emojiPicker.addEventListener('emoji-click', event => {
+        msgInput.value += event.detail.unicode;
+    });
+
+    msgInput.addEventListener('input', () => {
+        const value = msgInput.value;
+        const cursorPos = msgInput.selectionStart;
+        const textBeforeCursor = value.slice(0, cursorPos);
+        const atIndex = textBeforeCursor.lastIndexOf('@');
+        if (atIndex !== -1 && (atIndex === 0 || /\s/.test(value[atIndex - 1]))) {
+            mentionQuery = textBeforeCursor.slice(atIndex + 1).toLowerCase();
+            if (/\s/.test(mentionQuery)) {
+                mentionMode = false;
+                mentionList.style.display = 'none';
+                return;
+            }
+            mentionMode = true;
+            showMentionList();
+        } else {
+            mentionMode = false;
+            mentionList.style.display = 'none';
+        }
+    });
+
+    function showMentionList() {
+        const filteredUsers = usersOnline.filter(user => user.toLowerCase().startsWith(mentionQuery) && user !== currentNickname);
+        if (filteredUsers.length === 0 || !mentionMode) {
+            mentionList.style.display = 'none';
+            return;
+        }
+        mentionList.innerHTML = '';
+        filteredUsers.forEach(user => {
+            const div = document.createElement('div');
+            div.textContent = user;
+            div.onclick = () => insertMention(user);
+            mentionList.appendChild(div);
+        });
+        mentionList.style.display = 'block';
+    }
+
+    function insertMention(username) {
+        const value = msgInput.value;
+        const cursorPos = msgInput.selectionStart;
+        const textBeforeCursor = value.slice(0, cursorPos);
+        const textAfterCursor = value.slice(cursorPos);
+        const atIndex = textBeforeCursor.lastIndexOf('@');
+        msgInput.value = textBeforeCursor.slice(0, atIndex) + `@${username} ` + textAfterCursor;
+        mentionList.style.display = 'none';
+        mentionMode = false;
+        msgInput.focus();
+        const newCursorPos = atIndex + username.length + 2;
+        msgInput.setSelectionRange(newCursorPos, newCursorPos);
+    }
+
+   sendBtn.onclick = sendMsg;
 msgInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !mentionMode) {
-    e.preventDefault();
-    sendMsg();
-  }
+    // NOVO: Atalho com a tecla TAB para mencionar o Verbi
+    if (e.key === 'Tab') {
+        e.preventDefault(); // Impede a ação padrão do TAB (mudar de campo)
+        if (msgInput.value.length > 0 && !/\s$/.test(msgInput.value)) {
+            msgInput.value += ' '; // Adiciona um espaço se o texto anterior não terminar com um
+        }
+        msgInput.value += '@Verbi ';
+        msgInput.focus(); // Mantém o foco no campo de texto
+    }
+
+    // Lógica de enviar com Enter (permanece a mesma)
+    if (e.key === 'Enter' && !mentionMode) {
+        e.preventDefault();
+        sendMsg();
+    }
 });
 
-document.addEventListener('click', (e) => {
-  if (!emojiPicker.contains(e.target) && e.target !== emojiBtn) {
-    emojiPicker.style.display = 'none';
-  }
-  if (!mentionList.contains(e.target) && e.target !== msgInput) {
-    mentionList.style.display = 'none';
-  }
+    document.addEventListener('click', (e) => {
+        if (!emojiPickerContainer.contains(e.target) && e.target !== emojiBtn) {
+            emojiPickerContainer.style.display = 'none';
+        }
+        if (!mentionList.contains(e.target) && e.target !== msgInput) {
+            mentionList.style.display = 'none';
+        }
+    });
+
+    async function initializePage() {
+        await fetchLoggedInUser();
+        
+        let joinData;
+
+        if (loggedInUser) {
+            joinData = {
+                sala: salaLimpa,
+            };
+        } else {
+            joinData = {
+                sala: salaLimpa,
+                nickname: guestNickname,
+                idade: guestIdade,
+                color: guestColor
+            };
+        }
+        
+        if (!loggedInUser && !guestNickname) {
+            alert("Identificação de usuário não encontrada. Por favor, entre ou use um link de convidado.");
+            window.location.href = '/';
+            return;
+        }
+
+        socket.emit('joinRoom', joinData);
+    }
+
+    initializePage();
 });
