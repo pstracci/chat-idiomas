@@ -54,7 +54,6 @@ function generateRoomPrompts(config, personality) {
     }
     return prompts;
 }
-
 // 4. CRIAÇÃO DO OBJETO FINAL DE PROMPTS
 const roomPrompts = generateRoomPrompts(LANGUAGE_CONFIG, VERBI_PERSONALITY_RULES);
 
