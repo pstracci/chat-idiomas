@@ -523,6 +523,22 @@ io.on('connection', (socket) => {
             io.to(socket.room).emit('userList', Object.values(chatRooms[socket.room].users));
         }
     });
+	
+	// --- INÍCIO: NOVOS LISTENERS PARA "DIGITANDO" NAS SALAS DE CHAT ---
+socket.on('typing:start', () => {
+    if (socket.room && socket.nickname) {
+        // Emite para todos na sala, EXCETO para quem está digitando
+        socket.to(socket.room).emit('typing:start', { nickname: socket.nickname });
+    }
+});
+
+socket.on('typing:stop', () => {
+    if (socket.room) {
+        // Emite para todos na sala, EXCETO para quem parou de digitar
+        socket.to(socket.room).emit('typing:stop', { nickname: socket.nickname });
+    }
+});
+// --- FIM: NOVOS LISTENERS PARA "DIGITANDO" NAS SALAS DE CHAT ---
 
     // ... (O restante do seu código de videochamada e disconnect permanece o mesmo)
     // =======================================================================
@@ -656,7 +672,7 @@ io.on('connection', (socket) => {
             if (usersInRoom.length > 0) {
                 io.to(socket.room).emit('userList', usersInRoom);
             } else {
-                delete chatRooms[socket.room];
+               // delete chatRooms[socket.room];
             }
         }
         const userId = socket.request.user?.id;

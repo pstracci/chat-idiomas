@@ -37,6 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const headerUserProfile = document.querySelector('.user-profile');
     const headerUserName = document.getElementById('header-user-name');
     const headerUserAvatar = document.getElementById('header-user-avatar');
+	const typingIndicator = document.getElementById('typing-indicator');
+	const typingUserName = document.getElementById('typing-user-name');
 
     if (roomTitleEl) {
         roomTitleEl.textContent = sala.charAt(0).toUpperCase() + sala.slice(1);
@@ -51,6 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let loggedInUser = null;
     let currentNickname = guestNickname;
     let lastMessageDate = null; // NOVO: Variável para controlar a divisória de data
+	let typingTimeout = null;
 
     // --- INÍCIO: NOVAS FUNÇÕES DE DATA E HORA ---
 
@@ -298,6 +301,13 @@ document.addEventListener('DOMContentLoaded', () => {
             mentions,
             imageData: selectedImageData
         };
+		
+		// NOVO: Avisa que parou de digitar ao enviar a mensagem
+    socket.emit('typing:stop');
+    clearTimeout(typingTimeout);
+    typingTimeout = null;
+	
+	
         socket.emit('message', messagePayload);
         msgInput.value = '';
         mentionList.style.display = 'none';
@@ -311,6 +321,32 @@ document.addEventListener('DOMContentLoaded', () => {
             if (b.nickname === 'Verbi') return 1;
             return a.nickname.localeCompare(b.nickname);
         });
+		
+		// --- INÍCIO: LÓGICA PARA "DIGITANDO" ---
+msgInput.addEventListener('input', () => {
+    if (!typingTimeout) {
+        socket.emit('typing:start');
+    } else {
+        clearTimeout(typingTimeout);
+    }
+
+    typingTimeout = setTimeout(() => {
+        socket.emit('typing:stop');
+        typingTimeout = null;
+    }, 2000); // 2 segundos de inatividade para parar
+});
+
+socket.on('typing:start', (data) => {
+    typingUserName.textContent = data.nickname;
+    typingIndicator.style.display = 'flex';
+});
+
+socket.on('typing:stop', (data) => {
+    // Por enquanto, vamos simplesmente esconder. Uma lógica mais avançada poderia
+    // gerenciar múltiplos usuários digitando.
+    typingIndicator.style.display = 'none';
+});
+// --- FIM: LÓGICA PARA "DIGITANDO" ---
         
         userListContainer.innerHTML = '';
         
