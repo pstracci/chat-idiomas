@@ -1,4 +1,4 @@
-// server.js (COMPLETO E COM A LÓGICA DE PROMPTS E TIMESTAMPS)
+// server.js (COMPLETO E COM LÓGICA DE MEMÓRIA APRIMORADA)
 
 console.log('--- EXECUTANDO A VERSÃO MAIS RECENTE DO SERVER.JS ---');
 
@@ -11,11 +11,12 @@ if (process.env.NODE_ENV !== "production") {
 // =======================================================================
 
 // 1. DEFINA A PERSONALIDADE DO VERBI AQUI
-// Este é o local central para alterar as regras de comportamento do Verbi.
 const VERBI_PERSONALITY_RULES = `
 Você é o Verbi, um tutor de idiomas amigável, paciente e encorajador do site Verbi.
 Sua principal função é motivar os usuários a praticar.
-- Seja sempre positivo e didático.
+
+- Regras de Comportamento:
+- Seja sempre positivo e didático e engraçado.
 - Use emojis para deixar a conversa mais leve.
 - Se um usuário errar, corrija-o de forma gentil, explicando o porquê do erro.
 - Faça perguntas para estimular a continuação da conversa.
@@ -24,6 +25,12 @@ Sua principal função é motivar os usuários a praticar.
 - Você tem comportamento de robô. Não entende muito bem ironias.
 - Se alguem tenta sair do tema você desconversa e tenta voltar ao assunto principal.
 - Se alguém te tratar mal ou com desdém, você não aceita calado, retribui na mesma moeda, com sarcasmo.
+
+- Regras de Memória e Contexto:
+- O histórico da conversa será fornecido a você. As mensagens dos usuários são prefixadas com seus nicknames (ex: 'ricardofjr: ...'). Preste MUITA atenção nesses nicknames para saber quem disse o quê.
+- VOCÊ DEVE se lembrar de fatos que os usuários te contam (nomes, nomes de pets, hobbies, etc.).
+- Quando um usuário perguntar algo como "qual é o nome do meu cachorro?", você DEVE olhar o histórico para encontrar a resposta que ele já te deu.
+- NÃO peça por uma informação que já foi fornecida no histórico recente. Use a sua memória para responder diretamente.
 `;
 
 // 2. MAPEAMENTO DAS SALAS E SEUS RESPECTIVOS IDIOMAS
@@ -377,13 +384,12 @@ io.on('connection', (socket) => {
             }
             chatRooms[sala].users[socket.id] = userData;
             
-            // NOVO: Filtra o histórico para manter apenas mensagens da última semana
             const oneWeekAgo = new Date();
             oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
             const recentHistory = chatRooms[sala].history.filter(msg => new Date(msg.timestamp) > oneWeekAgo);
-            chatRooms[sala].history = recentHistory; // Limpa o histórico no servidor também
+            chatRooms[sala].history = recentHistory;
 
-            socket.emit('chatHistory', recentHistory); // Envia apenas o histórico recente
+            socket.emit('chatHistory', recentHistory);
             io.to(sala).emit('userList', Object.values(chatRooms[sala].users));
         } catch (error) {
             console.error("Erro no evento joinRoom:", error);
@@ -414,42 +420,55 @@ io.on('connection', (socket) => {
             return;
         }
         if (room && user) {
-            // NOVO: Adiciona timestamp a todas as mensagens
             const messageData = { 
                 nickname: socket.nickname, 
                 color: user.color, 
                 text: msg.text, 
                 mentions: msg.mentions, 
                 imageData: msg.imageData,
-                timestamp: new Date() // Adiciona a data e hora atual
+                timestamp: new Date()
             };
             room.history.push(messageData);
-            
-            // REMOVIDO: Limite antigo de 100 mensagens
-            // if (room.history.length > 100) room.history.shift(); 
             
             io.to(socket.room).emit('message', messageData);
             const tutorMention = msg.mentions.find(mention => mention.toLowerCase() === 'verbi');
             if (tutorMention) {
                 const systemPrompt = roomPrompts[socket.room] || "Você é um assistente de IA útil.";
                 const userPrompt = msg.text.replace(/@Verbi/gi, '').trim();
+
                 if (userPrompt.length > 0) {
                     try {
+                        const HISTORY_LENGTH = 10;
+                        const recentHistory = room.history.slice(-HISTORY_LENGTH - 1, -1);
+                        
+                        const formattedHistory = recentHistory.map(historyMsg => {
+                            if (historyMsg.nickname === 'Verbi') {
+                                return { role: 'assistant', content: historyMsg.text };
+                            } else if (historyMsg.text) { // Garante que mensagens sem texto (ex: só imagem) não entrem
+                                return { role: 'user', content: `${historyMsg.nickname}: ${historyMsg.text}` };
+                            }
+                            return null;
+                        }).filter(Boolean);
+
+                        const messagesForApi = [
+                            { role: "system", content: systemPrompt },
+                            ...formattedHistory,
+                            { role: "user", content: `${socket.nickname}: ${userPrompt}` }
+                        ];
+
                         const completion = await openai.chat.completions.create({
                             model: "gpt-4o-mini",
-                            messages: [
-                                { role: "system", content: systemPrompt },
-                                { role: "user", content: userPrompt }
-                            ],
+                            messages: messagesForApi,
                         });
+
                         const text = completion.choices[0].message.content;
                         const tutorResponse = {
                             nickname: 'Verbi',
                             color: '#FF6347',
-                            text: `@${socket.nickname} ${text}`,
-                            mentions: [socket.nickname],
+                            text: text,
+                            mentions: [],
                             imageData: null,
-                            timestamp: new Date() // Adiciona timestamp para o Verbi também
+                            timestamp: new Date()
                         };
                         room.history.push(tutorResponse);
                         io.to(socket.room).emit('message', tutorResponse);
