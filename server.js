@@ -100,7 +100,18 @@ const prisma = new PrismaClient();
 const app = express();
 const corsOptions = { origin: 'https://www.verbi.com.br', optionsSuccessStatus: 200 };
 const server = http.createServer(app);
-const io = new Server({ maxHttpBufferSize: 5e6 });
+const io = new Server({
+    maxHttpBufferSize: 5e6,
+    cors: {
+        // Permite conexões do seu domínio principal E de qualquer subdomínio do Railway
+        origin: [
+            "https://www.verbi.com.br",
+            /\.up\.railway\.app$/ // Isto é uma Expressão Regular que aceita qualquer URL que termine com .up.railway.app
+        ],
+        methods: ["GET", "POST"]
+    }
+});
+io.attach(server);
 io.attach(server);
 
 const userSocketMap = {};
