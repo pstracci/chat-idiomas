@@ -232,6 +232,19 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // --- EVENT LISTENERS ---
 
+if (chatBtn) {
+    chatBtn.addEventListener('click', () => {
+        // Verifica se temos os dados do perfil carregados
+        if (profileData && profileData.user && profileData.user.id) {
+            // Redireciona para a página de DM, passando o ID do usuário do perfil
+            window.location.href = `/dm.html?with=${profileData.user.id}`;
+        } else {
+            // Alerta caso algo inesperado aconteça
+            alert('Não foi possível iniciar a conversa. Tente recarregar a página.');
+        }
+    });
+}
+
     // Listener para o formulário de salvamento.
     profileForm.addEventListener('submit', async (e) => {
         e.preventDefault();
