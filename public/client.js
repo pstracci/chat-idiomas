@@ -269,11 +269,20 @@ document.addEventListener('DOMContentLoaded', () => {
         imgContent.onclick = () => window.open(msg.imageData, '_blank');
         messageBubble.appendChild(imgContent);
     }
-    if (msg.text) {
-        const textSpan = document.createElement('span');
+if (msg.text) {
+    const textSpan = document.createElement('span');
+
+    if (msg.nickname === 'Verbi') {
+        // Para as mensagens do Verbi, convertemos as quebras de linha em <br> para manter a formatação
+        // e usamos .innerHTML para que o navegador interprete a tag <br>.
+        textSpan.innerHTML = msg.text.replace(/\n/g, '<br>');
+    } else {
+        // Para mensagens de usuários, continuamos usando .textContent por segurança.
         textSpan.textContent = msg.text;
-        messageBubble.appendChild(textSpan);
     }
+
+    messageBubble.appendChild(textSpan);
+}
 
     // Montagem final
     messageContentWrapper.appendChild(messageBubble); // O wrapper agora só tem o bubble
