@@ -1,4 +1,4 @@
-// /js/dm.js (COM INDICADOR "DIGITANDO" E NICKNAME NAS MENSAGENS)
+// /js/dm.js (VERSÃO CORRIGIDA E COM NOVAS FUNCIONALIDADES)
 document.addEventListener('DOMContentLoaded', () => {
     const socket = io();
 
@@ -28,20 +28,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const imageInput = document.getElementById('image-input');
     const emojiBtn = document.getElementById('emoji-btn');
     const emojiPicker = document.getElementById('emoji-picker');
-    // NOVO: Elementos do indicador "digitando"
     const typingIndicator = document.getElementById('typing-indicator');
     const typingUserName = document.getElementById('typing-user-name');
-
 
     // --- SEÇÃO: VARIÁVEIS DE ESTADO ---
     let currentChatUserId = null;
     let loggedInUser = null;
     let currentParticipant = null;
-    let typingTimeout = null; // Para controlar o evento de parar de digitar
+    let typingTimeout = null;
 
     const params = new URLSearchParams(window.location.search);
     const initialChatUserId = params.get('with');
 
+    // --- SEÇÃO: FUNÇÕES AUXILIARES ---
+
+    // NOVO: Função para formatar a data e hora
+    function formatTimestamp(dateString) {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${day}/${month}/${year} ${hours}:${minutes}`;
+    }
+    
     // --- SEÇÃO: FUNÇÕES PRINCIPAIS ---
 
     async function fetchLoggedInUser() {
@@ -139,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // ATUALIZADO: Função appendMessage agora inclui o NICKNAME
+    // ATUALIZADO: Função appendMessage agora inclui o NICKNAME e DATA/HORA
     function appendMessage(message) {
         if (!loggedInUser) return; 
 
@@ -168,15 +180,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const messageDiv = document.createElement('div');
         messageDiv.classList.add('message');
 
-        // --- INÍCIO: NICKNAME ADICIONADO AO BALÃO DE MENSAGEM ---
+        // --- INÍCIO: CABEÇALHO DA MENSAGEM (NICKNAME + DATA/HORA) ---
+        const headerEl = document.createElement('div');
+        headerEl.className = 'message-header';
+
         const nicknameEl = document.createElement('strong');
         nicknameEl.className = 'message-nickname';
         nicknameEl.textContent = message.sender?.nickname || (isSentByMe ? loggedInUser.nickname : currentParticipant.nickname);
-        messageDiv.appendChild(nicknameEl);
-        // --- FIM: NICKNAME ADICIONADO AO BALÃO DE MENSAGEM ---
+        
+        const timestampEl = document.createElement('span');
+        timestampEl.className = 'message-timestamp';
+        // A propriedade 'createdAt' vem do Prisma (banco de dados)
+        timestampEl.textContent = formatTimestamp(message.createdAt || new Date().toISOString());
+
+        headerEl.appendChild(nicknameEl);
+        headerEl.appendChild(timestampEl);
+        messageDiv.appendChild(headerEl);
+        // --- FIM: CABEÇALHO DA MENSAGEM ---
 
         if (message.text) {
             const textNode = document.createElement('span');
+            textNode.className = 'message-text'; // Classe para garantir a quebra de linha
             textNode.textContent = message.text;
             messageDiv.appendChild(textNode);
         }
@@ -204,39 +228,71 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- SEÇÃO: EVENT LISTENERS ---
+    // --- SEÇÃO: EVENT LISTENERS (CORRIGIDOS) ---
     messageForm.addEventListener('submit', (e) => { 
         e.preventDefault(); 
         const text = messageInput.value.trim(); 
         if (!text || !currentChatUserId) return; 
+        
+        const messageData = { 
+            senderId: loggedInUser.id, 
+            sender: { nickname: loggedInUser.nickname, profile: { profilePicture: loggedInUser.profile?.profilePicture } }, 
+            text: text, 
+            createdAt: new Date().toISOString()
+        };
+        appendMessage(messageData); // Adiciona a mensagem localmente de imediato
+        
         socket.emit('directMessage', { recipientId: currentChatUserId, text }); 
-        // Avisa que parou de digitar ao enviar
+        
         socket.emit('dm:typing:stop', { recipientId: currentChatUserId });
         clearTimeout(typingTimeout);
         typingTimeout = null;
         messageInput.value = ''; 
     });
     
-    // ATUALIZADO: Event listener de digitação
     messageInput.addEventListener('input', () => {
         if (!currentChatUserId) return;
-        
         if (!typingTimeout) {
-            // Se não estiver em timeout, significa que é o início da digitação
             socket.emit('dm:typing:start', { recipientId: currentChatUserId });
         } else {
-            // Se já existe um timeout, limpa para resetar
             clearTimeout(typingTimeout);
         }
-
-        // Cria um novo timeout. Se o usuário parar de digitar por 2s, envia o evento 'stop'.
         typingTimeout = setTimeout(() => {
             socket.emit('dm:typing:stop', { recipientId: currentChatUserId });
-            typingTimeout = null; // Limpa a variável para indicar que não está mais digitando
+            typingTimeout = null;
         }, 2000);
     });
 
-    imageInput.addEventListener('change', async (e) => { const file = e.target.files[0]; if (!file || !file.type.startsWith('image/')) return; if (file.size > 5e6) return alert('A imagem é muito grande! O limite é 5MB.'); try { const resizedImageData = await resizeImage(file); if (!currentChatUserId) return; socket.emit('directMessage', { recipientId: currentChatUserId, imageData: resizedImageData }); } catch (error) { console.error("Erro ao processar a imagem:", error); } finally { e.target.value = ''; } });
+    // CORRIGIDO: Listener do botão de imagem
+    imageBtn.addEventListener('click', () => {
+        imageInput.click();
+    });
+
+    // CORRIGIDO: Listener de envio da imagem
+    imageInput.addEventListener('change', async (e) => { 
+        const file = e.target.files[0]; 
+        if (!file || !file.type.startsWith('image/')) return; 
+        if (file.size > 5e6) return alert('A imagem é muito grande! O limite é 5MB.'); 
+        try { 
+            const resizedImageData = await resizeImage(file); 
+            if (!currentChatUserId) return; 
+            
+            const messageData = {
+                senderId: loggedInUser.id,
+                sender: { nickname: loggedInUser.nickname, profile: { profilePicture: loggedInUser.profile?.profilePicture } },
+                imageData: resizedImageData,
+                createdAt: new Date().toISOString()
+            };
+            appendMessage(messageData); // Adiciona a imagem localmente de imediato
+            
+            socket.emit('directMessage', { recipientId: currentChatUserId, imageData: resizedImageData }); 
+        } catch (error) { 
+            console.error("Erro ao processar a imagem:", error); 
+        } finally { 
+            e.target.value = ''; 
+        } 
+    });
+
     videoCallBtn.addEventListener('click', () => { if (!currentChatUserId) return alert('Selecione uma conversa para iniciar uma chamada.'); if (confirm("Iniciar uma chamada de vídeo custará 1 crédito. Deseja prosseguir?")) { socket.emit('video:invite', { recipientId: currentChatUserId }); } });
     acceptCallBtn.addEventListener('click', () => { socket.emit('video:accept', { requesterId: acceptCallBtn.dataset.requesterId, channel: acceptCallBtn.dataset.channel }); incomingCallModal.style.display = 'none'; });
     declineCallBtn.addEventListener('click', () => { socket.emit('video:decline', { requesterId: declineCallBtn.dataset.requesterId, channel: declineCallBtn.dataset.channel }); incomingCallModal.style.display = 'none'; });
@@ -259,17 +315,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         socket.on('directMessage', (message) => {
-            const isForCurrentChat = message.senderId === currentChatUserId || (message.senderId === loggedInUser.id && message.recipientId === currentChatUserId);
+            // CORRIGIDO: Lógica para não duplicar mensagens enviadas
+            const isForCurrentChat = message.senderId === currentChatUserId || (message.recipientId === currentChatUserId && message.senderId === loggedInUser.id);
             
-            if (isForCurrentChat) {
-                // Ao receber uma mensagem, garante que o indicador "digitando" seja escondido
+            if (isForCurrentChat && message.senderId !== loggedInUser.id) {
                 typingIndicator.style.display = 'none';
                 appendMessage(message);
-                if (message.senderId !== loggedInUser.id) {
-                    fetch(`/api/dm/conversations/read/${message.senderId}`, { method: 'PUT' });
-                }
+                fetch(`/api/dm/conversations/read/${message.senderId}`, { method: 'PUT' });
             }
             
+            // Recarrega a lista de conversas para mostrar a última mensagem
             loadConversations().then(() => {
                 if(currentChatUserId) {
                     document.querySelectorAll('.conversation-item').forEach(item => {
@@ -311,9 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // --- INÍCIO: NOVOS LISTENERS PARA "DIGITANDO" ---
         socket.on('dm:typing:start', (data) => {
-            // Mostra o indicador apenas se for da conversa atualmente aberta
             if (data.senderId === currentChatUserId) {
                 typingUserName.textContent = data.senderNickname;
                 typingIndicator.style.display = 'flex';
@@ -321,12 +374,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         socket.on('dm:typing:stop', (data) => {
-            // Esconde o indicador se for da conversa atualmente aberta
             if (data.senderId === currentChatUserId) {
                 typingIndicator.style.display = 'none';
             }
         });
-        // --- FIM: NOVOS LISTENERS PARA "DIGITANDO" ---
     }
 
 
@@ -380,4 +431,37 @@ document.addEventListener('DOMContentLoaded', () => {
             reader.readAsDataURL(file);
         });
     }
+
+    // --- CORRIGIDO: Lógica dos Emojis ---
+    // Esta implementação simples adiciona emojis ao input de texto.
+    // O seu HTML já tem um div #emoji-picker, vamos populá-lo.
+    function populateEmojiPicker() {
+        if (!emojiPicker) return;
+        const emojis = ["😀", "😂", "❤️", "👍", "😭", "🙏", "🎉", "🔥", "😊", "😍", "🤔", "😎", "💯", "🙄", "👋", "👏", "👀", "✨", "🚀", "✅"];
+        emojis.forEach(emoji => {
+            const span = document.createElement('span');
+            span.textContent = emoji;
+            span.style.cursor = 'pointer';
+            span.style.padding = '5px';
+            span.addEventListener('click', () => {
+                messageInput.value += emoji;
+                messageInput.focus();
+                emojiPicker.style.display = 'none';
+            });
+            emojiPicker.appendChild(span);
+        });
+    }
+    
+    emojiBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        emojiPicker.style.display = emojiPicker.style.display === 'block' ? 'none' : 'block';
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!emojiPicker.contains(e.target) && e.target !== emojiBtn) {
+            emojiPicker.style.display = 'none';
+        }
+    });
+
+    populateEmojiPicker(); // Chama a função para criar os emojis
 });

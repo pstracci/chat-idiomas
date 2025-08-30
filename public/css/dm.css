@@ -275,3 +275,86 @@ body {
     object-fit: cover;     /* Garante que a imagem preencha o espaço sem distorcer */
     cursor: pointer;       /* Indica que a imagem é clicável para ver em tamanho original */
 }
+/* ================================================================== */
+/* == INÍCIO: NOVOS ESTILOS PARA FUNCIONALIDADES DO CHAT (DM) == */
+/* ================================================================== */
+
+/* 1. ESTILOS PARA O CABEÇALHO DA MENSAGEM (NOME E DATA/HORA) */
+/* ------------------------------------------------------------------ */
+
+.message-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 5px; /* Espaço entre o cabeçalho e o texto/imagem abaixo */
+}
+
+.message-nickname {
+    font-weight: bold;
+    font-size: 0.9em;
+    color: #007aff; /* Cor padrão para o nome */
+}
+
+.message-timestamp {
+    font-size: 0.75em;
+    color: #888; /* Cor padrão para a data/hora */
+}
+
+/* Garante que o texto fique na linha de baixo */
+.message-text {
+    display: block; 
+}
+
+/* Ajustes de cor para as mensagens ENVIADAS (fundo azul) */
+.message-wrapper.sent .message-nickname {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.message-wrapper.sent .message-timestamp {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Ajustes de cor para as mensagens RECEBIDAS (fundo cinza) */
+.message-wrapper.received .message-nickname {
+    color: #555;
+}
+
+
+/* 2. ESTILOS PARA O INDICADOR "ESTÁ DIGITANDO..." */
+/* ------------------------------------------------------------------ */
+
+.typing-indicator {
+    display: flex; /* Mude para 'flex' via JS para mostrar */
+    align-items: center;
+    padding: 5px 20px;
+    color: #6c757d;
+    font-style: italic;
+    height: 24px; /* Altura fixa para não "pular" a tela */
+    transition: opacity 0.3s;
+}
+
+/* Animação dos três pontinhos */
+.typing-dots span {
+    height: 8px;
+    width: 8px;
+    background-color: #aeb5bc;
+    border-radius: 50%;
+    display: inline-block;
+    margin: 0 2px;
+    animation: typing-animation 1.4s infinite ease-in-out both;
+}
+.typing-dots span:nth-child(1) {
+    animation-delay: -0.32s;
+}
+.typing-dots span:nth-child(2) {
+    animation-delay: -0.16s;
+}
+
+@keyframes typing-animation {
+    0%, 80%, 100% {
+        transform: scale(0);
+    }
+    40% {
+        transform: scale(1.0);
+    }
+}
